@@ -1,1 +1,235 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#173021"><title>Matcha Location Finder</title><style>:root{--bg:#f3f5ef;--ink:#172019;--muted:#758077;--line:#dce3dc;--brand:#173021;--soft:#eaf1e7;--ok:#2d7340}*{box-sizing:border-box}html,body{margin:0;width:100%;overflow-x:hidden;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-text-size-adjust:100%}body{min-height:100dvh;padding-bottom:calc(78px + env(safe-area-inset-bottom))}.app{width:100%;max-width:720px;margin:auto}header{position:sticky;top:0;z-index:20;background:rgba(243,245,239,.97);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);padding:calc(10px + env(safe-area-inset-top)) 12px 10px}.head{display:flex;align-items:center;justify-content:space-between;gap:10px}.brand{min-width:0}.brand h1{font-size:19px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.brand p{font-size:11px;color:var(--muted);margin:3px 0 0}.icon{flex:0 0 42px;height:42px;border:1px solid var(--line);border-radius:12px;background:#fff}.tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:10px 12px 0}.controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 12px 0}.tab,.filter{border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px;font-weight:800}.tab.active{background:var(--brand);color:#fff;border-color:var(--brand)}.summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding:10px 12px 12px}.stat{background:#fff;border:1px solid var(--line);border-radius:13px;padding:9px;min-width:0}.stat b{display:block;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.stat span{font-size:9.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}.section{padding:0 12px 8px;display:flex;justify-content:space-between;gap:10px;align-items:end}.section h2{font-size:16px;margin:0}.section span{font-size:10px;color:var(--muted)}.list{padding:0 12px;display:flex;flex-direction:column;gap:10px}.card{background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden}.cardbody{padding:14px}.top{display:flex;justify-content:space-between;gap:10px;align-items:start}.title{font-weight:850;font-size:16px;line-height:1.2}.addr{font-size:11px;color:var(--muted);margin-top:3px}.score{flex:0 0 auto;background:var(--soft);border-radius:999px;padding:7px 10px;font-weight:850;color:var(--brand)}.price{font-size:22px;font-weight:900;margin-top:12px}.price small{font-size:11px;color:var(--muted);font-weight:600}.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.tag{border:1px solid var(--line);border-radius:999px;padding:5px 8px;font-size:11px;background:#fafbfa}.ok{color:var(--ok)}.reason{font-size:12px;line-height:1.45;color:#435047;margin-top:10px}.actions{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line)}.actions a,.actions button{height:46px;border:0;background:#fff;color:var(--ink);font-weight:800;text-decoration:none;display:flex;align-items:center;justify-content:center;font-size:12px}.actions>*+*{border-left:1px solid var(--line)}#mapMode{padding:0 12px}.mapbox{position:relative;height:58dvh;min-height:390px;border-radius:18px;overflow:hidden;border:1px solid var(--line);background:linear-gradient(90deg,#ffffff50 1px,transparent 1px),linear-gradient(#ffffff50 1px,transparent 1px),#dce7d6;background-size:38px 38px}.road{position:absolute;background:#ffffffa8;border-radius:999px}.r1{width:110%;height:18px;left:-5%;top:38%;transform:rotate(-18deg)}.r2{width:95%;height:14px;left:5%;top:62%;transform:rotate(12deg)}.r3{width:16px;height:110%;left:55%;top:-5%;transform:rotate(8deg)}.bottom{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:100%;max-width:720px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:#fffffff2;backdrop-filter:blur(14px);border-top:1px solid var(--line);z-index:40;padding:6px 3px calc(6px + env(safe-area-inset-bottom))}.nav{border:0;background:transparent;color:var(--muted);font-size:9.5px;min-width:0}.nav strong{display:block;font-size:20px;line-height:21px}.nav.active{color:var(--brand);font-weight:850}.sheetwrap{position:fixed;inset:0;z-index:100;background:#07100a66;display:none;align-items:flex-end}.sheetwrap.open{display:flex}.sheet{width:100%;max-width:720px;margin:auto;background:#fff;border-radius:22px 22px 0 0;max-height:88dvh;overflow:auto;padding:8px 14px calc(18px + env(safe-area-inset-bottom))}.handle{width:44px;height:5px;background:#d3dad3;border-radius:99px;margin:4px auto 12px}.close{float:right;border:0;background:#eef1ee;border-radius:50%;width:38px;height:38px}.field{margin:12px 0}.field label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}.field input,.field select,.field textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;background:#fff}.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}.primary{width:100%;border:0;border-radius:12px;background:var(--brand);color:#fff;padding:13px;font-weight:850}.hidden{display:none!important}.deal-score-box{margin-top:10px;padding:10px;border-radius:13px;background:#fffaf0;border:1px solid #ead9aa}.deal-score-top{display:flex;justify-content:space-between;gap:10px;align-items:center}.deal-score-top b{font-size:13px}.deal-num{font-size:18px;font-weight:900;color:#775400}.deal-reasons{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.deal-reason{font-size:10px;padding:4px 7px;border-radius:999px;background:#fff;border:1px solid #ead9aa;color:#775400;font-weight:750}@media(max-width:360px){.summary{grid-template-columns:1fr}.two{grid-template-columns:1fr}}</style></head><body><div class="app"><header><div class="head"><div class="brand"><h1>🍵 Matcha Location Finder</h1><p>München · помещение под Matcha Bar</p></div><button class="icon" onclick="openSheet('filterSheet')">⚙️</button></div></header><div class="tabs"><button class="tab active" id="tabList" onclick="showMode('list')">Список</button><button class="tab" id="tabDeals" onclick="showMode('deals')">💎 Выгода</button><button class="tab" id="tabMap" onclick="showMode('map')">Карта</button></div><div class="controls"><button class="filter" onclick="setPreset('top')">🔥 Только сильные</button><button class="filter" onclick="setPreset('budget')">≤ €3 000</button></div><div class="summary"><div class="stat"><b id="sCount">0</b><span>кандидатов</span></div><div class="stat"><b id="sAvg">—</b><span>ср. аренда</span></div><div class="stat"><b id="sTop">—</b><span>лучший score</span></div></div><section id="listMode"><div class="section"><h2>Кандидаты</h2><span>данные из репозитория</span></div><div id="list" class="list"></div></section><section id="dealsMode" class="hidden"><div class="section"><h2>💎 Выгодные условия</h2><span>редкие преимущества</span></div><div id="dealsList" class="list"></div></section><section id="mapMode" class="hidden"><div class="section"><h2>Карта кандидатов</h2><span>следующий слой данных</span></div><div class="mapbox"><div class="road r1"></div><div class="road r2"></div><div class="road r3"></div></div></section></div><nav class="bottom"><button class="nav active" onclick="showMode('list')"><strong>⌂</strong>Список</button><button class="nav" onclick="showMode('map')"><strong>⌖</strong>Карта</button><button class="nav" onclick="openSheet('addSheet')"><strong>＋</strong>Добавить</button><button class="nav" onclick="openSheet('filterSheet')"><strong>⚙</strong>Фильтры</button></nav><div id="detailSheet" class="sheetwrap" onclick="closeBackdrop(event,'detailSheet')"><div class="sheet"><div class="handle"></div><button class="close" onclick="closeSheet('detailSheet')">×</button><div id="detail"></div></div></div><div id="filterSheet" class="sheetwrap" onclick="closeBackdrop(event,'filterSheet')"><div class="sheet"><div class="handle"></div><button class="close" onclick="closeSheet('filterSheet')">×</button><h3>Фильтры</h3><div class="two"><div class="field"><label>Мин. площадь</label><input id="fMin" type="number" value="25"></div><div class="field"><label>Макс. площадь</label><input id="fMax" type="number" value="90"></div></div><div class="field"><label>Макс. аренда</label><input id="fRent" type="number" value="3500"></div><button class="primary" onclick="applyFilters()">Применить</button></div></div><div id="addSheet" class="sheetwrap" onclick="closeBackdrop(event,'addSheet')"><div class="sheet"><div class="handle"></div><button class="close" onclick="closeSheet('addSheet')">×</button><h3>Добавить свой объект</h3><div class="field"><label>Район</label><input id="aDistrict"></div><div class="field"><label>Адрес</label><input id="aAddress"></div><div class="two"><div class="field"><label>м²</label><input id="aArea" type="number"></div><div class="field"><label>Аренда €</label><input id="aRent" type="number"></div></div><div class="field"><label>Ссылка</label><input id="aUrl"></div><div class="field"><label>Заметка</label><textarea id="aNote" rows="4"></textarea></div><button class="primary" onclick="addOwn()">Сохранить</button></div></div><script>let base=[];let filters={min:25,max:90,rent:3500,preset:'all'};function el(id){return document.getElementById(id)}function own(){try{return JSON.parse(localStorage.getItem('matcha_v2_own')||'[]')}catch(e){return[]}}function items(){return [...own(),...base]}function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function filtered(){let a=items().filter(x=>(x.area==null||x.area>=filters.min&&x.area<=filters.max)&&(x.rent==null||x.rent<=filters.rent));if(filters.preset==='top')a=a.filter(x=>(x.score||0)>=8.3);if(filters.preset==='budget')a=a.filter(x=>x.rent!=null&&x.rent<=3000);return a.sort((a,b)=>(b.score||0)-(a.score||0))}function calcDealScore(x){let s=0,r=[];let f=(x.fees||'').toLowerCase();if(f.includes('provisionsfrei')){s+=25;r.push('+25 без Provision')}if(f.includes('ohne ablöse')||f.includes('без ablöse')){s+=25;r.push('+25 без Ablöse')}if(x.rent!=null){if(x.rent<=1800){s+=20;r.push('+20 аренда ≤ €1.8k')}else if(x.rent<=2300){s+=14;r.push('+14 аренда ≤ €2.3k')}else if(x.rent<=3000){s+=8;r.push('+8 аренда в бюджете')}}if(x.gastro==='yes'){s+=8;r.push('+8 Gastro')}return{score:Math.min(100,s),label:s>=55?'🔥 Очень выгодно':s>=35?'🟢 Выгодно':s>=20?'🟡 Есть плюс':'Обычные условия',reasons:r}}function cardHtml(x){const ds=calcDealScore(x);const price=x.rent==null?'Цена по запросу':'€'+Number(x.rent).toLocaleString('de-DE');const area=x.area==null?'площадь ?':x.area+' м²';return `<article class="card"><div class="cardbody" onclick="openDetail('${x.id}')"><div class="top"><div><div class="title">${esc(x.district)}</div><div class="addr">${esc(x.source||'')} · ${area}</div></div><div class="score">${Number(x.score||0).toFixed(1)}</div></div><div class="price">${price} <small>/ мес.${x.nk?' + €'+x.nk+' NK':''}</small></div><div class="tags"><span class="tag">${area}</span><span class="tag ${x.gastro==='yes'?'ok':''}">${x.gastro==='yes'?'Gastro ✓':'Gastro ?'}</span><span class="tag">${esc(x.status||'')}</span></div>${ds.score>=20?`<div class="deal-score-box"><div class="deal-score-top"><b>${ds.label}</b><span class="deal-num">${ds.score}/100</span></div><div class="deal-reasons">${ds.reasons.map(v=>`<span class="deal-reason">${esc(v)}</span>`).join('')}</div></div>`:''}<div class="reason">${esc(x.note||'')}</div></div><div class="actions"><button onclick="openDetail('${x.id}')">Подробнее</button><a target="_blank" href="${esc(x.url||'#')}">Объявление ↗</a></div></article>`}function render(){const a=filtered(),known=a.filter(x=>x.rent!=null);el('sCount').textContent=a.length;el('sAvg').textContent=known.length?'€'+Math.round(known.reduce((s,x)=>s+x.rent,0)/known.length):'—';el('sTop').textContent=a.length?Math.max(...a.map(x=>x.score||0)).toFixed(1):'—';el('list').innerHTML=a.map(cardHtml).join('')||'<div class="card"><div class="cardbody">Нет объектов под фильтр.</div></div>';const deals=items().filter(x=>calcDealScore(x).score>=20).sort((a,b)=>calcDealScore(b).score-calcDealScore(a).score);el('dealsList').innerHTML=deals.map(cardHtml).join('')||'<div class="card"><div class="cardbody">Пока нет выгодных условий.</div></div>'}function showMode(m){el('listMode').classList.toggle('hidden',m!=='list');el('dealsMode').classList.toggle('hidden',m!=='deals');el('mapMode').classList.toggle('hidden',m!=='map');el('tabList').classList.toggle('active',m==='list');el('tabDeals').classList.toggle('active',m==='deals');el('tabMap').classList.toggle('active',m==='map')}function setPreset(p){filters.preset=filters.preset===p?'all':p;render()}function openDetail(id){const x=items().find(v=>v.id===id);if(!x)return;const price=x.rent==null?'Цена по запросу':'€'+Number(x.rent).toLocaleString('de-DE');el('detail').innerHTML=`<h3>${esc(x.district)}</h3><p class="addr">${esc(x.source||'')}</p><div class="price">${price}</div><div class="tags"><span class="tag">${x.area??'?'} м²</span><span class="tag">${Number(x.score||0).toFixed(1)}/10</span></div><div class="reason" style="font-size:13px;margin:14px 0">${esc(x.note||'')}</div><div class="reason"><b>Ablöse / Provision:</b> ${esc(x.fees||'уточнить')}</div><p><a target="_blank" href="${esc(x.url||'#')}" style="display:block;text-align:center;background:#173021;color:#fff;padding:13px;border-radius:12px;text-decoration:none;font-weight:800">Открыть объявление</a></p>`;openSheet('detailSheet')}function openSheet(id){el(id).classList.add('open');document.body.style.overflow='hidden'}function closeSheet(id){el(id).classList.remove('open');document.body.style.overflow=''}function closeBackdrop(e,id){if(e.target.id===id)closeSheet(id)}function applyFilters(){filters.min=+el('fMin').value||0;filters.max=+el('fMax').value||999;filters.rent=+el('fRent').value||999999;closeSheet('filterSheet');render()}function addOwn(){const d=el('aDistrict').value.trim(),area=+el('aArea').value,rent=+el('aRent').value;if(!d||!area){alert('Нужны район и площадь.');return}const a=own();a.unshift({id:'own-'+Date.now(),source:'manual',district:d,address:el('aAddress').value.trim(),area,rent:rent||null,gastro:'check',score:7,status:'📌 Свой',url:el('aUrl').value.trim(),fees:'уточнить',note:el('aNote').value.trim()});localStorage.setItem('matcha_v2_own',JSON.stringify(a));closeSheet('addSheet');render()}fetch('data/listings.json').then(r=>r.json()).then(d=>{base=d;render()}).catch(()=>render());</script></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#173021">
+
+  <title>Matcha Location Finder</title>
+
+  <link rel="stylesheet" href="./css/styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <div class="header-row">
+        <div class="brand">
+          <h1>🍵 Matcha Location Finder</h1>
+          <p>München · помещение под Matcha Bar</p>
+        </div>
+
+        <button
+          class="icon-button"
+          type="button"
+          aria-label="Открыть фильтры"
+          data-open-sheet="filterSheet"
+        >
+          ⚙️
+        </button>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="Основные разделы">
+      <button class="tab active" id="tabList" type="button" data-mode="list">
+        Список
+      </button>
+
+      <button class="tab" id="tabDeals" type="button" data-mode="deals">
+        💎 Выгода
+      </button>
+
+      <button class="tab" id="tabMap" type="button" data-mode="map">
+        Карта
+      </button>
+    </nav>
+
+    <section class="quick-filters" aria-label="Быстрые фильтры">
+      <button class="quick-filter" type="button" data-preset="top">
+        🔥 Только сильные
+      </button>
+
+      <button class="quick-filter" type="button" data-preset="budget">
+        ≤ €3 000
+      </button>
+    </section>
+
+    <section class="summary" aria-label="Сводка">
+      <div class="stat">
+        <strong id="sCount">0</strong>
+        <span>кандидатов</span>
+      </div>
+
+      <div class="stat">
+        <strong id="sAvg">—</strong>
+        <span>ср. аренда</span>
+      </div>
+
+      <div class="stat">
+        <strong id="sTop">—</strong>
+        <span>лучший score</span>
+      </div>
+    </section>
+
+    <main>
+      <section id="listMode">
+        <div class="section-heading">
+          <h2>Кандидаты</h2>
+          <span>данные из репозитория</span>
+        </div>
+
+        <div id="list" class="list"></div>
+      </section>
+
+      <section id="dealsMode" class="hidden">
+        <div class="section-heading">
+          <h2>💎 Выгодные условия</h2>
+          <span>редкие преимущества</span>
+        </div>
+
+        <div id="dealsList" class="list"></div>
+      </section>
+
+      <section id="mapMode" class="hidden">
+        <div class="section-heading">
+          <h2>Карта кандидатов</h2>
+          <span>следующий слой проекта</span>
+        </div>
+
+        <div class="map-placeholder" aria-label="Место для карты"></div>
+      </section>
+    </main>
+  </div>
+
+  <nav class="bottom-nav" aria-label="Нижняя навигация">
+    <button class="nav-button active" type="button" data-mode="list" data-nav-mode="list">
+      <strong>⌂</strong>
+      Список
+    </button>
+
+    <button class="nav-button" type="button" data-mode="map" data-nav-mode="map">
+      <strong>⌖</strong>
+      Карта
+    </button>
+
+    <button class="nav-button" type="button" data-open-sheet="addSheet">
+      <strong>＋</strong>
+      Добавить
+    </button>
+
+    <button class="nav-button" type="button" data-open-sheet="filterSheet">
+      <strong>⚙</strong>
+      Фильтры
+    </button>
+  </nav>
+
+  <div id="detailSheet" class="sheet-backdrop">
+    <section class="sheet" aria-label="Подробности объекта">
+      <div class="sheet-handle"></div>
+
+      <button
+        class="close-button"
+        type="button"
+        aria-label="Закрыть"
+        data-close-sheet="detailSheet"
+      >
+        ×
+      </button>
+
+      <div id="detail"></div>
+    </section>
+  </div>
+
+  <div id="filterSheet" class="sheet-backdrop">
+    <section class="sheet" aria-label="Фильтры">
+      <div class="sheet-handle"></div>
+
+      <button
+        class="close-button"
+        type="button"
+        aria-label="Закрыть"
+        data-close-sheet="filterSheet"
+      >
+        ×
+      </button>
+
+      <h3>Фильтры</h3>
+
+      <div class="two-columns">
+        <div class="field">
+          <label for="fMin">Мин. площадь</label>
+          <input id="fMin" type="number" value="25">
+        </div>
+
+        <div class="field">
+          <label for="fMax">Макс. площадь</label>
+          <input id="fMax" type="number" value="90">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="fRent">Макс. аренда</label>
+        <input id="fRent" type="number" value="3500">
+      </div>
+
+      <button id="applyFilters" class="primary-button" type="button">
+        Применить
+      </button>
+    </section>
+  </div>
+
+  <div id="addSheet" class="sheet-backdrop">
+    <section class="sheet" aria-label="Добавить объект">
+      <div class="sheet-handle"></div>
+
+      <button
+        class="close-button"
+        type="button"
+        aria-label="Закрыть"
+        data-close-sheet="addSheet"
+      >
+        ×
+      </button>
+
+      <h3>Добавить свой объект</h3>
+
+      <div class="field">
+        <label for="aDistrict">Район</label>
+        <input id="aDistrict" type="text" placeholder="Например, Schwabing">
+      </div>
+
+      <div class="field">
+        <label for="aAddress">Адрес</label>
+        <input id="aAddress" type="text" placeholder="Улица, München">
+      </div>
+
+      <div class="two-columns">
+        <div class="field">
+          <label for="aArea">Площадь, м²</label>
+          <input id="aArea" type="number">
+        </div>
+
+        <div class="field">
+          <label for="aRent">Аренда, €</label>
+          <input id="aRent" type="number">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="aUrl">Ссылка</label>
+        <input id="aUrl" type="url" placeholder="https://...">
+      </div>
+
+      <div class="field">
+        <label for="aNote">Заметка</label>
+        <textarea id="aNote" rows="4"></textarea>
+      </div>
+
+      <button id="saveListing" class="primary-button" type="button">
+        Сохранить
+      </button>
+    </section>
+  </div>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
