@@ -24,21 +24,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Embed listings fallback and disable stale cache
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import json
-          index = Path('index.html')
-          listings = Path('data/listings.json')
-          html = index.read_text(encoding='utf-8')
-          data = json.loads(listings.read_text(encoding='utf-8'))
-          payload = json.dumps(data, ensure_ascii=False, separators=(',', ':'))
-          html = html.replace('let base=[];', 'let base=' + payload + ';', 1)
-          html = html.replace("fetch('data/listings.json')", "fetch('data/listings.json?v=' + Date.now(), {cache:'no-store'})", 1)
-          index.write_text(html, encoding='utf-8')
-          PY
-
       - name: Setup Pages
         uses: actions/configure-pages@v5
 

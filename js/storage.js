@@ -2,7 +2,8 @@ const USER_LISTINGS_KEY = 'matcha_location_finder_user_listings';
 
 export function loadUserListings() {
   try {
-    return JSON.parse(localStorage.getItem(USER_LISTINGS_KEY) || '[]');
+    const listings = JSON.parse(localStorage.getItem(USER_LISTINGS_KEY) || '[]');
+    return Array.isArray(listings) ? listings : [];
   } catch {
     return [];
   }

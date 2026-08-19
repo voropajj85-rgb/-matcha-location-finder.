@@ -24,31 +24,31 @@
           aria-label="Открыть фильтры"
           data-open-sheet="filterSheet"
         >
-          ⚙️
+          <span aria-hidden="true">☰</span>
         </button>
       </div>
     </header>
 
-    <nav class="tabs" aria-label="Основные разделы">
-      <button class="tab active" id="tabList" type="button" data-mode="list">
+    <nav class="tabs" aria-label="Основные разделы" data-tabs>
+      <button class="tab active" id="tabList" type="button" data-mode="list" aria-controls="listMode" aria-selected="true">
         Список
       </button>
 
-      <button class="tab" id="tabDeals" type="button" data-mode="deals">
+      <button class="tab" id="tabDeals" type="button" data-mode="deals" aria-controls="dealsMode" aria-selected="false">
         💎 Выгода
       </button>
 
-      <button class="tab" id="tabMap" type="button" data-mode="map">
+      <button class="tab" id="tabMap" type="button" data-mode="map" aria-controls="mapMode" aria-selected="false">
         Карта
       </button>
     </nav>
 
     <section class="quick-filters" aria-label="Быстрые фильтры">
-      <button class="quick-filter" type="button" data-preset="top">
+      <button class="quick-filter" type="button" data-preset="top" aria-pressed="false">
         🔥 Только сильные
       </button>
 
-      <button class="quick-filter" type="button" data-preset="budget">
+      <button class="quick-filter" type="button" data-preset="budget" aria-pressed="false">
         ≤ €3 000
       </button>
     </section>
@@ -71,31 +71,31 @@
     </section>
 
     <main>
-      <section id="listMode">
+      <section id="listMode" aria-labelledby="listHeading">
         <div class="section-heading">
-          <h2>Кандидаты</h2>
-          <span>данные из репозитория</span>
+          <h2 id="listHeading">Кандидаты</h2>
+          <span id="listMeta">данные из репозитория</span>
         </div>
 
-        <div id="list" class="list"></div>
+        <div id="list" class="list" aria-live="polite"></div>
       </section>
 
-      <section id="dealsMode" class="hidden">
+      <section id="dealsMode" class="hidden" aria-labelledby="dealsHeading">
         <div class="section-heading">
-          <h2>💎 Выгодные условия</h2>
+          <h2 id="dealsHeading">💎 Выгодные условия</h2>
           <span>редкие преимущества</span>
         </div>
 
-        <div id="dealsList" class="list"></div>
+        <div id="dealsList" class="list" aria-live="polite"></div>
       </section>
 
-      <section id="mapMode" class="hidden">
+      <section id="mapMode" class="hidden" aria-labelledby="mapHeading">
         <div class="section-heading">
-          <h2>Карта кандидатов</h2>
-          <span>следующий слой проекта</span>
+          <h2 id="mapHeading">Карта кандидатов</h2>
+          <span>готово для координат</span>
         </div>
 
-        <div class="map-placeholder" aria-label="Место для карты"></div>
+        <div id="mapContainer" class="map-container" aria-label="Карта объектов"></div>
       </section>
     </main>
   </div>
@@ -135,12 +135,12 @@
         ×
       </button>
 
-      <div id="detail"></div>
+      <div id="detail" class="sheet-content"></div>
     </section>
   </div>
 
   <div id="filterSheet" class="sheet-backdrop">
-    <section class="sheet" aria-label="Фильтры">
+    <section class="sheet filter-sheet" aria-label="Фильтры">
       <div class="sheet-handle"></div>
 
       <button
@@ -157,23 +157,54 @@
       <div class="two-columns">
         <div class="field">
           <label for="fMin">Мин. площадь</label>
-          <input id="fMin" type="number" value="25">
+          <input id="fMin" type="number" inputmode="numeric" min="0" placeholder="не указано">
         </div>
 
         <div class="field">
           <label for="fMax">Макс. площадь</label>
-          <input id="fMax" type="number" value="90">
+          <input id="fMax" type="number" inputmode="numeric" min="0" placeholder="не указано">
         </div>
       </div>
 
       <div class="field">
         <label for="fRent">Макс. аренда</label>
-        <input id="fRent" type="number" value="3500">
+        <input id="fRent" type="number" inputmode="numeric" min="0" placeholder="по запросу">
       </div>
 
-      <button id="applyFilters" class="primary-button" type="button">
-        Применить
-      </button>
+      <div class="field">
+        <label for="fGastro">Gastronomie</label>
+        <select id="fGastro">
+          <option value="all">Любая</option>
+          <option value="yes">Подходит</option>
+          <option value="check">Уточнить</option>
+        </select>
+      </div>
+
+      <div class="two-columns">
+        <div class="field">
+          <label for="fSource">Источник</label>
+          <select id="fSource">
+            <option value="all">Все</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="fStatus">Статус</label>
+          <select id="fStatus">
+            <option value="all">Все</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="sheet-actions">
+        <button id="resetFilters" class="secondary-button" type="button">
+          Сбросить
+        </button>
+
+        <button id="applyFilters" class="primary-button" type="button">
+          Применить
+        </button>
+      </div>
     </section>
   </div>
 
@@ -214,9 +245,29 @@
         </div>
       </div>
 
+      <div class="two-columns">
+        <div class="field">
+          <label for="aNk">Nebenkosten, €</label>
+          <input id="aNk" type="number">
+        </div>
+
+        <div class="field">
+          <label for="aGastro">Gastronomie</label>
+          <select id="aGastro">
+            <option value="check">Уточнить</option>
+            <option value="yes">Подходит</option>
+          </select>
+        </div>
+      </div>
+
       <div class="field">
         <label for="aUrl">Ссылка</label>
         <input id="aUrl" type="url" placeholder="https://...">
+      </div>
+
+      <div class="field">
+        <label for="aFees">Provision / Ablöse / Kaution</label>
+        <input id="aFees" type="text" placeholder="уточнить">
       </div>
 
       <div class="field">
