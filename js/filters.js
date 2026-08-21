@@ -23,7 +23,9 @@ export function getAvailabilityStatus(listing) {
 
 export function isVisibleListing(listing) {
   const availabilityStatus = getAvailabilityStatus(listing);
-  return availabilityStatus === 'active' || availabilityStatus === 'lead';
+  if (availabilityStatus === 'lead') return true;
+  if (availabilityStatus === 'active') return isFreshVerifiedListing(listing);
+  return false;
 }
 
 export function isFreshVerifiedListing(listing, maxAgeHours = 48) {

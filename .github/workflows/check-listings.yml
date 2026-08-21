@@ -6,7 +6,8 @@ on:
     - cron: "17 5 * * *"
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 jobs:
   check-listings:
@@ -25,6 +26,19 @@ jobs:
 
       - name: Show diff
         run: git diff -- data/listings.json
+
+      - name: Create availability update PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: automation/listings-availability
+          title: "chore: update listing availability"
+          body: |
+            automated availability recheck
+
+            review status changes before merge
+          commit-message: "chore: refresh listing availability"
+          add-paths: data/listings.json
+          delete-branch: false
 
       - name: Upload updated listings artifact
         if: always()
