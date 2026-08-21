@@ -26,6 +26,17 @@ export function isVisibleListing(listing) {
   return availabilityStatus === 'active' || availabilityStatus === 'lead';
 }
 
+export function isFreshVerifiedListing(listing, maxAgeHours = 48) {
+  if (getAvailabilityStatus(listing) !== 'active') return false;
+  if (!listing.lastVerifiedAt) return false;
+
+  const verifiedAt = new Date(listing.lastVerifiedAt);
+  if (Number.isNaN(verifiedAt.getTime())) return false;
+
+  const maxAgeMs = maxAgeHours * 60 * 60 * 1000;
+  return Date.now() - verifiedAt.getTime() <= maxAgeMs;
+}
+
 export function applyListingFilters(listings, filters) {
   const minArea = Number(filters.minArea) || 0;
   const maxArea = Number(filters.maxArea) || 999;
