@@ -39,13 +39,10 @@ jobs:
       - name: Unit-like ingestion tests
         run: node scripts/ingest/tests/ingestion.test.js
 
-      - name: Run ingestion
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      - name: Run ingestion dry-run
         run: |
           SOURCE_ARG=""
           if [ -n "${{ inputs.source }}" ]; then
             SOURCE_ARG="--source=${{ inputs.source }}"
           fi
-          node scripts/ingest/run-ingestion.js $SOURCE_ARG
+          node scripts/ingest/run-ingestion.js $SOURCE_ARG --dry-run

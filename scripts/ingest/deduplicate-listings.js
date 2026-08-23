@@ -1,4 +1,5 @@
 const { extractExternalId } = require('./utils');
+const { mergeExistingListing } = require('./merge-existing-listing');
 
 function deduplicateListings(candidates, existingRows = []) {
   const byExternalId = new Map();
@@ -32,16 +33,7 @@ function deduplicateListings(candidates, existingRows = []) {
       || byCanonicalUrl.get(candidate.canonicalUrl || candidate.sourceUrl || candidate.url);
 
     if (existing) {
-      output.push({
-        ...candidate,
-        externalId: existing.external_id || candidate.externalId,
-        discoveredAt: existing.discovered_at || candidate.discoveredAt,
-        availabilityStatus: existing.availability_status || candidate.availabilityStatus,
-        lastVerifiedAt: existing.last_verified_at || candidate.lastVerifiedAt,
-        verificationMethod: existing.verification_method || candidate.verificationMethod,
-        verificationOverride: existing.verification_override || candidate.verificationOverride,
-        dedupeAction: 'updated'
-      });
+      output.push(mergeExistingListing(existing, candidate));
       batchExternalIds.add(candidate.externalId);
       if (candidate.canonicalUrl) batchCanonicalUrls.add(candidate.canonicalUrl);
       continue;

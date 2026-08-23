@@ -189,10 +189,8 @@ GitHub Actions workflow: `.github/workflows/ingest-listings.yml`
 
 - `workflow_dispatch`
 - schedule: два раза в день (`06:17` и `18:17` UTC)
-- запускает syntax checks, unit-like tests и ingestion
-- использует repository secrets:
-  - `SUPABASE_URL`
-  - `SUPABASE_SERVICE_ROLE_KEY`
+- сейчас запускает syntax checks, unit-like tests и ingestion `--dry-run`
+- не использует `SUPABASE_SERVICE_ROLE_KEY` и не пишет в production Supabase из PR review mode
 
 Logs печатают только safe summary: discovered/new/updated/status counts и per-source errors без секретов.
 
@@ -201,3 +199,5 @@ Source limitations:
 - Portal adapters используют лёгкий HTTP discovery и не обходят CAPTCHA/anti-bot.
 - Если источник блокирует запрос, этот source получает partial/error summary, остальные sources продолжают работу.
 - Search pages не превращаются в direct listings.
+- Stadt München adapter currently uses curated project seeds, not full dynamic municipal discovery.
+- Immowelt currently returns partial discovery in this environment, and ImmoScout24 can block automated discovery with HTTP 401/403.

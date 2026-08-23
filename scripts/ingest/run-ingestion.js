@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 const { deduplicateListings } = require('./deduplicate-listings');
+const { calculateDataCompleteness, summarizeDataQuality } = require('./data-completeness');
+const { enrichListings } = require('./enrich-listing');
 const { normalizeListing } = require('./normalize-listing');
 const { fetchExistingRows, upsertListings } = require('./supabase-upsert');
 const { verifyListings } = require('./verify-listings');
@@ -68,6 +70,9 @@ function printListingPreview(listings) {
     console.log(`  source: ${listing.sourceName || listing.source}`);
     console.log(`  action: ${listing.dedupeAction || 'unknown'}`);
     console.log(`  status: ${listing.availabilityStatus}`);
+    console.log(`  dataCompleteness: ${listing.dataCompleteness} (${listing.dataQuality})`);
+    console.log(`  rent: ${listing.rent ?? 'unknown'}`);
+    console.log(`  unitArea: ${listing.unitArea ?? listing.area ?? 'unknown'}`);
     console.log(`  verificationMethod: ${listing.verificationMethod}`);
     console.log(`  url: ${listing.sourceUrl || listing.url}`);
   }
@@ -103,6 +108,7 @@ async function run(argv = process.argv.slice(2)) {
     .flatMap((result) => result.candidates)
     .map((candidate) => normalizeListing(candidate, now))
     .filter(Boolean);
+  const enriched = await enrichListings(normalized, { fetchPage });
 
   let existingRows = [];
   try {
@@ -111,9 +117,14 @@ async function run(argv = process.argv.slice(2)) {
     console.log(`existingRows: unavailable (${error.message})`);
   }
 
-  const { listings: deduped, skipped } = deduplicateListings(normalized, existingRows);
-  const verified = args.skipVerification ? deduped : await verifyListings(deduped, now);
+  const { listings: deduped, skipped } = deduplicateListings(enriched, existingRows);
+  const verifiedRaw = args.skipVerification ? deduped : await verifyListings(deduped, now);
+  const verified = verifiedRaw.map((listing) => ({
+    ...listing,
+    ...calculateDataCompleteness(listing)
+  }));
   const counts = summarize(verified);
+  const qualityCounts = summarizeDataQuality(verified);
 
   printSourceSummary(sourceResults);
   console.log('\nsummary');
@@ -126,6 +137,9 @@ async function run(argv = process.argv.slice(2)) {
   console.log(`  unknown: ${counts.unknown}`);
   console.log(`  search_only: ${counts.search_only}`);
   console.log(`  lead: ${counts.lead}`);
+  console.log(`  complete: ${qualityCounts.complete}`);
+  console.log(`  partial: ${qualityCounts.partial}`);
+  console.log(`  minimal: ${qualityCounts.minimal}`);
 
   console.log('\npreview');
   printListingPreview(verified);

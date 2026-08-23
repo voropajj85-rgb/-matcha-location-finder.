@@ -75,7 +75,7 @@ async function fetchExistingRows() {
 
   if (!url || !key) return [];
 
-  const endpoint = `${url.replace(/\/$/, '')}/rest/v1/listings?select=external_id,source,source_name,source_url,canonical_url,availability_status,last_verified_at,verification_method,verification_override,discovered_at`;
+  const endpoint = `${url.replace(/\/$/, '')}/rest/v1/listings?select=external_id,title,address,district,price,area,source,source_family,source_name,source_url,status,notes,listing_type,availability_status,last_verified_at,verification_method,verification_override,unit_area,project_total_area,rent,nebenkosten,provision,abloese,kaution,gastro_suitability,gastro_evidence,verified_summary,key_facts,unknowns,next_action,latitude,longitude,discovered_at,last_seen_at,discovery_method,canonical_url,raw_source_data`;
   const response = await fetch(endpoint, {
     headers: {
       apikey: key,
