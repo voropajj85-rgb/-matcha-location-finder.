@@ -1,6 +1,6 @@
-import { applyListingFilters, defaultProjectConfig, isVisibleListing, resetFilters } from './filters.js?v=info-model-1';
-import { buildListingCard, buildListingDetail, calculateMatchaScore, escapeHtml } from './listings.js?v=info-model-1';
-import { fetchListings } from './data/listings-repository.js?v=supabase-1';
+import { applyListingFilters, defaultProjectConfig, isVisibleListing, resetFilters } from './filters.js?v=business-fit-2';
+import { buildListingCard, buildListingDetail, calculateMatchaScore, escapeHtml } from './listings.js?v=business-fit-2';
+import { fetchListings } from './data/listings-repository.js?v=business-fit-2';
 import { addUserListing, loadUserListings } from './storage.js?v=info-model-1';
 
 const state = {
