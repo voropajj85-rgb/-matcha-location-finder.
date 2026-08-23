@@ -1,7 +1,7 @@
 const assert = require('assert');
 const { deduplicateListings } = require('../deduplicate-listings');
-const { calculateDataCompleteness } = require('../data-completeness');
-const { enrichListing } = require('../enrich-listing');
+const { calculateDataCompleteness, hasMeaningfulTitle } = require('../data-completeness');
+const { areaFromText, enrichListing, meaningfulTitle, rentFromText } = require('../enrich-listing');
 const { mergeExistingListing } = require('../merge-existing-listing');
 const { normalizeListing } = require('../normalize-listing');
 const { rowForListing } = require('../supabase-upsert');
@@ -20,6 +20,7 @@ const {
   isSearchPageUrl
 } = require('../utils');
 const { checkListing, classifyHtml } = require('../../check-listings');
+const { calculateProjectRelevance } = require('../project-relevance');
 
 async function run() {
   assert.strictEqual(
@@ -167,6 +168,49 @@ async function run() {
     verifiedSummary: 'Useful description'
   });
   assert.strictEqual(highCompleteness.dataQuality, 'complete');
+  assert.strictEqual(hasMeaningfulTitle('Kleinanzeigen'), false);
+  assert.strictEqual(meaningfulTitle('Kleinanzeigen'), null);
+  assert.strictEqual(meaningfulTitle('Cafe Laden | Kleinanzeigen.de'), 'Cafe Laden');
+
+  assert.strictEqual(rentFromText('Ablöse 18.000 €').rent, null);
+  assert.strictEqual(rentFromText('Kaution 4.800 €').rent, null);
+  assert.strictEqual(rentFromText('€150 Ablöse').rent, null);
+  assert.strictEqual(rentFromText('Kaltmiete 1.600 € pro Monat').rent, 1600);
+  assert.strictEqual(rentFromText('Kaltmiete 1.600 € pro Monat').rentConfidence, 'high');
+  assert.strictEqual(areaFromText('44 m² Kellerfläche und 57 m² Ladenfläche').unitArea, 57);
+  assert.strictEqual(areaFromText('Projektfläche 1200 m²').unitArea, null);
+
+  assert.strictEqual(calculateProjectRelevance({
+    listingType: 'direct_listing',
+    unitArea: 350,
+    rent: 1700,
+    gastroSuitability: 'possible'
+  }).level, 'reject');
+  assert.strictEqual(calculateProjectRelevance({
+    listingType: 'direct_listing',
+    unitArea: 110,
+    rent: 6000,
+    gastroSuitability: 'possible'
+  }).level, 'reject');
+  assert.strictEqual(calculateProjectRelevance({
+    listingType: 'direct_listing',
+    unitArea: 50,
+    rent: 1700,
+    gastroSuitability: 'confirmed'
+  }).level, 'strong');
+  assert.strictEqual(calculateProjectRelevance({
+    listingType: 'direct_listing',
+    unitArea: 7,
+    rent: 1850,
+    gastroSuitability: 'possible'
+  }).level, 'reject');
+  assert.strictEqual(calculateProjectRelevance({
+    listingType: 'direct_listing',
+    unitArea: 57,
+    rent: 1600,
+    gastroSuitability: 'possible',
+    gastroEvidence: 'Kiosk, aber keine Küchenabluft'
+  }).level, 'acceptable');
 
   const enriched = await enrichListing({
     externalId: 'klein-enrich',
@@ -178,13 +222,14 @@ async function run() {
     fetchPage: async () => ({
       status: 200,
       finalUrl: 'https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411',
-      body: '<title>Cafe Laden München</title><meta name="description" content="Cafe Laden mit 45 m², Kaltmiete 1600 €, Kaution nach Absprache">'
+      body: '<title>Cafe Laden München | Kleinanzeigen.de</title><meta name="description" content="Cafe Laden mit Ladenfläche 45 m², Kaltmiete 1600 €, Kaution nach Absprache">'
     })
   });
 
   assert.strictEqual(enriched.title, 'Cafe Laden München');
   assert.strictEqual(enriched.rent, 1600);
   assert.strictEqual(enriched.unitArea, 45);
+  assert.strictEqual(enriched.rawSourceData.rentConfidence, 'high');
   assert.strictEqual(enriched.gastroSuitability, 'possible');
 
   assert.strictEqual(getValidExternalUrl({ listingType: 'direct_listing', url: null }), null);
@@ -300,6 +345,18 @@ async function run() {
       url: 'https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411',
       rent: 1500,
       unitArea: 45,
+      gastroSuitability: 'possible',
+      gastroEvidence: 'Direct source says cafe',
+      verifiedSummary: 'Verified direct listing'
+    },
+    {
+      id: 'active-reject',
+      listingType: 'direct_listing',
+      availabilityStatus: 'active',
+      lastVerifiedAt: new Date().toISOString(),
+      url: 'https://www.kleinanzeigen.de/s-anzeige/big-cafe/2-277-6411',
+      rent: 7000,
+      unitArea: 350,
       gastroSuitability: 'possible',
       gastroEvidence: 'Direct source says cafe',
       verifiedSummary: 'Verified direct listing'

@@ -6,11 +6,16 @@ function hasValue(value) {
   return true;
 }
 
+function hasMeaningfulTitle(value) {
+  const title = String(value || '').trim();
+  return title.length > 0 && !/^kleinanzeigen(?:\.de)?$/i.test(title);
+}
+
 function calculateDataCompleteness(listing) {
   let score = 0;
   const reasons = [];
 
-  if (hasValue(listing.title) || hasValue(listing.address) || hasValue(listing.district)) {
+  if (hasMeaningfulTitle(listing.title) || hasValue(listing.address) || hasValue(listing.district)) {
     score += 20;
     reasons.push('context');
   }
@@ -60,5 +65,6 @@ function summarizeDataQuality(listings) {
 
 module.exports = {
   calculateDataCompleteness,
+  hasMeaningfulTitle,
   summarizeDataQuality
 };

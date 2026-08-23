@@ -5,15 +5,18 @@ const path = require('path');
 const { deduplicateListings } = require('./deduplicate-listings');
 const { calculateDataCompleteness, summarizeDataQuality } = require('./data-completeness');
 const { enrichListings } = require('./enrich-listing');
+const { mapExistingRow } = require('./merge-existing-listing');
 const { normalizeListing } = require('./normalize-listing');
 const { fetchExistingRows, upsertListings } = require('./supabase-upsert');
 const {
   isSafeForProduction,
+  isVisibleCandidate,
   isUsableCandidate,
   summarizeValidation,
   validateSourceLink,
   validationIssues
 } = require('./listing-validation');
+const { calculateProjectRelevance } = require('./project-relevance');
 const { verifyListings } = require('./verify-listings');
 
 const SOURCES = {
@@ -64,6 +67,16 @@ function summarize(listings) {
   return counts;
 }
 
+function summarizeRelevance(listings) {
+  const counts = { strong: 0, acceptable: 0, weak: 0, reject: 0 };
+  for (const listing of listings) {
+    if (listing.listingType !== 'direct_listing') continue;
+    const relevance = calculateProjectRelevance(listing);
+    counts[relevance.level] += 1;
+  }
+  return counts;
+}
+
 function printSourceSummary(results) {
   console.log('sources');
   for (const result of results) {
@@ -110,8 +123,12 @@ function printValidationReport(listings) {
     console.log(`  gastroEvidence: ${listing.gastroEvidence || 'unknown'}`);
     console.log(`  dedupeAction: ${listing.dedupeAction || 'unknown'}`);
     console.log(`  sourceLinkValid: ${link.sourceLinkValid}`);
+    const relevance = calculateProjectRelevance(listing);
+    console.log(`  relevanceLevel: ${relevance.level}`);
+    console.log(`  relevanceReasons: ${relevance.reasons.join('; ')}`);
     console.log(`  usable: ${isUsableCandidate(listing)}`);
     console.log(`  safeForProduction: ${isSafeForProduction(listing)}`);
+    console.log(`  visibleCandidate: ${isVisibleCandidate(listing)}`);
     console.log(`  reason: ${listing.reason || listing.rawSourceData?.enrichmentStatus || 'n/a'}`);
   }
 }
@@ -119,6 +136,7 @@ function printValidationReport(listings) {
 function validationRecord(listing) {
   const link = validateSourceLink(listing);
   const issues = validationIssues(listing);
+  const relevance = calculateProjectRelevance(listing);
   return {
     externalId: listing.externalId || listing.id,
     source: listing.sourceName || listing.source || null,
@@ -134,8 +152,14 @@ function validationRecord(listing) {
     issues,
     dataCompleteness: listing.dataCompleteness ?? calculateDataCompleteness(listing).dataCompleteness,
     dataQuality: listing.dataQuality ?? calculateDataCompleteness(listing).dataQuality,
+    rentEvidence: listing.rawSourceData?.rentEvidence || null,
+    rentConfidence: listing.rawSourceData?.rentConfidence || (listing.rent == null ? 'low' : 'medium'),
+    areaEvidence: listing.rawSourceData?.areaEvidence || null,
+    projectRelevance: relevance.level,
+    relevanceReasons: relevance.reasons,
     lastVerifiedAt: listing.lastVerifiedAt || null,
     safeForProduction: isSafeForProduction(listing),
+    visibleCandidate: isVisibleCandidate(listing),
     listingType: listing.listingType,
     rent: listing.rent ?? null,
     unitArea: listing.unitArea ?? null,
@@ -145,21 +169,23 @@ function validationRecord(listing) {
   };
 }
 
-function enforceStrictProductionStatus(listing) {
-  if (listing.listingType === 'direct_listing' && listing.availabilityStatus === 'active' && !isUsableCandidate(listing)) {
-    const issues = validationIssues(listing);
-    return {
+function existingCleanupActions(existingRows) {
+  return existingRows
+    .map(mapExistingRow)
+    .filter((listing) => listing.listingType === 'direct_listing' && listing.availabilityStatus === 'active')
+    .filter((listing) => !validateSourceLink(listing).sourceLinkValid)
+    .map((listing) => ({
       ...listing,
       availabilityStatus: 'unknown',
-      verificationMethod: 'insufficient-production-evidence',
-      reason: issues.length ? issues.join('; ') : 'active evidence is insufficient for production use'
-    };
-  }
-
-  return listing;
+      previousAvailabilityStatus: listing.availabilityStatus,
+      verificationMethod: 'production-cleanup-invalid-source-url',
+      reason: 'active direct listing cannot remain active without a valid direct source URL',
+      lastVerifiedAt: null,
+      dedupeAction: 'cleanup'
+    }));
 }
 
-async function writeValidationReport({ sourceResults, listings, counts, qualityCounts, validationCounts, skipped, discoveredCount, now }) {
+async function writeValidationReport({ sourceResults, listings, cleanupActions, counts, qualityCounts, validationCounts, relevanceCounts, skipped, discoveredCount, now }) {
   const report = {
     generatedAt: now,
     dryRunSafe: true,
@@ -176,6 +202,11 @@ async function writeValidationReport({ sourceResults, listings, counts, qualityC
       invalidUrls: validationCounts.invalidUrls,
       searchUrlsRejected: validationCounts.searchUrlsRejected,
       safeForProduction: validationCounts.safeForProduction,
+      visibleCandidates: validationCounts.visibleCandidates,
+      strong: relevanceCounts.strong,
+      acceptable: relevanceCounts.acceptable,
+      weak: relevanceCounts.weak,
+      reject: relevanceCounts.reject,
       skippedDuplicates: skipped.length
     },
     blockedSources: sourceResults.flatMap((result) => result.errors.map((error) => ({
@@ -184,6 +215,7 @@ async function writeValidationReport({ sourceResults, listings, counts, qualityC
       message: error.message
     }))),
     listings: listings.map(validationRecord),
+    cleanupActions: cleanupActions.map(validationRecord),
     skippedDuplicates: skipped
   };
 
@@ -232,15 +264,20 @@ async function run(argv = process.argv.slice(2)) {
   }
 
   const { listings: deduped, skipped } = deduplicateListings(enriched, existingRows);
+  const cleanupActions = existingCleanupActions(existingRows).map((listing) => ({
+    ...listing,
+    ...calculateDataCompleteness(listing)
+  }));
   const verifiedRaw = args.skipVerification ? deduped : await verifyListings(deduped, now);
-  const verified = verifiedRaw.map((listing) => enforceStrictProductionStatus({
+  const verified = verifiedRaw.map((listing) => ({
     ...listing,
     ...calculateDataCompleteness(listing)
   }));
   const counts = summarize(verified);
   const qualityCounts = summarizeDataQuality(verified);
   const validationCounts = summarizeValidation(verified);
-  const productionReady = verified.filter(isSafeForProduction);
+  const relevanceCounts = summarizeRelevance(verified);
+  const productionReady = [...verified.filter(isSafeForProduction), ...cleanupActions];
 
   printSourceSummary(sourceResults);
   console.log('\nsummary');
@@ -263,6 +300,12 @@ async function run(argv = process.argv.slice(2)) {
   console.log(`  invalid_urls: ${validationCounts.invalidUrls}`);
   console.log(`  search_urls_rejected: ${validationCounts.searchUrlsRejected}`);
   console.log(`  safe_for_production: ${validationCounts.safeForProduction}`);
+  console.log(`  visible_candidates: ${validationCounts.visibleCandidates}`);
+  console.log(`  strong: ${relevanceCounts.strong}`);
+  console.log(`  acceptable: ${relevanceCounts.acceptable}`);
+  console.log(`  weak: ${relevanceCounts.weak}`);
+  console.log(`  reject: ${relevanceCounts.reject}`);
+  console.log(`  cleanup_actions: ${cleanupActions.length}`);
 
   console.log('\npreview');
   printListingPreview(verified);
@@ -271,9 +314,11 @@ async function run(argv = process.argv.slice(2)) {
     const reportPath = await writeValidationReport({
       sourceResults,
       listings: verified,
+      cleanupActions,
       counts,
       qualityCounts,
       validationCounts,
+      relevanceCounts,
       skipped,
       discoveredCount: normalized.length,
       now
@@ -288,7 +333,7 @@ async function run(argv = process.argv.slice(2)) {
 
   const upserted = await upsertListings(productionReady);
   console.log(`\nupserted: ${upserted.length}`);
-  return { sourceResults, listings: verified, counts, upserted };
+  return { sourceResults, listings: verified, cleanupActions, counts, upserted };
 }
 
 if (require.main === module) {

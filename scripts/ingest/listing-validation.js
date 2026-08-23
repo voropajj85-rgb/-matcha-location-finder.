@@ -4,6 +4,7 @@ const {
   isSearchPageUrl
 } = require('./utils');
 const { calculateDataCompleteness } = require('./data-completeness');
+const { calculateProjectRelevance } = require('./project-relevance');
 
 function getSourceUrl(listing) {
   return listing.sourceUrl || listing.url || listing.canonicalUrl || null;
@@ -38,7 +39,7 @@ function validateSourceLink(listing) {
   };
 }
 
-function isUsableCandidate(listing) {
+function isUsableCandidate(listing, projectConfig) {
   if (!isDirectListing(listing)) return false;
   if (listing.availabilityStatus !== 'active') return false;
   const link = validateSourceLink(listing);
@@ -47,6 +48,7 @@ function isUsableCandidate(listing) {
   const completeness = listing.dataCompleteness ?? calculateDataCompleteness(listing).dataCompleteness;
   if (completeness < 60) return false;
   if (listing.rent == null || listing.unitArea == null) return false;
+  if (listing.rawSourceData?.rentConfidence && !['high', 'medium'].includes(listing.rawSourceData.rentConfidence)) return false;
   if (!listing.title && !listing.district && !listing.address) return false;
   if (!listing.verifiedSummary && !listing.gastroEvidence) return false;
   return true;
@@ -54,8 +56,15 @@ function isUsableCandidate(listing) {
 
 function isSafeForProduction(listing) {
   if (listing.verificationOverride?.status === 'dead') return true;
-  if (isDirectListing(listing)) return isUsableCandidate(listing);
+  if (isDirectListing(listing)) return listing.availabilityStatus === 'active' && validateSourceLink(listing).sourceLinkValid;
   return listing.availabilityStatus === 'lead';
+}
+
+function isVisibleCandidate(listing, projectConfig) {
+  if (listing.availabilityStatus === 'lead') return true;
+  if (!isUsableCandidate(listing, projectConfig)) return false;
+  const relevance = calculateProjectRelevance(listing, projectConfig);
+  return relevance.level === 'strong' || relevance.level === 'acceptable';
 }
 
 function validationIssues(listing) {
@@ -92,7 +101,8 @@ function summarizeValidation(listings) {
     missingUrls: 0,
     invalidUrls: 0,
     searchUrlsRejected: 0,
-    safeForProduction: 0
+    safeForProduction: 0,
+    visibleCandidates: 0
   };
 
   for (const listing of listings) {
@@ -108,6 +118,7 @@ function summarizeValidation(listings) {
     if (link.sourceUrlInvalid) summary.invalidUrls += 1;
     if (link.sourceUrlSearch) summary.searchUrlsRejected += 1;
     if (isSafeForProduction(listing)) summary.safeForProduction += 1;
+    if (isVisibleCandidate(listing)) summary.visibleCandidates += 1;
   }
 
   return summary;
@@ -115,6 +126,7 @@ function summarizeValidation(listings) {
 
 module.exports = {
   getValidExternalUrl,
+  isVisibleCandidate,
   isSafeForProduction,
   isUsableCandidate,
   summarizeValidation,

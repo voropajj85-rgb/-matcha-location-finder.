@@ -6,11 +6,13 @@ const { mapExistingRow } = require('./merge-existing-listing');
 const { fetchExistingRows } = require('./supabase-upsert');
 const {
   isSafeForProduction,
+  isVisibleCandidate,
   isUsableCandidate,
   summarizeValidation,
   validateSourceLink,
   validationIssues
 } = require('./listing-validation');
+const { calculateProjectRelevance } = require('./project-relevance');
 
 function isVisibleStatus(listing) {
   return listing.availabilityStatus === 'active' || listing.availabilityStatus === 'lead';
@@ -63,6 +65,7 @@ async function main() {
   console.log(`  invalid_urls: ${validation.invalidUrls}`);
   console.log(`  search_urls_rejected: ${validation.searchUrlsRejected}`);
   console.log(`  safe_for_production: ${validation.safeForProduction}`);
+  console.log(`  visible_candidates: ${validation.visibleCandidates}`);
 
   console.log('\nissues');
   for (const listing of listings) {
@@ -75,8 +78,12 @@ async function main() {
     console.log(`  availabilityStatus: ${listing.availabilityStatus}`);
     console.log(`  sourceUrl: ${listing.sourceUrl || listing.url || 'missing'}`);
     console.log(`  sourceLinkValid: ${link.sourceLinkValid}`);
+    const relevance = calculateProjectRelevance(listing);
+    console.log(`  projectRelevance: ${relevance.level}`);
+    console.log(`  relevanceReasons: ${relevance.reasons.join('; ')}`);
     console.log(`  usable: ${isUsableCandidate(listing)}`);
     console.log(`  safeForProduction: ${isSafeForProduction(listing)}`);
+    console.log(`  visibleCandidate: ${isVisibleCandidate(listing)}`);
     if (verifyCurrent) {
       console.log(`  checkedStatus: ${listing.checkedAvailabilityStatus}`);
       console.log(`  checkedReason: ${listing.checkedReason}`);

@@ -1,4 +1,5 @@
 import { defaultProjectConfig, isFreshVerifiedListing } from './filters.js?v=info-model-1';
+import { calculateProjectRelevance } from './project-relevance.js?v=relevance-1';
 import { getValidExternalUrl } from './source-links.js?v=source-links-1';
 
 export function escapeHtml(value) {
@@ -81,6 +82,7 @@ function hasKnownCondition(condition, matcher) {
 }
 
 function isScoreEligible(listing, projectConfig = defaultProjectConfig) {
+  const relevance = calculateProjectRelevance(listing, projectConfig);
   return listing.listingType === 'direct_listing'
     && listing.availabilityStatus === 'active'
     && isFreshVerifiedListing(listing, projectConfig.freshnessHours)
@@ -88,7 +90,8 @@ function isScoreEligible(listing, projectConfig = defaultProjectConfig) {
     && listing.unitArea != null
     && listing.rent != null
     && listing.gastroSuitability !== 'unknown'
-    && Boolean(listing.verifiedSummary || listing.gastroEvidence);
+    && Boolean(listing.verifiedSummary || listing.gastroEvidence)
+    && (relevance.level === 'strong' || relevance.level === 'acceptable');
 }
 
 export function calculateMatchaScore(listing, projectConfig = defaultProjectConfig) {

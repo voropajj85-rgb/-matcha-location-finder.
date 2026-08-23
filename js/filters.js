@@ -1,4 +1,5 @@
 import { getValidExternalUrl } from './source-links.js?v=source-links-1';
+import { calculateProjectRelevance } from './project-relevance.js?v=relevance-1';
 
 export const defaultFilters = {
   minArea: '',
@@ -37,9 +38,12 @@ export function isVisibleListing(listing, projectConfig = defaultProjectConfig) 
   const availabilityStatus = getAvailabilityStatus(listing);
   if (availabilityStatus === 'lead') return true;
   if (availabilityStatus === 'active') {
+    const relevance = calculateProjectRelevance(listing, projectConfig);
     return listing.listingType === 'direct_listing'
       && isFreshVerifiedListing(listing, projectConfig.freshnessHours)
-      && Boolean(getValidExternalUrl(listing));
+      && Boolean(getValidExternalUrl(listing))
+      && hasUsableDirectData(listing)
+      && (relevance.level === 'strong' || relevance.level === 'acceptable');
   }
   return false;
 }
@@ -53,6 +57,12 @@ export function isFreshVerifiedListing(listing, maxAgeHours = 48) {
 
   const maxAgeMs = maxAgeHours * 60 * 60 * 1000;
   return Date.now() - verifiedAt.getTime() <= maxAgeMs;
+}
+
+function hasUsableDirectData(listing) {
+  return listing.rent != null
+    && listing.unitArea != null
+    && Boolean(listing.verifiedSummary || listing.gastroEvidence);
 }
 
 function getUnitArea(listing) {
