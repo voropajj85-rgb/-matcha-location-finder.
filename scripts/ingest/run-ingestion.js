@@ -5,6 +5,7 @@ const { calculateDataCompleteness, summarizeDataQuality } = require('./data-comp
 const { enrichListings } = require('./enrich-listing');
 const { normalizeListing } = require('./normalize-listing');
 const { fetchExistingRows, upsertListings } = require('./supabase-upsert');
+const { isUsableCandidate, summarizeValidation, validateSourceLink } = require('./listing-validation');
 const { verifyListings } = require('./verify-listings');
 
 const SOURCES = {
@@ -22,7 +23,8 @@ function parseArgs(argv) {
   return {
     dryRun: argv.includes('--dry-run'),
     source: sourceArg ? sourceArg.split('=')[1] : null,
-    skipVerification: argv.includes('--skip-verification')
+    skipVerification: argv.includes('--skip-verification'),
+    validationReport: argv.includes('--validation-report')
   };
 }
 
@@ -78,6 +80,32 @@ function printListingPreview(listings) {
   }
 }
 
+function printValidationReport(listings) {
+  console.log('\nvalidation report');
+  for (const listing of listings) {
+    const link = validateSourceLink(listing);
+    console.log(`${listing.externalId || listing.id}`);
+    console.log(`  sourceName: ${listing.sourceName || listing.source}`);
+    console.log(`  listingType: ${listing.listingType}`);
+    console.log(`  title: ${listing.title || 'unknown'}`);
+    console.log(`  location: ${listing.address || listing.district || 'unknown'}`);
+    console.log(`  sourceUrl: ${listing.sourceUrl || listing.url || 'missing'}`);
+    console.log(`  canonicalUrl: ${link.canonicalUrl || 'missing'}`);
+    console.log(`  availabilityStatus: ${listing.availabilityStatus}`);
+    console.log(`  verificationMethod: ${listing.verificationMethod}`);
+    console.log(`  dataCompleteness: ${listing.dataCompleteness}`);
+    console.log(`  dataQuality: ${listing.dataQuality}`);
+    console.log(`  rent: ${listing.rent ?? 'unknown'}`);
+    console.log(`  unitArea: ${listing.unitArea ?? listing.area ?? 'unknown'}`);
+    console.log(`  gastroSuitability: ${listing.gastroSuitability || 'unknown'}`);
+    console.log(`  gastroEvidence: ${listing.gastroEvidence || 'unknown'}`);
+    console.log(`  dedupeAction: ${listing.dedupeAction || 'unknown'}`);
+    console.log(`  sourceLinkValid: ${link.sourceLinkValid}`);
+    console.log(`  usable: ${isUsableCandidate(listing)}`);
+    console.log(`  reason: ${listing.reason || listing.rawSourceData?.enrichmentStatus || 'n/a'}`);
+  }
+}
+
 async function run(argv = process.argv.slice(2)) {
   const args = parseArgs(argv);
   const selected = args.source ? [args.source] : Object.keys(SOURCES);
@@ -125,6 +153,7 @@ async function run(argv = process.argv.slice(2)) {
   }));
   const counts = summarize(verified);
   const qualityCounts = summarizeDataQuality(verified);
+  const validationCounts = summarizeValidation(verified);
 
   printSourceSummary(sourceResults);
   console.log('\nsummary');
@@ -140,9 +169,16 @@ async function run(argv = process.argv.slice(2)) {
   console.log(`  complete: ${qualityCounts.complete}`);
   console.log(`  partial: ${qualityCounts.partial}`);
   console.log(`  minimal: ${qualityCounts.minimal}`);
+  console.log(`  usable_direct_listings: ${validationCounts.usableDirectListings}`);
+  console.log(`  active_but_not_usable: ${validationCounts.activeButNotUsable}`);
+  console.log(`  valid_direct_urls: ${validationCounts.validDirectUrls}`);
+  console.log(`  missing_urls: ${validationCounts.missingUrls}`);
+  console.log(`  invalid_urls: ${validationCounts.invalidUrls}`);
+  console.log(`  search_urls_rejected: ${validationCounts.searchUrlsRejected}`);
 
   console.log('\npreview');
   printListingPreview(verified);
+  if (args.validationReport) printValidationReport(verified);
 
   if (args.dryRun) {
     console.log('\ndry-run: no Supabase writes performed');

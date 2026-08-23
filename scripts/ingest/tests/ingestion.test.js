@@ -6,6 +6,12 @@ const { mergeExistingListing } = require('../merge-existing-listing');
 const { normalizeListing } = require('../normalize-listing');
 const { rowForListing } = require('../supabase-upsert');
 const {
+  getValidExternalUrl,
+  isUsableCandidate,
+  summarizeValidation,
+  validateSourceLink
+} = require('../listing-validation');
+const {
   extractExternalId,
   canonicalizeListingUrl,
   isMunichKleinanzeigenUrl,
@@ -167,6 +173,98 @@ async function run() {
   assert.strictEqual(enriched.rent, 1600);
   assert.strictEqual(enriched.unitArea, 45);
   assert.strictEqual(enriched.gastroSuitability, 'possible');
+
+  assert.strictEqual(getValidExternalUrl({ listingType: 'direct_listing', url: null }), null);
+  assert.strictEqual(getValidExternalUrl({ listingType: 'direct_listing', url: '' }), null);
+  assert.strictEqual(
+    getValidExternalUrl({
+      listingType: 'direct_listing',
+      url: 'https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411'
+    }),
+    'https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411'
+  );
+
+  assert.strictEqual(isUsableCandidate({
+    listingType: 'direct_listing',
+    availabilityStatus: 'active',
+    url: null,
+    dataCompleteness: 100,
+    rent: 1500,
+    title: 'Cafe'
+  }), false);
+
+  assert.strictEqual(isUsableCandidate({
+    listingType: 'direct_listing',
+    availabilityStatus: 'active',
+    url: 'https://www.kleinanzeigen.de/s-muenchen/kiosk-mieten/k0l6411',
+    dataCompleteness: 100,
+    rent: 1500,
+    title: 'Cafe'
+  }), false);
+
+  const leadWithoutUrl = {
+    listingType: 'municipal_lead',
+    availabilityStatus: 'lead',
+    url: null,
+    title: 'Municipal lead'
+  };
+  assert.strictEqual(validateSourceLink(leadWithoutUrl).sourceLinkValid, false);
+
+  assert.strictEqual(isUsableCandidate({
+    listingType: 'direct_listing',
+    availabilityStatus: 'active',
+    url: 'https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411',
+    dataCompleteness: 100,
+    rent: 1500,
+    unitArea: 45,
+    title: 'Cafe'
+  }), true);
+
+  const validationCounts = summarizeValidation([
+    {
+      listingType: 'direct_listing',
+      availabilityStatus: 'active',
+      url: null,
+      dataCompleteness: 100,
+      rent: 1500,
+      title: 'Cafe'
+    },
+    leadWithoutUrl
+  ]);
+  assert.strictEqual(validationCounts.missingUrls, 2);
+  assert.strictEqual(validationCounts.activeButNotUsable, 1);
+
+  const { buildListingCard, buildListingDetail } = await import('../../../js/listings.js');
+  const cardWithoutUrl = buildListingCard({
+    id: 'missing-url',
+    listingType: 'municipal_lead',
+    availabilityStatus: 'lead',
+    sourceName: 'Manual',
+    title: 'Manual lead'
+  });
+  assert.strictEqual(cardWithoutUrl.includes('href="#"'), false);
+  assert.strictEqual(cardWithoutUrl.includes('target="_blank"'), false);
+  assert.strictEqual(cardWithoutUrl.includes('Источник недоступен'), true);
+
+  const detailWithoutUrl = buildListingDetail({
+    id: 'missing-url',
+    listingType: 'municipal_lead',
+    availabilityStatus: 'lead',
+    sourceName: 'Manual',
+    title: 'Manual lead'
+  });
+  assert.strictEqual(detailWithoutUrl.includes('href="#"'), false);
+  assert.strictEqual(detailWithoutUrl.includes('Ссылка на источник недоступна'), true);
+
+  const cardWithUrl = buildListingCard({
+    id: 'with-url',
+    listingType: 'direct_listing',
+    availabilityStatus: 'active',
+    sourceName: 'Kleinanzeigen',
+    title: 'Cafe',
+    url: 'https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411'
+  });
+  assert.strictEqual(cardWithUrl.includes('href="https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411"'), true);
 
   const override = await checkListing({
     id: 'manual-dead',
