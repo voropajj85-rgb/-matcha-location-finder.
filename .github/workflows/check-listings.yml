@@ -1,0 +1,48 @@
+name: Check listing availability
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check-listings:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run availability check
+        run: node scripts/check-listings.js
+
+      - name: Show diff
+        run: git diff -- data/listings.json
+
+      - name: Create availability update PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: automation/listings-availability
+          title: "chore: update listing availability"
+          body: |
+            automated availability recheck
+
+            review status changes before merge
+          commit-message: "chore: refresh listing availability"
+          add-paths: data/listings.json
+          delete-branch: false
+
+      - name: Upload updated listings artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checked-listings
+          path: data/listings.json
