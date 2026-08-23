@@ -1,3 +1,5 @@
+import { defaultProjectConfig, isFreshVerifiedListing } from './filters.js?v=info-model-1';
+
 export function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (character) => ({
     '&': '&amp;',
@@ -8,21 +10,18 @@ export function escapeHtml(value) {
   })[character]);
 }
 
-function isScoreEligible(listing) {
-  return listing.availabilityStatus === 'active' || listing.availabilityStatus === 'lead';
-}
-
-function formatMoney(value, fallback = 'по запросу') {
+function formatMoney(value, fallback = 'не опубликовано') {
   if (value == null || value === '') return fallback;
   return `€${Number(value).toLocaleString('de-DE')}`;
 }
 
-function formatArea(value) {
-  return value == null ? 'не указано' : `${Number(value).toLocaleString('de-DE')} м²`;
+function formatArea(value, fallback = 'не опубликована') {
+  return value == null ? fallback : `${Number(value).toLocaleString('de-DE')} м²`;
 }
 
-function formatScore(value) {
-  return Number(value || 0).toFixed(1);
+function formatCondition(condition) {
+  if (!condition || !condition.known) return 'не опубликовано';
+  return condition.value ?? 'не опубликовано';
 }
 
 function getImageUrl(listing) {
@@ -31,19 +30,39 @@ function getImageUrl(listing) {
   return '';
 }
 
-function getSourceType(source = '') {
-  const normalized = source.toLowerCase();
-  if (normalized.includes('kleinanzeigen')) return 'Kleinanzeigen';
-  if (normalized.includes('immowelt')) return 'Immowelt';
-  if (normalized.includes('immoscout')) return 'ImmoScout24';
-  if (normalized.includes('stadt')) return 'Stadt München';
-  return source || 'Makler';
+function getSourceLabel(listing) {
+  return listing.sourceName || listing.source || 'Источник';
 }
 
-function getGastroLabel(value) {
-  if (value === 'yes') return 'Gastronomie geeignet';
-  if (value === 'no') return 'Gastronomie nein';
-  return 'Gastronomie уточнить';
+function getTitle(listing) {
+  return listing.title || listing.district || listing.address || 'Объект';
+}
+
+function getListingTypeLabel(listing) {
+  const labels = {
+    direct_listing: 'Direct listing',
+    project_lead: 'Project lead',
+    broker_lead: 'Broker lead',
+    municipal_lead: 'Municipal lead',
+    manual_lead: 'Manual lead'
+  };
+  return labels[listing.listingType] || 'Lead';
+}
+
+function getGastroLabel(listing) {
+  const labels = {
+    confirmed: 'Gastro подтверждено',
+    possible: 'Gastro возможно',
+    unknown: 'Gastro нужно уточнить',
+    no: 'Gastro нельзя'
+  };
+  return labels[listing.gastroSuitability] || labels.unknown;
+}
+
+function getGastroClass(listing) {
+  if (listing.gastroSuitability === 'confirmed') return 'ok';
+  if (listing.gastroSuitability === 'no') return 'no';
+  return 'check';
 }
 
 function getStatusClass(status = '') {
@@ -56,63 +75,88 @@ function getStatusClass(status = '') {
   return 'neutral';
 }
 
-export function calculateDealScore(listing) {
-  if (!isScoreEligible(listing)) {
-    return { score: 0, label: 'Нужно проверить', reasons: [] };
+function hasKnownCondition(condition, matcher) {
+  return Boolean(condition?.known && matcher(String(condition.value || '').toLowerCase()));
+}
+
+function isScoreEligible(listing, projectConfig = defaultProjectConfig) {
+  return listing.listingType === 'direct_listing'
+    && listing.availabilityStatus === 'active'
+    && isFreshVerifiedListing(listing, projectConfig.freshnessHours)
+    && (listing.unitArea != null || listing.rent != null)
+    && listing.gastroSuitability !== 'unknown';
+}
+
+export function calculateMatchaScore(listing, projectConfig = defaultProjectConfig) {
+  if (!isScoreEligible(listing, projectConfig) || listing.gastroSuitability === 'no') {
+    return { score: null, eligible: false, label: 'Оценка пока невозможна', breakdown: null };
   }
 
-  let score = 0;
-  const reasons = [];
-  const fees = (listing.fees || '').toLowerCase();
-  const note = (listing.note || '').toLowerCase();
-  const combined = `${fees} ${note}`;
+  const breakdown = {
+    gastro: 0,
+    size: 0,
+    rent: 0,
+    conditions: 0,
+    confidence: 0
+  };
 
-  if (fees.includes('provisionsfrei')) {
+  if (listing.gastroSuitability === 'confirmed') breakdown.gastro = 30;
+  else if (listing.gastroSuitability === 'possible') breakdown.gastro = 12;
+
+  const area = listing.unitArea;
+  if (area != null) {
+    if (area >= projectConfig.targetArea.preferredMin && area <= projectConfig.targetArea.preferredMax) breakdown.size = 25;
+    else if (area >= projectConfig.targetArea.acceptableMin && area <= projectConfig.targetArea.acceptableMax) breakdown.size = 18;
+    else breakdown.size = 6;
+  }
+
+  const rent = listing.rent;
+  if (rent != null) {
+    if (rent <= 2500) breakdown.rent = 25;
+    else if (rent <= projectConfig.targetRent.preferredMax) breakdown.rent = 20;
+    else if (rent <= 3500) breakdown.rent = 8;
+  }
+
+  if (hasKnownCondition(listing.provision, (value) => value.includes('provisionsfrei'))) breakdown.conditions += 4;
+  if (hasKnownCondition(listing.abloese, (value) => value.includes('без ablöse') || value.includes('ohne ablöse'))) breakdown.conditions += 3;
+  if (hasKnownCondition(listing.kaution, (value) => value.includes('€') || value.includes('monats'))) breakdown.conditions += 2;
+  if (listing.nebenkosten?.known) breakdown.conditions += 1;
+  breakdown.conditions = Math.min(10, breakdown.conditions);
+
+  breakdown.confidence += 3;
+  if (isFreshVerifiedListing(listing, projectConfig.freshnessHours)) breakdown.confidence += 2;
+  if (listing.address) breakdown.confidence += 2;
+  if (listing.unitArea != null) breakdown.confidence += 1;
+  if (listing.rent != null) breakdown.confidence += 1;
+  if (listing.gastroEvidence) breakdown.confidence += 1;
+
+  const score = Object.values(breakdown).reduce((sum, value) => sum + value, 0);
+  return { score, eligible: true, label: `Matcha Score ${score}`, breakdown };
+}
+
+export function calculateDealScore(listing, projectConfig = defaultProjectConfig) {
+  const matchaScore = calculateMatchaScore(listing, projectConfig);
+  if (!matchaScore.eligible) return { score: 0, label: 'Недостаточно данных', reasons: [] };
+
+  const reasons = [];
+  let score = 0;
+  if (listing.rent != null && listing.rent <= projectConfig.targetRent.preferredMax) {
+    score += 20;
+    reasons.push('В бюджете');
+  }
+  if (hasKnownCondition(listing.provision, (value) => value.includes('provisionsfrei'))) {
     score += 25;
     reasons.push('Provisionsfrei');
   }
-
-  if (fees.includes('ohne ablöse') || fees.includes('без ablöse')) {
+  if (hasKnownCondition(listing.abloese, (value) => value.includes('без ablöse') || value.includes('ohne ablöse'))) {
     score += 25;
     reasons.push('Без Ablöse');
   }
-
-  if (fees.includes('ablöse') && (fees.includes('по запросу') || fees.includes('vb'))) {
-    score += 6;
-    reasons.push('Ablöse можно торговать');
+  if (listing.gastroSuitability === 'confirmed') {
+    score += 10;
+    reasons.push('Готовая гастрономия');
   }
-
-  if (combined.includes('оборуд') || combined.includes('vollküche') || combined.includes('teeküche')) {
-    score += 8;
-    reasons.push('Есть оборудование');
-  }
-
-  if (listing.rent != null) {
-    if (listing.rent <= 1800) {
-      score += 20;
-      reasons.push('Очень низкая аренда');
-    } else if (listing.rent <= 2300) {
-      score += 14;
-      reasons.push('Низкая аренда');
-    } else if (listing.rent <= 3000) {
-      score += 8;
-      reasons.push('Аренда в бюджете');
-    }
-  }
-
-  if (listing.gastro === 'yes') {
-    score += 8;
-    reasons.push('Готово под гастро');
-  }
-
-  const boundedScore = Math.min(100, score);
-  let label = 'Обычные условия';
-
-  if (boundedScore >= 55) label = '🔥 Очень выгодно';
-  else if (boundedScore >= 35) label = '🟢 Выгодно';
-  else if (boundedScore >= 20) label = '🟡 Есть плюс';
-
-  return { score: boundedScore, label, reasons };
+  return { score: Math.min(100, score), label: 'Выгодные условия', reasons };
 }
 
 function buildMedia(listing) {
@@ -121,36 +165,82 @@ function buildMedia(listing) {
 
   return `
     <div class="card-media">
-      <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(listing.district || 'Объект')}" loading="lazy">
+      <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(getTitle(listing))}" loading="lazy">
     </div>
   `;
 }
 
-function buildDealMarkup(deal) {
-  if (deal.score < 20) return '';
+function buildBadges(listing, projectConfig, scoreResult) {
+  const badges = [getListingTypeLabel(listing)];
+  const area = listing.unitArea;
+  const rent = listing.rent;
+
+  if (scoreResult.score != null && scoreResult.score >= 75) badges.push('Сильный кандидат');
+  if (rent != null && rent <= projectConfig.targetRent.preferredMax) badges.push('В бюджете');
+  if (rent == null) badges.push('Цена неизвестна');
+  if (hasKnownCondition(listing.provision, (value) => value.includes('provisionsfrei'))) badges.push('Provisionsfrei');
+  if (hasKnownCondition(listing.abloese, (value) => value.includes('без ablöse') || value.includes('ohne ablöse'))) badges.push('Без Ablöse');
+  if (listing.gastroSuitability === 'confirmed') badges.push('Готовая гастрономия');
+  if (listing.gastroSuitability === 'unknown' || area == null || rent == null) badges.push('Нужно уточнить');
+  if (listing.listingType !== 'direct_listing') badges.push('Проект / Lead');
 
   return `
-    <div class="deal-box" aria-label="Финансовые преимущества">
-      <div class="deal-box__top">
-        <strong>${escapeHtml(deal.label)}</strong>
-        <span class="deal-score">Deal ${deal.score}/100</span>
-      </div>
-      <div class="deal-reasons">
-        ${deal.reasons.map((reason) => `<span class="deal-reason">${escapeHtml(reason)}</span>`).join('')}
-      </div>
+    <div class="conditions badges">
+      ${badges.map((badge) => `<span>${escapeHtml(badge)}</span>`).join('')}
     </div>
   `;
 }
 
-export function buildListingCard(listing) {
-  const deal = calculateDealScore(listing);
+function buildScoreMarkup(scoreResult) {
+  if (scoreResult.score == null) {
+    return '<div class="score empty" aria-label="Оценка пока невозможна">—</div>';
+  }
+  return `<div class="score" aria-label="Matcha Score ${scoreResult.score}">${scoreResult.score}</div>`;
+}
+
+function buildScoreBreakdown(scoreResult) {
+  if (!scoreResult.breakdown) return '<p class="card-note">Оценка пока невозможна: недостаточно подтверждённых данных.</p>';
+  const rows = [
+    ['Gastro', scoreResult.breakdown.gastro, 30],
+    ['Размер', scoreResult.breakdown.size, 25],
+    ['Аренда', scoreResult.breakdown.rent, 25],
+    ['Входные условия', scoreResult.breakdown.conditions, 10],
+    ['Надёжность данных', scoreResult.breakdown.confidence, 10]
+  ];
+
+  return `
+    <div class="score-breakdown">
+      ${rows.map(([label, value, max]) => `
+        <div>
+          <span>${escapeHtml(label)}</span>
+          <strong>${value}/${max}</strong>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function buildList(title, items) {
+  if (!Array.isArray(items) || !items.length) return '';
+  return `
+    <section class="detail-section">
+      <h4>${escapeHtml(title)}</h4>
+      <ul>
+        ${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}
+      </ul>
+    </section>
+  `;
+}
+
+export function buildListingCard(listing, projectConfig = defaultProjectConfig) {
+  const scoreResult = calculateMatchaScore(listing, projectConfig);
   const rent = formatMoney(listing.rent);
-  const area = formatArea(listing.area);
-  const utilities = listing.nk == null ? 'Nebenkosten уточнить' : `${formatMoney(listing.nk)} Nebenkosten`;
-  const source = getSourceType(listing.source);
+  const unitArea = formatArea(listing.unitArea);
+  const source = getSourceLabel(listing);
   const status = listing.status || 'уточнить';
   const statusClass = getStatusClass(status);
   const url = listing.url || '#';
+  const projectArea = listing.projectTotalArea == null ? '' : `<span>Проект: ${formatArea(listing.projectTotalArea)}</span>`;
 
   return `
     <article class="card" data-listing-id="${escapeHtml(listing.id)}">
@@ -159,9 +249,10 @@ export function buildListingCard(listing) {
         <div class="card-top">
           <div class="card-heading">
             <span class="source-badge">${escapeHtml(source)}</span>
-            <div class="card-title">${escapeHtml(listing.district)}</div>
+            <div class="card-title">${escapeHtml(getTitle(listing))}</div>
+            <div class="card-meta">${escapeHtml(listing.address || 'Адрес не опубликован')}</div>
           </div>
-          <div class="score" aria-label="Matcha Score ${formatScore(listing.score)}">${formatScore(listing.score)}</div>
+          ${buildScoreMarkup(scoreResult)}
         </div>
 
         <div class="value-row">
@@ -169,42 +260,42 @@ export function buildListingCard(listing) {
             ${rent}
             <small>/ месяц</small>
           </div>
-          <div class="area">${area}</div>
+          <div class="area">${unitArea}</div>
         </div>
 
         <div class="status-row">
           <span class="status-pill ${statusClass}">${escapeHtml(status)}</span>
-          <span class="gastro ${listing.gastro === 'yes' ? 'ok' : 'check'}">${escapeHtml(getGastroLabel(listing.gastro))}</span>
+          <span class="gastro ${getGastroClass(listing)}">${escapeHtml(getGastroLabel(listing))}</span>
         </div>
+
+        ${buildBadges(listing, projectConfig, scoreResult)}
 
         <div class="conditions">
-          <span>${escapeHtml(utilities)}</span>
-          <span>${escapeHtml(listing.fees || 'условия уточнить')}</span>
+          <span>Nebenkosten: ${escapeHtml(formatCondition(listing.nebenkosten))}</span>
+          ${projectArea}
         </div>
 
-        ${buildDealMarkup(deal)}
-
-        <p class="card-note">${escapeHtml(listing.note || 'Аналитика не указана.')}</p>
+        <p class="card-note">${escapeHtml(listing.verifiedSummary || listing.note || 'Подтверждённое описание не указано.')}</p>
       </div>
 
       <div class="card-actions">
         <button type="button" data-action="details" data-id="${escapeHtml(listing.id)}">Подробнее</button>
-        <a href="${escapeHtml(url)}" target="_blank" rel="noopener">Объявление ↗</a>
+        <a href="${escapeHtml(url)}" target="_blank" rel="noopener">Источник ↗</a>
       </div>
     </article>
   `;
 }
 
-export function buildListingDetail(listing) {
-  const deal = calculateDealScore(listing);
+export function buildListingDetail(listing, projectConfig = defaultProjectConfig) {
+  const scoreResult = calculateMatchaScore(listing, projectConfig);
 
   return `
     <article class="detail-card">
       ${buildMedia(listing)}
       <div class="detail-body">
-        <span class="source-badge">${escapeHtml(getSourceType(listing.source))}</span>
-        <h3>${escapeHtml(listing.district || 'Объект')}</h3>
-        <p class="card-meta">${escapeHtml(listing.address || 'Адрес не указан')}</p>
+        <span class="source-badge">${escapeHtml(getSourceLabel(listing))}</span>
+        <h3>${escapeHtml(getTitle(listing))}</h3>
+        <p class="card-meta">${escapeHtml(listing.address || 'Адрес не опубликован')}</p>
 
         <div class="detail-grid">
           <div>
@@ -212,34 +303,63 @@ export function buildListingDetail(listing) {
             <strong>${formatMoney(listing.rent)}</strong>
           </div>
           <div>
-            <span>Площадь</span>
-            <strong>${formatArea(listing.area)}</strong>
+            <span>Unit площадь</span>
+            <strong>${formatArea(listing.unitArea)}</strong>
           </div>
           <div>
             <span>Nebenkosten</span>
-            <strong>${formatMoney(listing.nk, 'уточнить')}</strong>
+            <strong>${formatCondition(listing.nebenkosten)}</strong>
           </div>
           <div>
             <span>Matcha Score</span>
-            <strong>${formatScore(listing.score)}</strong>
+            <strong>${scoreResult.score ?? '—'}</strong>
           </div>
         </div>
 
         <div class="status-row">
           <span class="status-pill ${getStatusClass(listing.status)}">${escapeHtml(listing.status || 'уточнить')}</span>
-          <span class="gastro ${listing.gastro === 'yes' ? 'ok' : 'check'}">${escapeHtml(getGastroLabel(listing.gastro))}</span>
+          <span class="gastro ${getGastroClass(listing)}">${escapeHtml(getGastroLabel(listing))}</span>
         </div>
 
-        <p class="card-note">${escapeHtml(listing.note || 'Аналитика не указана.')}</p>
-        <div class="conditions strong">
-          <span>Provision / Ablöse / Kaution</span>
-          <span>${escapeHtml(listing.fees || 'уточнить')}</span>
-        </div>
+        <section class="detail-section">
+          <h4>Почему интересен</h4>
+          <p>${escapeHtml(listing.verifiedSummary || 'Подтверждённое описание не указано.')}</p>
+        </section>
 
-        ${buildDealMarkup(deal)}
+        ${buildList('Подтверждено', listing.keyFacts)}
+        ${buildList('Нужно уточнить', listing.unknowns)}
+
+        <section class="detail-section">
+          <h4>Следующее действие</h4>
+          <p>${escapeHtml(listing.nextAction || 'Уточнить условия у источника.')}</p>
+        </section>
+
+        <section class="detail-section">
+          <h4>Matcha Score</h4>
+          ${buildScoreBreakdown(scoreResult)}
+        </section>
+
+        <div class="detail-grid">
+          <div>
+            <span>Provision</span>
+            <strong>${formatCondition(listing.provision)}</strong>
+          </div>
+          <div>
+            <span>Ablöse</span>
+            <strong>${formatCondition(listing.abloese)}</strong>
+          </div>
+          <div>
+            <span>Kaution</span>
+            <strong>${formatCondition(listing.kaution)}</strong>
+          </div>
+          <div>
+            <span>Тип</span>
+            <strong>${escapeHtml(getListingTypeLabel(listing))}</strong>
+          </div>
+        </div>
 
         <a class="primary-link" target="_blank" rel="noopener" href="${escapeHtml(listing.url || '#')}">
-          Открыть оригинальное объявление
+          Открыть оригинальный источник
         </a>
       </div>
     </article>

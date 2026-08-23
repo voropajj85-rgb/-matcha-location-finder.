@@ -13,9 +13,51 @@
     "note": "41 м² — почти точное попадание. Tagescafé/Bistro прямо предусмотрены; 2 WC и backoffice.",
     "url": "https://www.immowelt.de/expose/612ecc5b-7ec5-479c-812a-8914e70150be",
     "availabilityStatus": "unknown",
-    "lastVerifiedAt": "2026-08-21T07:09:17+02:00",
+    "lastVerifiedAt": "2026-08-23T10:04:02+02:00",
     "directUrl": true,
-    "verificationMethod": "request-failed"
+    "verificationMethod": "blocked-or-inconclusive",
+    "listingType": "direct_listing",
+    "sourceFamily": "portal",
+    "sourceName": "Immowelt",
+    "address": null,
+    "unitArea": 41,
+    "projectTotalArea": null,
+    "gastroSuitability": "confirmed",
+    "gastroEvidence": "Legacy source note describes this concrete listing as cafe/gastro suitable.",
+    "provision": {
+      "value": "Provision 2,38 Nettomieten; Kaution 3 Bruttomieten",
+      "known": true
+    },
+    "abloese": {
+      "value": null,
+      "known": false
+    },
+    "kaution": {
+      "value": "Provision 2,38 Nettomieten; Kaution 3 Bruttomieten",
+      "known": true
+    },
+    "nebenkosten": {
+      "value": 150,
+      "known": true
+    },
+    "verifiedSummary": "Immowelt direct listing candidate в Neuhausen · Thorwaldsenstraße. Текущий статус доступности показывает отдельное поле availabilityStatus и обновляется строгой проверкой. В текущей базе опубликованы: площадь unit 41 м², аренда €1400. Остальные условия нужно подтвердить в оригинальном источнике.",
+    "keyFacts": [
+      "Unit area: 41 m²",
+      "Rent: €1400",
+      "Nebenkosten: €150",
+      "Availability status: unknown",
+      "Source text indicates concrete gastro/cafe suitability for this listing"
+    ],
+    "unknowns": [
+      "current availability",
+      "exact address if not published",
+      "Kaution",
+      "Provision",
+      "Ablöse",
+      "fit for Matcha/Café concept"
+    ],
+    "nextAction": "Open the original listing and confirm current availability, address, full entry costs, and permission for Matcha/Café use.",
+    "coordinates": null
   },
   {
     "id": "klein-westend-66",
@@ -30,10 +72,52 @@
     "fees": "Provisionsfrei; Ablöse по запросу; Bürgschaft 6 Monatsmieten",
     "note": "Оборудованная гастроплощадь; Matcha-/Teebar прямо указана как подходящий формат; высокая частота и Stammkundschaft.",
     "url": "https://www.kleinanzeigen.de/s-anzeige/etablierte-gastroflaeche-im-muenchner-westend-sofort-startklar-/3369644808-277-6444",
-    "availabilityStatus": "unknown",
-    "lastVerifiedAt": "2026-08-21T07:09:17+02:00",
+    "availabilityStatus": "active",
+    "lastVerifiedAt": "2026-08-23T10:04:02+02:00",
     "directUrl": true,
-    "verificationMethod": "request-failed"
+    "verificationMethod": "kleinanzeigen-strong-listing-check",
+    "listingType": "direct_listing",
+    "sourceFamily": "portal",
+    "sourceName": "Kleinanzeigen",
+    "address": null,
+    "unitArea": 66,
+    "projectTotalArea": null,
+    "gastroSuitability": "confirmed",
+    "gastroEvidence": "Legacy source note describes this concrete listing as cafe/gastro suitable.",
+    "provision": {
+      "value": "Provisionsfrei",
+      "known": true
+    },
+    "abloese": {
+      "value": null,
+      "known": false
+    },
+    "kaution": {
+      "value": "Provisionsfrei; Ablöse по запросу; Bürgschaft 6 Monatsmieten",
+      "known": true
+    },
+    "nebenkosten": {
+      "value": 420,
+      "known": true
+    },
+    "verifiedSummary": "Kleinanzeigen direct listing candidate в Westend · Schwanthalerhöhe. Текущий статус доступности показывает отдельное поле availabilityStatus и обновляется строгой проверкой. В текущей базе опубликованы: площадь unit 66 м², аренда €1500. Остальные условия нужно подтвердить в оригинальном источнике.",
+    "keyFacts": [
+      "Unit area: 66 m²",
+      "Rent: €1500",
+      "Nebenkosten: €420",
+      "Availability status: unknown",
+      "Source text indicates concrete gastro/cafe suitability for this listing"
+    ],
+    "unknowns": [
+      "current availability",
+      "exact address if not published",
+      "Kaution",
+      "Provision",
+      "Ablöse",
+      "fit for Matcha/Café concept"
+    ],
+    "nextAction": "Open the original listing and confirm current availability, address, full entry costs, and permission for Matcha/Café use.",
+    "coordinates": null
   },
   {
     "id": "klein-bogenhausen-prinzregent",
@@ -48,10 +132,52 @@
     "fees": "Provisionsfrei; Kaution €3.400; условия передачи уточнить",
     "note": "Готовое оборудованное Café. Нужно проверить Ablöse и возможность смены текущей концепции.",
     "url": "https://www.kleinanzeigen.de/s-anzeige/das-dog-caf-am-prinzregentenplatz-konzept-sucht-einen-betreiber/3406321540-277-6456",
-    "availabilityStatus": "unknown",
-    "lastVerifiedAt": "2026-08-21T07:09:17+02:00",
+    "availabilityStatus": "active",
+    "lastVerifiedAt": "2026-08-23T10:04:02+02:00",
     "directUrl": true,
-    "verificationMethod": "request-failed"
+    "verificationMethod": "kleinanzeigen-strong-listing-check",
+    "listingType": "direct_listing",
+    "sourceFamily": "portal",
+    "sourceName": "Kleinanzeigen",
+    "address": null,
+    "unitArea": 50,
+    "projectTotalArea": null,
+    "gastroSuitability": "confirmed",
+    "gastroEvidence": "Legacy source note describes this concrete listing as cafe/gastro suitable.",
+    "provision": {
+      "value": "Provisionsfrei",
+      "known": true
+    },
+    "abloese": {
+      "value": null,
+      "known": false
+    },
+    "kaution": {
+      "value": "Provisionsfrei; Kaution €3.400; условия передачи уточнить",
+      "known": true
+    },
+    "nebenkosten": {
+      "value": 175,
+      "known": true
+    },
+    "verifiedSummary": "Kleinanzeigen direct listing candidate в Bogenhausen · Prinzregentenplatz. Текущий статус доступности показывает отдельное поле availabilityStatus и обновляется строгой проверкой. В текущей базе опубликованы: площадь unit 50 м², аренда €1700. Остальные условия нужно подтвердить в оригинальном источнике.",
+    "keyFacts": [
+      "Unit area: 50 m²",
+      "Rent: €1700",
+      "Nebenkosten: €175",
+      "Availability status: unknown",
+      "Source text indicates concrete gastro/cafe suitability for this listing"
+    ],
+    "unknowns": [
+      "current availability",
+      "exact address if not published",
+      "Kaution",
+      "Provision",
+      "Ablöse",
+      "fit for Matcha/Café concept"
+    ],
+    "nextAction": "Open the original listing and confirm current availability, address, full entry costs, and permission for Matcha/Café use.",
+    "coordinates": null
   },
   {
     "id": "klein-schwabing-27",
@@ -67,9 +193,51 @@
     "note": "Компактный Café/Take-away формат в сильном районе. Полные условия нужно подтвердить в объявлении.",
     "url": "https://www.kleinanzeigen.de/s-muenchen/kiosk-mieten/k0l6411",
     "availabilityStatus": "search_only",
-    "lastVerifiedAt": "2026-08-21T07:09:17+02:00",
+    "lastVerifiedAt": "2026-08-23T10:04:02+02:00",
     "directUrl": false,
-    "verificationMethod": "search-url-detected"
+    "verificationMethod": "search-url-detected",
+    "listingType": "direct_listing",
+    "sourceFamily": "portal",
+    "sourceName": "Kleinanzeigen",
+    "address": null,
+    "unitArea": 27,
+    "projectTotalArea": null,
+    "gastroSuitability": "confirmed",
+    "gastroEvidence": "Legacy source note describes this concrete listing as cafe/gastro suitable.",
+    "provision": {
+      "value": null,
+      "known": false
+    },
+    "abloese": {
+      "value": null,
+      "known": false
+    },
+    "kaution": {
+      "value": null,
+      "known": false
+    },
+    "nebenkosten": {
+      "value": null,
+      "known": false
+    },
+    "verifiedSummary": "Kleinanzeigen direct listing candidate в Schwabing · Café/Take-away. Текущий статус доступности показывает отдельное поле availabilityStatus и обновляется строгой проверкой. В текущей базе опубликованы: площадь unit 27 м², аренда €1850. Остальные условия нужно подтвердить в оригинальном источнике.",
+    "keyFacts": [
+      "Unit area: 27 m²",
+      "Rent: €1850",
+      "Availability status: search_only",
+      "Source text indicates concrete gastro/cafe suitability for this listing"
+    ],
+    "unknowns": [
+      "current availability",
+      "exact address if not published",
+      "Nebenkosten",
+      "Kaution",
+      "Provision",
+      "Ablöse",
+      "fit for Matcha/Café concept"
+    ],
+    "nextAction": "Open the original listing and confirm current availability, address, full entry costs, and permission for Matcha/Café use.",
+    "coordinates": null
   },
   {
     "id": "is24-haidhausen-90",
@@ -85,9 +253,51 @@
     "note": "Площадь выше цели, но цена и район слишком сильные, чтобы отбрасывать.",
     "url": "https://www.immobilienscout24.de/expose/169973284",
     "availabilityStatus": "unknown",
-    "lastVerifiedAt": "2026-08-21T07:09:17+02:00",
+    "lastVerifiedAt": "2026-08-23T10:04:02+02:00",
     "directUrl": true,
-    "verificationMethod": "request-failed"
+    "verificationMethod": "blocked-or-inconclusive",
+    "listingType": "direct_listing",
+    "sourceFamily": "portal",
+    "sourceName": "ImmoScout24",
+    "address": null,
+    "unitArea": 90,
+    "projectTotalArea": null,
+    "gastroSuitability": "confirmed",
+    "gastroEvidence": "Legacy source note describes this concrete listing as cafe/gastro suitable.",
+    "provision": {
+      "value": null,
+      "known": false
+    },
+    "abloese": {
+      "value": null,
+      "known": false
+    },
+    "kaution": {
+      "value": null,
+      "known": false
+    },
+    "nebenkosten": {
+      "value": 191.34,
+      "known": true
+    },
+    "verifiedSummary": "ImmoScout24 direct listing candidate в Haidhausen Süd. Текущий статус доступности показывает отдельное поле availabilityStatus и обновляется строгой проверкой. В текущей базе опубликованы: площадь unit 90 м², аренда €1820.43. Остальные условия нужно подтвердить в оригинальном источнике.",
+    "keyFacts": [
+      "Unit area: 90 m²",
+      "Rent: €1820.43",
+      "Nebenkosten: €191.34",
+      "Availability status: unknown",
+      "Source text indicates concrete gastro/cafe suitability for this listing"
+    ],
+    "unknowns": [
+      "current availability",
+      "exact address if not published",
+      "Kaution",
+      "Provision",
+      "Ablöse",
+      "fit for Matcha/Café concept"
+    ],
+    "nextAction": "Open the original listing and confirm current availability, address, full entry costs, and permission for Matcha/Café use.",
+    "coordinates": null
   },
   {
     "id": "klein-milbertshofen-60",
@@ -103,9 +313,51 @@
     "note": "60 м², терраса и рабочий дневной трафик; нужно подтвердить Gastronomie/Nutzungsänderung.",
     "url": "https://www.kleinanzeigen.de/s-muenchen/kiosk-mieten/k0l6411",
     "availabilityStatus": "search_only",
-    "lastVerifiedAt": "2026-08-21T07:09:17+02:00",
+    "lastVerifiedAt": "2026-08-23T10:04:02+02:00",
     "directUrl": false,
-    "verificationMethod": "search-url-detected"
+    "verificationMethod": "search-url-detected",
+    "listingType": "direct_listing",
+    "sourceFamily": "portal",
+    "sourceName": "Kleinanzeigen",
+    "address": null,
+    "unitArea": 60,
+    "projectTotalArea": null,
+    "gastroSuitability": "possible",
+    "gastroEvidence": "Project or listing context mentions possible gastro use; concrete unit suitability is not confirmed.",
+    "provision": {
+      "value": null,
+      "known": false
+    },
+    "abloese": {
+      "value": null,
+      "known": false
+    },
+    "kaution": {
+      "value": null,
+      "known": false
+    },
+    "nebenkosten": {
+      "value": null,
+      "known": false
+    },
+    "verifiedSummary": "Kleinanzeigen direct listing candidate в Milbertshofen · nahe BMW. Текущий статус доступности показывает отдельное поле availabilityStatus и обновляется строгой проверкой. В текущей базе опубликованы: площадь unit 60 м², аренда €3000. Остальные условия нужно подтвердить в оригинальном источнике.",
+    "keyFacts": [
+      "Unit area: 60 m²",
+      "Rent: €3000",
+      "Availability status: search_only",
+      "Gastro use needs confirmation for a concrete unit"
+    ],
+    "unknowns": [
+      "current availability",
+      "exact address if not published",
+      "Nebenkosten",
+      "Kaution",
+      "Provision",
+      "Ablöse",
+      "fit for Matcha/Café concept"
+    ],
+    "nextAction": "Open the original listing and confirm current availability, address, full entry costs, and permission for Matcha/Café use.",
+    "coordinates": null
   },
   {
     "id": "immowelt-au-haidhausen-64",
@@ -121,9 +373,51 @@
     "note": "Tagescafé/Teilgastro, около 20 м² Außenfläche, витрина и подвалы. Чуть выше бюджета.",
     "url": "https://www.immowelt.de/expose/258243f9-aabe-40fa-882b-84f631f56b9e",
     "availabilityStatus": "unknown",
-    "lastVerifiedAt": "2026-08-21T07:09:17+02:00",
+    "lastVerifiedAt": "2026-08-23T10:04:02+02:00",
     "directUrl": true,
-    "verificationMethod": "request-failed"
+    "verificationMethod": "blocked-or-inconclusive",
+    "listingType": "direct_listing",
+    "sourceFamily": "portal",
+    "sourceName": "Immowelt",
+    "address": null,
+    "unitArea": 64,
+    "projectTotalArea": null,
+    "gastroSuitability": "confirmed",
+    "gastroEvidence": "Legacy source note describes this concrete listing as cafe/gastro suitable.",
+    "provision": {
+      "value": "Provisionsfrei",
+      "known": true
+    },
+    "abloese": {
+      "value": null,
+      "known": false
+    },
+    "kaution": {
+      "value": "Provisionsfrei; Kaution не указана",
+      "known": true
+    },
+    "nebenkosten": {
+      "value": null,
+      "known": false
+    },
+    "verifiedSummary": "Immowelt direct listing candidate в Au-Haidhausen · Steinstraße. Текущий статус доступности показывает отдельное поле availabilityStatus и обновляется строгой проверкой. В текущей базе опубликованы: площадь unit 64 м², аренда €3290. Остальные условия нужно подтвердить в оригинальном источнике.",
+    "keyFacts": [
+      "Unit area: 64 m²",
+      "Rent: €3290",
+      "Availability status: unknown",
+      "Source text indicates concrete gastro/cafe suitability for this listing"
+    ],
+    "unknowns": [
+      "current availability",
+      "exact address if not published",
+      "Nebenkosten",
+      "Kaution",
+      "Provision",
+      "Ablöse",
+      "fit for Matcha/Café concept"
+    ],
+    "nextAction": "Open the original listing and confirm current availability, address, full entry costs, and permission for Matcha/Café use.",
+    "coordinates": null
   },
   {
     "id": "is24-maxvorstadt-27",
@@ -146,7 +440,49 @@
       "status": "dead",
       "reason": "User manually confirmed: Angebot wurde deaktiviert",
       "verifiedAt": "2026-08-21T07:04:17+02:00"
-    }
+    },
+    "listingType": "direct_listing",
+    "sourceFamily": "portal",
+    "sourceName": "ImmoScout24",
+    "address": null,
+    "unitArea": 27,
+    "projectTotalArea": null,
+    "gastroSuitability": "confirmed",
+    "gastroEvidence": "Legacy source note describes this concrete listing as cafe/gastro suitable.",
+    "provision": {
+      "value": "Ablöse/Provision критично проверить",
+      "known": true
+    },
+    "abloese": {
+      "value": null,
+      "known": false
+    },
+    "kaution": {
+      "value": null,
+      "known": false
+    },
+    "nebenkosten": {
+      "value": 150,
+      "known": true
+    },
+    "verifiedSummary": "ImmoScout24 direct listing candidate в Maxvorstadt · Universität. Текущий статус доступности показывает отдельное поле availabilityStatus и обновляется строгой проверкой. В текущей базе опубликованы: площадь unit 27 м², аренда €2100. Остальные условия нужно подтвердить в оригинальном источнике.",
+    "keyFacts": [
+      "Unit area: 27 m²",
+      "Rent: €2100",
+      "Nebenkosten: €150",
+      "Availability status: dead",
+      "Source text indicates concrete gastro/cafe suitability for this listing"
+    ],
+    "unknowns": [
+      "current availability",
+      "exact address if not published",
+      "Kaution",
+      "Provision",
+      "Ablöse",
+      "fit for Matcha/Café concept"
+    ],
+    "nextAction": "Open the original listing and confirm current availability, address, full entry costs, and permission for Matcha/Café use.",
+    "coordinates": null
   },
   {
     "id": "klein-maxvorstadt-52",
@@ -162,9 +498,51 @@
     "note": "Сильная 1A Lage, но €1.000 выше базового потолка.",
     "url": "https://www.kleinanzeigen.de/s-gewerbeimmobilien/maxvorstadt/c277l6514",
     "availabilityStatus": "search_only",
-    "lastVerifiedAt": "2026-08-21T07:09:17+02:00",
+    "lastVerifiedAt": "2026-08-23T10:04:02+02:00",
     "directUrl": false,
-    "verificationMethod": "search-url-detected"
+    "verificationMethod": "search-url-detected",
+    "listingType": "direct_listing",
+    "sourceFamily": "portal",
+    "sourceName": "Kleinanzeigen",
+    "address": null,
+    "unitArea": 52,
+    "projectTotalArea": null,
+    "gastroSuitability": "confirmed",
+    "gastroEvidence": "Legacy source note describes this concrete listing as cafe/gastro suitable.",
+    "provision": {
+      "value": null,
+      "known": false
+    },
+    "abloese": {
+      "value": null,
+      "known": false
+    },
+    "kaution": {
+      "value": null,
+      "known": false
+    },
+    "nebenkosten": {
+      "value": null,
+      "known": false
+    },
+    "verifiedSummary": "Kleinanzeigen direct listing candidate в Maxvorstadt · Theresienstraße. Текущий статус доступности показывает отдельное поле availabilityStatus и обновляется строгой проверкой. В текущей базе опубликованы: площадь unit 52 м², аренда €4000. Остальные условия нужно подтвердить в оригинальном источнике.",
+    "keyFacts": [
+      "Unit area: 52 m²",
+      "Rent: €4000",
+      "Availability status: search_only",
+      "Source text indicates concrete gastro/cafe suitability for this listing"
+    ],
+    "unknowns": [
+      "current availability",
+      "exact address if not published",
+      "Nebenkosten",
+      "Kaution",
+      "Provision",
+      "Ablöse",
+      "fit for Matcha/Café concept"
+    ],
+    "nextAction": "Open the original listing and confirm current availability, address, full entry costs, and permission for Matcha/Café use.",
+    "coordinates": null
   },
   {
     "id": "klein-isartor-130",
@@ -180,9 +558,51 @@
     "note": "Очень сильный поток и готовая гастрономия, но площадь слишком большая.",
     "url": "https://www.kleinanzeigen.de/s-anzeige/top-gastroflaeche-130-m-am-isartor-viktualienmarkt-abloese/3367071484-277-16340",
     "availabilityStatus": "unknown",
-    "lastVerifiedAt": "2026-08-21T07:09:17+02:00",
+    "lastVerifiedAt": "2026-08-23T10:04:02+02:00",
     "directUrl": true,
-    "verificationMethod": "request-failed"
+    "verificationMethod": "insufficient-active-evidence",
+    "listingType": "direct_listing",
+    "sourceFamily": "portal",
+    "sourceName": "Kleinanzeigen",
+    "address": null,
+    "unitArea": 130,
+    "projectTotalArea": null,
+    "gastroSuitability": "confirmed",
+    "gastroEvidence": "Legacy source note describes this concrete listing as cafe/gastro suitable.",
+    "provision": {
+      "value": "Provisionsfrei",
+      "known": true
+    },
+    "abloese": {
+      "value": "Provisionsfrei; Kaution €10k; Ablöse VB",
+      "known": true
+    },
+    "kaution": {
+      "value": "Provisionsfrei; Kaution €10k; Ablöse VB",
+      "known": true
+    },
+    "nebenkosten": {
+      "value": 846,
+      "known": true
+    },
+    "verifiedSummary": "Kleinanzeigen direct listing candidate в Isartor / Viktualienmarkt. Текущий статус доступности показывает отдельное поле availabilityStatus и обновляется строгой проверкой. В текущей базе опубликованы: площадь unit 130 м², аренда €2975. Остальные условия нужно подтвердить в оригинальном источнике.",
+    "keyFacts": [
+      "Unit area: 130 m²",
+      "Rent: €2975",
+      "Nebenkosten: €846",
+      "Availability status: unknown",
+      "Source text indicates concrete gastro/cafe suitability for this listing"
+    ],
+    "unknowns": [
+      "current availability",
+      "exact address if not published",
+      "Kaution",
+      "Provision",
+      "Ablöse",
+      "fit for Matcha/Café concept"
+    ],
+    "nextAction": "Open the original listing and confirm current availability, address, full entry costs, and permission for Matcha/Café use.",
+    "coordinates": null
   },
   {
     "id": "immowelt-schwabing-56",
@@ -198,9 +618,51 @@
     "note": "56 м², терраса и Biergarten; чуть выше бюджета, поток специфический.",
     "url": "https://www.immowelt.de/expose/9eb5f229-0273-4ab9-9fa9-0d2a870db045",
     "availabilityStatus": "unknown",
-    "lastVerifiedAt": "2026-08-21T07:09:17+02:00",
+    "lastVerifiedAt": "2026-08-23T10:04:02+02:00",
     "directUrl": true,
-    "verificationMethod": "request-failed"
+    "verificationMethod": "blocked-or-inconclusive",
+    "listingType": "direct_listing",
+    "sourceFamily": "portal",
+    "sourceName": "Immowelt",
+    "address": null,
+    "unitArea": 56,
+    "projectTotalArea": null,
+    "gastroSuitability": "confirmed",
+    "gastroEvidence": "Legacy source note describes this concrete listing as cafe/gastro suitable.",
+    "provision": {
+      "value": "Provisionsfrei",
+      "known": true
+    },
+    "abloese": {
+      "value": null,
+      "known": false
+    },
+    "kaution": {
+      "value": "Provisionsfrei; Kaution €5.900",
+      "known": true
+    },
+    "nebenkosten": {
+      "value": null,
+      "known": false
+    },
+    "verifiedSummary": "Immowelt direct listing candidate в Schwabing-Freimann · Gaststätte. Текущий статус доступности показывает отдельное поле availabilityStatus и обновляется строгой проверкой. В текущей базе опубликованы: площадь unit 56 м², аренда €3200. Остальные условия нужно подтвердить в оригинальном источнике.",
+    "keyFacts": [
+      "Unit area: 56 m²",
+      "Rent: €3200",
+      "Availability status: unknown",
+      "Source text indicates concrete gastro/cafe suitability for this listing"
+    ],
+    "unknowns": [
+      "current availability",
+      "exact address if not published",
+      "Nebenkosten",
+      "Kaution",
+      "Provision",
+      "Ablöse",
+      "fit for Matcha/Café concept"
+    ],
+    "nextAction": "Open the original listing and confirm current availability, address, full entry costs, and permission for Matcha/Café use.",
+    "coordinates": null
   },
   {
     "id": "klein-isartor-23",
@@ -215,10 +677,52 @@
     "fees": "Provisionsfrei; без Ablöse",
     "note": "Очень сильная частота и хорошие входные условия, но аренда слишком высокая.",
     "url": "https://www.kleinanzeigen.de/s-anzeige/ohne-provision-eg-75m2-oder-25m2-flaeche-am-hochfrequentierten-isartor-verkauf-teilgastro/2825047877-277-6443",
-    "availabilityStatus": "unknown",
-    "lastVerifiedAt": "2026-08-21T07:09:17+02:00",
+    "availabilityStatus": "active",
+    "lastVerifiedAt": "2026-08-23T10:04:02+02:00",
     "directUrl": true,
-    "verificationMethod": "request-failed"
+    "verificationMethod": "kleinanzeigen-strong-listing-check",
+    "listingType": "direct_listing",
+    "sourceFamily": "portal",
+    "sourceName": "Kleinanzeigen",
+    "address": null,
+    "unitArea": 23,
+    "projectTotalArea": null,
+    "gastroSuitability": "confirmed",
+    "gastroEvidence": "Legacy source note describes this concrete listing as cafe/gastro suitable.",
+    "provision": {
+      "value": "Provisionsfrei",
+      "known": true
+    },
+    "abloese": {
+      "value": "Без Ablöse",
+      "known": true
+    },
+    "kaution": {
+      "value": null,
+      "known": false
+    },
+    "nebenkosten": {
+      "value": null,
+      "known": false
+    },
+    "verifiedSummary": "Kleinanzeigen direct listing candidate в Isartor · Zweibrückenstraße. Текущий статус доступности показывает отдельное поле availabilityStatus и обновляется строгой проверкой. В текущей базе опубликованы: площадь unit 23 м², аренда €5500. Остальные условия нужно подтвердить в оригинальном источнике.",
+    "keyFacts": [
+      "Unit area: 23 m²",
+      "Rent: €5500",
+      "Availability status: unknown",
+      "Source text indicates concrete gastro/cafe suitability for this listing"
+    ],
+    "unknowns": [
+      "current availability",
+      "exact address if not published",
+      "Nebenkosten",
+      "Kaution",
+      "Provision",
+      "Ablöse",
+      "fit for Matcha/Café concept"
+    ],
+    "nextAction": "Open the original listing and confirm current availability, address, full entry costs, and permission for Matcha/Café use.",
+    "coordinates": null
   },
   {
     "id": "klein-neuhausen-154",
@@ -234,9 +738,51 @@
     "note": "Полная гастрономия и наружные места, но площадь и стартовые расходы не наша модель.",
     "url": "https://www.kleinanzeigen.de/s-anzeige/attraktive-gastroflaeche-mit-vollkueche-in-muenchen-neuhausen/3402202959-277-16360",
     "availabilityStatus": "search_only",
-    "lastVerifiedAt": "2026-08-21T07:09:17+02:00",
+    "lastVerifiedAt": "2026-08-23T10:04:02+02:00",
     "directUrl": false,
-    "verificationMethod": "redirected-to-search-page"
+    "verificationMethod": "search-or-fallback-page",
+    "listingType": "direct_listing",
+    "sourceFamily": "portal",
+    "sourceName": "Kleinanzeigen",
+    "address": null,
+    "unitArea": 154.5,
+    "projectTotalArea": null,
+    "gastroSuitability": "confirmed",
+    "gastroEvidence": "Legacy source note describes this concrete listing as cafe/gastro suitable.",
+    "provision": {
+      "value": "Provisionsfrei",
+      "known": true
+    },
+    "abloese": {
+      "value": "Provisionsfrei; Ablöse €49k; Kaution 3 Monatsmieten",
+      "known": true
+    },
+    "kaution": {
+      "value": "Provisionsfrei; Ablöse €49k; Kaution 3 Monatsmieten",
+      "known": true
+    },
+    "nebenkosten": {
+      "value": null,
+      "known": false
+    },
+    "verifiedSummary": "Kleinanzeigen direct listing candidate в Neuhausen · Vollküche. Текущий статус доступности показывает отдельное поле availabilityStatus и обновляется строгой проверкой. В текущей базе опубликованы: площадь unit 154.5 м², аренда €4000. Остальные условия нужно подтвердить в оригинальном источнике.",
+    "keyFacts": [
+      "Unit area: 154.5 m²",
+      "Rent: €4000",
+      "Availability status: search_only",
+      "Source text indicates concrete gastro/cafe suitability for this listing"
+    ],
+    "unknowns": [
+      "current availability",
+      "exact address if not published",
+      "Nebenkosten",
+      "Kaution",
+      "Provision",
+      "Ablöse",
+      "fit for Matcha/Café concept"
+    ],
+    "nextAction": "Open the original listing and confirm current availability, address, full entry costs, and permission for Matcha/Café use.",
+    "coordinates": null
   },
   {
     "id": "klein-freimann-48",
@@ -251,10 +797,52 @@
     "fees": "не указано",
     "note": "Размер и цена хорошие, но Gastronomie публично не подтверждена.",
     "url": "https://www.kleinanzeigen.de/s-anzeige/moderne-ladenflaech-ca-50-m-in-muenchen-freimann-sofort-verfueg/3443004885-277-16357",
-    "availabilityStatus": "unknown",
-    "lastVerifiedAt": "2026-08-21T07:09:17+02:00",
+    "availabilityStatus": "active",
+    "lastVerifiedAt": "2026-08-23T10:04:02+02:00",
     "directUrl": true,
-    "verificationMethod": "request-failed"
+    "verificationMethod": "kleinanzeigen-strong-listing-check",
+    "listingType": "direct_listing",
+    "sourceFamily": "portal",
+    "sourceName": "Kleinanzeigen",
+    "address": null,
+    "unitArea": 48,
+    "projectTotalArea": null,
+    "gastroSuitability": "possible",
+    "gastroEvidence": "Project or listing context mentions possible gastro use; concrete unit suitability is not confirmed.",
+    "provision": {
+      "value": null,
+      "known": false
+    },
+    "abloese": {
+      "value": null,
+      "known": false
+    },
+    "kaution": {
+      "value": null,
+      "known": false
+    },
+    "nebenkosten": {
+      "value": null,
+      "known": false
+    },
+    "verifiedSummary": "Kleinanzeigen direct listing candidate в Freimann · Lindberghstraße. Текущий статус доступности показывает отдельное поле availabilityStatus и обновляется строгой проверкой. В текущей базе опубликованы: площадь unit 48 м², аренда €2000. Остальные условия нужно подтвердить в оригинальном источнике.",
+    "keyFacts": [
+      "Unit area: 48 m²",
+      "Rent: €2000",
+      "Availability status: unknown",
+      "Gastro use needs confirmation for a concrete unit"
+    ],
+    "unknowns": [
+      "current availability",
+      "exact address if not published",
+      "Nebenkosten",
+      "Kaution",
+      "Provision",
+      "Ablöse",
+      "fit for Matcha/Café concept"
+    ],
+    "nextAction": "Open the original listing and confirm current availability, address, full entry costs, and permission for Matcha/Café use.",
+    "coordinates": null
   },
   {
     "id": "stadt-fmq",
@@ -270,9 +858,50 @@
     "note": "Официальный городской канал. Нужно напрямую запросить у ehret+klein гастро-юнит 30–80 м².",
     "url": "https://stadt.muenchen.de/lhm-ms-wirtschaftsfoerderung/standort-muenchen/gewerbeflaechen-immobilien/gewerbeflaechen-angebote/buero-gewerbestandorte-FMQM%C3%BCnchen.html",
     "availabilityStatus": "lead",
-    "lastVerifiedAt": "2026-08-21T07:09:17+02:00",
+    "lastVerifiedAt": "2026-08-23T10:04:02+02:00",
     "directUrl": true,
-    "verificationMethod": "lead-page-check"
+    "verificationMethod": "lead-page-check",
+    "listingType": "project_lead",
+    "sourceFamily": "municipal",
+    "sourceName": "Stadt München",
+    "address": "Schwanthalerstraße 55–57, München",
+    "unitArea": null,
+    "projectTotalArea": null,
+    "gastroSuitability": "possible",
+    "gastroEvidence": "Project or listing context mentions possible gastro use; concrete unit suitability is not confirmed.",
+    "provision": {
+      "value": null,
+      "known": false
+    },
+    "abloese": {
+      "value": null,
+      "known": false
+    },
+    "kaution": {
+      "value": null,
+      "known": false
+    },
+    "nebenkosten": {
+      "value": null,
+      "known": false
+    },
+    "verifiedSummary": "FMQ is a project lead from the Munich municipal business-location channel. The current dataset does not confirm a specific small available unit, rent, Nebenkosten, deposit, provision, or takeover cost. Gastronomy is treated as possible lead context only and must be confirmed for a concrete unit.",
+    "keyFacts": [
+      "Availability status: lead",
+      "Gastro use needs confirmation for a concrete unit"
+    ],
+    "unknowns": [
+      "available unit size",
+      "rent",
+      "Nebenkosten",
+      "Kaution",
+      "Provision",
+      "Ablöse",
+      "whether a 25–80 m² Gastro/Retail unit is currently available",
+      "whether Matcha/Café use is permitted"
+    ],
+    "nextAction": "Contact ehret+klein or the listed project contact and ask whether Gastro/Retail units of 25–80 m² are currently available.",
+    "coordinates": null
   },
   {
     "id": "stadt-amalie",
@@ -288,9 +917,50 @@
     "note": "Maxvorstadt/Universität. В EG есть Retail/Gastronomie; запросить у CBRE маленький блок.",
     "url": "https://stadt.muenchen.de/lhm-ms-wirtschaftsfoerderung/standort-muenchen/gewerbeflaechen-immobilien/gewerbeflaechen-angebote/buero-gewerbestandorte-AMALIE.html",
     "availabilityStatus": "lead",
-    "lastVerifiedAt": "2026-08-21T07:09:17+02:00",
+    "lastVerifiedAt": "2026-08-23T10:04:02+02:00",
     "directUrl": true,
-    "verificationMethod": "lead-page-check"
+    "verificationMethod": "lead-page-check",
+    "listingType": "project_lead",
+    "sourceFamily": "municipal",
+    "sourceName": "Stadt München / CBRE",
+    "address": "Amalienstraße 33, München",
+    "unitArea": null,
+    "projectTotalArea": null,
+    "gastroSuitability": "possible",
+    "gastroEvidence": "Project or listing context mentions possible gastro use; concrete unit suitability is not confirmed.",
+    "provision": {
+      "value": null,
+      "known": false
+    },
+    "abloese": {
+      "value": null,
+      "known": false
+    },
+    "kaution": {
+      "value": null,
+      "known": false
+    },
+    "nebenkosten": {
+      "value": null,
+      "known": false
+    },
+    "verifiedSummary": "AMALIE is a project lead connected to the Munich municipal location channel and CBRE context. The current dataset does not confirm a specific available Matcha Bar-sized unit, rent, Nebenkosten, deposit, provision, or takeover cost. Gastronomy is treated as possible project context only until a concrete unit is confirmed.",
+    "keyFacts": [
+      "Availability status: lead",
+      "Gastro use needs confirmation for a concrete unit"
+    ],
+    "unknowns": [
+      "available unit size",
+      "rent",
+      "Nebenkosten",
+      "Kaution",
+      "Provision",
+      "Ablöse",
+      "whether a 25–80 m² Gastro/Retail unit is currently available",
+      "whether Matcha/Café use is permitted"
+    ],
+    "nextAction": "Contact CBRE or the listed project contact and ask whether a small Gastro/Retail unit of 25–80 m² is currently available.",
+    "coordinates": null
   },
   {
     "id": "colliers-leopold",
@@ -306,8 +976,49 @@
     "note": "Брокерский direct lead. Запросить делимость или другие off-market площади 30–80 м².",
     "url": "https://www.colliers.de/gewerbeimmobilien/objekt/laden-muenchen-m-p4428-g1-e1/",
     "availabilityStatus": "lead",
-    "lastVerifiedAt": "2026-08-21T07:09:17+02:00",
+    "lastVerifiedAt": "2026-08-23T10:04:02+02:00",
     "directUrl": true,
-    "verificationMethod": "lead-page-check"
+    "verificationMethod": "lead-page-check",
+    "listingType": "broker_lead",
+    "sourceFamily": "broker",
+    "sourceName": "Colliers",
+    "address": "Leopoldstraße, München",
+    "unitArea": null,
+    "projectTotalArea": null,
+    "gastroSuitability": "possible",
+    "gastroEvidence": "Project or listing context mentions possible gastro use; concrete unit suitability is not confirmed.",
+    "provision": {
+      "value": null,
+      "known": false
+    },
+    "abloese": {
+      "value": null,
+      "known": false
+    },
+    "kaution": {
+      "value": null,
+      "known": false
+    },
+    "nebenkosten": {
+      "value": null,
+      "known": false
+    },
+    "verifiedSummary": "Colliers Leopoldstraße is a broker lead, not a confirmed direct listing for a specific small unit. The current dataset does not publish rent, unit area, Nebenkosten, deposit, provision, or takeover cost for a Matcha Bar-sized space. Availability and divisibility must be requested from the broker.",
+    "keyFacts": [
+      "Availability status: lead",
+      "Gastro use needs confirmation for a concrete unit"
+    ],
+    "unknowns": [
+      "available unit size",
+      "rent",
+      "Nebenkosten",
+      "Kaution",
+      "Provision",
+      "Ablöse",
+      "whether a 25–80 m² Gastro/Retail unit is currently available",
+      "whether Matcha/Café use is permitted"
+    ],
+    "nextAction": "Contact Colliers and ask for current divisible or off-market Gastro/Retail units of 25–80 m² around Leopoldstraße.",
+    "coordinates": null
   }
 ]

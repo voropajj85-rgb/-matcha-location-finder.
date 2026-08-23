@@ -34,24 +34,10 @@
         Список
       </button>
 
-      <button class="tab" id="tabDeals" type="button" data-mode="deals" aria-controls="dealsMode" aria-selected="false">
-        💎 Выгода
-      </button>
-
       <button class="tab" id="tabMap" type="button" data-mode="map" aria-controls="mapMode" aria-selected="false">
         Карта
       </button>
     </nav>
-
-    <section class="quick-filters" aria-label="Быстрые фильтры">
-      <button class="quick-filter" type="button" data-preset="top" aria-pressed="false">
-        🔥 Только сильные
-      </button>
-
-      <button class="quick-filter" type="button" data-preset="budget" aria-pressed="false">
-        ≤ €3 000
-      </button>
-    </section>
 
     <section class="summary" aria-label="Сводка">
       <div class="stat">
@@ -61,12 +47,12 @@
 
       <div class="stat">
         <strong id="sAvg">—</strong>
-        <span>ср. аренда</span>
+        <span>direct</span>
       </div>
 
       <div class="stat">
         <strong id="sTop">—</strong>
-        <span>лучший score</span>
+        <span>лидов</span>
       </div>
     </section>
 
@@ -78,15 +64,6 @@
         </div>
 
         <div id="list" class="list" aria-live="polite"></div>
-      </section>
-
-      <section id="dealsMode" class="hidden" aria-labelledby="dealsHeading">
-        <div class="section-heading">
-          <h2 id="dealsHeading">💎 Выгодные условия</h2>
-          <span>редкие преимущества</span>
-        </div>
-
-        <div id="dealsList" class="list" aria-live="polite"></div>
       </section>
 
       <section id="mapMode" class="hidden" aria-labelledby="mapHeading">
@@ -175,8 +152,10 @@
         <label for="fGastro">Gastronomie</label>
         <select id="fGastro">
           <option value="all">Любая</option>
-          <option value="yes">Подходит</option>
-          <option value="check">Уточнить</option>
+          <option value="confirmed">Подтверждено</option>
+          <option value="possible">Возможно</option>
+          <option value="unknown">Нужно уточнить</option>
+          <option value="no">Нельзя</option>
         </select>
       </div>
 
@@ -281,6 +260,6 @@
     </section>
   </div>
 
-  <script type="module" src="./js/app.js"></script>
+  <script type="module" src="./js/app.js?v=info-model-1"></script>
 </body>
 </html>

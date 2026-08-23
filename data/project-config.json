@@ -1,0 +1,13 @@
+{
+  "city": "München",
+  "targetArea": {
+    "preferredMin": 35,
+    "preferredMax": 60,
+    "acceptableMin": 25,
+    "acceptableMax": 80
+  },
+  "targetRent": {
+    "preferredMax": 3000
+  },
+  "freshnessHours": 48
+}

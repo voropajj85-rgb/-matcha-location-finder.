@@ -1,9 +1,10 @@
-import { applyListingFilters, isVisibleListing, resetFilters, togglePreset } from './filters.js';
-import { buildListingCard, buildListingDetail, calculateDealScore, escapeHtml } from './listings.js';
-import { addUserListing, loadUserListings } from './storage.js';
+import { applyListingFilters, defaultProjectConfig, isVisibleListing, resetFilters } from './filters.js?v=info-model-1';
+import { buildListingCard, buildListingDetail, calculateMatchaScore, escapeHtml } from './listings.js?v=info-model-1';
+import { addUserListing, loadUserListings } from './storage.js?v=info-model-1';
 
 const state = {
   baseListings: [],
+  projectConfig: defaultProjectConfig,
   filters: resetFilters(),
   mode: 'list',
   loading: true,
@@ -19,7 +20,7 @@ function allListings() {
 }
 
 function getVisibleBaseListings() {
-  return state.baseListings.filter(isVisibleListing);
+  return state.baseListings.filter((listing) => isVisibleListing(listing, state.projectConfig));
 }
 
 function formatVerificationDate(value) {
@@ -49,15 +50,48 @@ function getLastVerifiedAt(listings) {
   return new Date(Math.max(...timestamps)).toISOString();
 }
 
+function loadJson(url) {
+  const cacheBustedUrl = `${url}?v=${Date.now()}`;
+
+  if (typeof window.fetch === 'function') {
+    return window.fetch(url, { cache: 'no-store' }).then((response) => {
+      if (!response.ok) throw new Error(`${url} HTTP ${response.status}`);
+      return response.json();
+    });
+  }
+
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open('GET', cacheBustedUrl, true);
+    request.setRequestHeader('Cache-Control', 'no-store');
+    request.onload = () => {
+      if (request.status < 200 || request.status >= 300) {
+        reject(new Error(`${url} HTTP ${request.status}`));
+        return;
+      }
+
+      try {
+        resolve(JSON.parse(request.responseText));
+      } catch (error) {
+        reject(error);
+      }
+    };
+    request.onerror = () => reject(new Error(`${url} request failed`));
+    request.send();
+  });
+}
+
 async function loadListings() {
   state.loading = true;
   state.loadError = null;
   renderListings();
 
   try {
-    const response = await fetch('./data/listings.json', { cache: 'no-store' });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const listings = await response.json();
+    const [projectConfig, listings] = await Promise.all([
+      loadJson('./data/project-config.json'),
+      loadJson('./data/listings.json')
+    ]);
+    state.projectConfig = { ...defaultProjectConfig, ...projectConfig };
     state.baseListings = Array.isArray(listings) ? listings : [];
   } catch (error) {
     console.error('Не удалось загрузить listings.json', error);
@@ -68,15 +102,11 @@ async function loadListings() {
 }
 
 function renderSummary(listings) {
-  const knownRent = listings.filter((listing) => listing.rent != null);
-
+  const confirmed = listings.filter((listing) => listing.listingType === 'direct_listing').length;
+  const leads = listings.filter((listing) => listing.listingType !== 'direct_listing').length;
   el('sCount').textContent = listings.length;
-  el('sAvg').textContent = knownRent.length
-    ? `€${Math.round(knownRent.reduce((sum, listing) => sum + listing.rent, 0) / knownRent.length)}`
-    : '—';
-  el('sTop').textContent = listings.length
-    ? Math.max(...listings.map((listing) => listing.score || 0)).toFixed(1)
-    : '—';
+  el('sAvg').textContent = confirmed;
+  el('sTop').textContent = leads;
 }
 
 function renderStateCard(type, message, action = '') {
@@ -92,14 +122,6 @@ function renderStateCard(type, message, action = '') {
   `;
 }
 
-function renderQuickFilters() {
-  document.querySelectorAll('[data-preset]').forEach((button) => {
-    const active = Boolean(state.filters.presets[button.dataset.preset]);
-    button.classList.toggle('active', active);
-    button.setAttribute('aria-pressed', String(active));
-  });
-}
-
 function renderSelectOptions(selectId, values) {
   const select = el(selectId);
   const currentValue = select.value;
@@ -112,7 +134,7 @@ function renderSelectOptions(selectId, values) {
 
 function syncFilterOptions() {
   const listings = allListings();
-  const sources = [...new Set(listings.map((listing) => listing.source).filter(Boolean))].sort();
+  const sources = [...new Set(listings.map((listing) => listing.sourceName || listing.source).filter(Boolean))].sort();
   const statuses = [...new Set(listings.map((listing) => listing.status).filter(Boolean))].sort();
 
   renderSelectOptions('fSource', sources);
@@ -162,55 +184,39 @@ function renderListings() {
   if (state.loading) {
     renderSummary([]);
     el('list').innerHTML = renderStateCard('loading', 'Загружаю объявления...');
-    el('dealsList').innerHTML = renderStateCard('loading', 'Загружаю выгодные объекты...');
     renderMap([]);
-    renderQuickFilters();
     return;
   }
 
   if (state.loadError) {
     renderSummary([]);
     el('list').innerHTML = renderStateCard('error', 'Не удалось загрузить объявления.', 'retry-load');
-    el('dealsList').innerHTML = renderStateCard('error', 'Не удалось загрузить объявления.', 'retry-load');
     renderMap([]);
-    renderQuickFilters();
     return;
   }
 
-  const listings = applyListingFilters(allListings(), state.filters);
+  const listings = applyListingFilters(allListings(), state.filters, state.projectConfig, calculateMatchaScore);
   renderSummary(listings);
   const visibleBaseListings = getVisibleBaseListings();
   el('listMeta').textContent = `${visibleBaseListings.length} активных/лидов · проверено ${formatVerificationDate(getLastVerifiedAt(state.baseListings))}`;
 
   el('list').innerHTML = listings.length
-    ? listings.map(buildListingCard).join('')
+    ? listings.map((listing) => buildListingCard(listing, state.projectConfig)).join('')
     : renderStateCard('empty', 'Нет объектов под текущий фильтр.');
 
-  const deals = applyListingFilters(allListings(), state.filters)
-    .filter((listing) => calculateDealScore(listing).score >= 20)
-    .sort((a, b) => calculateDealScore(b).score - calculateDealScore(a).score);
-
-  el('dealsList').innerHTML = deals.length
-    ? deals.map(buildListingCard).join('')
-    : renderStateCard('empty', 'Пока нет выгодных условий под текущий фильтр.');
-
   renderMap(listings);
-  renderQuickFilters();
 }
 
 function showMode(mode) {
   state.mode = mode;
 
   el('listMode').classList.toggle('hidden', mode !== 'list');
-  el('dealsMode').classList.toggle('hidden', mode !== 'deals');
   el('mapMode').classList.toggle('hidden', mode !== 'map');
 
   el('tabList').classList.toggle('active', mode === 'list');
-  el('tabDeals').classList.toggle('active', mode === 'deals');
   el('tabMap').classList.toggle('active', mode === 'map');
 
   el('tabList').setAttribute('aria-selected', String(mode === 'list'));
-  el('tabDeals').setAttribute('aria-selected', String(mode === 'deals'));
   el('tabMap').setAttribute('aria-selected', String(mode === 'map'));
 
   document.querySelectorAll('[data-nav-mode]').forEach((button) => {
@@ -237,7 +243,7 @@ function openDetails(listingId) {
   const listing = allListings().find((item) => item.id === listingId);
   if (!listing) return;
 
-  el('detail').innerHTML = buildListingDetail(listing);
+  el('detail').innerHTML = buildListingDetail(listing, state.projectConfig);
 
   openSheet('detailSheet');
 }
@@ -274,20 +280,34 @@ function saveManualListing() {
   addUserListing({
     id: `own-${Date.now()}`,
     source: 'manual',
+    sourceName: 'Manual',
+    sourceFamily: 'manual',
+    listingType: 'manual_lead',
     district,
     address: el('aAddress').value.trim(),
     area,
+    unitArea: area,
+    projectTotalArea: null,
     rent,
     nk,
     gastro: el('aGastro').value,
-    score: 7,
+    gastroSuitability: el('aGastro').value === 'yes' ? 'possible' : 'unknown',
+    gastroEvidence: 'Manual user entry; gastro suitability is not source-verified.',
     status: 'LEAD',
     availabilityStatus: 'lead',
     lastVerifiedAt: null,
     directUrl: Boolean(el('aUrl').value.trim()),
     verificationMethod: 'manual-user-entry',
     url: el('aUrl').value.trim(),
-    fees: el('aFees').value.trim() || 'уточнить',
+    fees: el('aFees').value.trim() || '',
+    provision: { value: null, known: false },
+    abloese: { value: null, known: false },
+    kaution: { value: null, known: false },
+    nebenkosten: { value: nk, known: nk != null },
+    verifiedSummary: el('aNote').value.trim() || 'Manual lead added by user. Source facts still need verification.',
+    keyFacts: ['Manual lead'],
+    unknowns: ['source verification', 'full entry costs', 'current availability', 'permission for Matcha/Café use'],
+    nextAction: 'Verify the source and request current conditions before treating this as a working candidate.',
     note: el('aNote').value.trim()
   });
 
@@ -303,12 +323,6 @@ function bindEvents() {
   document.addEventListener('click', (event) => {
     const modeButton = event.target.closest('[data-mode]');
     if (modeButton) showMode(modeButton.dataset.mode);
-
-    const presetButton = event.target.closest('[data-preset]');
-    if (presetButton) {
-      state.filters.presets = togglePreset(state.filters.presets, presetButton.dataset.preset);
-      renderListings();
-    }
 
     const retryButton = event.target.closest('[data-action="retry-load"]');
     if (retryButton) loadListings().then(renderListings);

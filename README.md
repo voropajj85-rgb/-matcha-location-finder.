@@ -31,7 +31,8 @@ matcha-location-finder/
 │   ├── listings.js
 │   └── storage.js
 ├── data/
-│   └── listings.json
+│   ├── listings.json
+│   └── project-config.json
 ├── assets/
 │   └── images/
 ├── README.md
@@ -45,10 +46,11 @@ matcha-location-finder/
 - `index.html` — только HTML-каркас приложения.
 - `css/styles.css` — утверждённый внешний вид.
 - `js/app.js` — запуск приложения и управление интерфейсом.
-- `js/listings.js` — карточки объявлений и Deal Score.
+- `js/listings.js` — карточки объявлений, Matcha Score и breakdown.
 - `js/filters.js` — фильтрация и сортировка.
 - `js/storage.js` — локально добавленные пользователем объекты.
 - `data/listings.json` — актуальная база рынка.
+- `data/project-config.json` — централизованные критерии проекта.
 - `assets/images/` — будущие изображения и превью.
 
 ## Данные
@@ -56,3 +58,30 @@ matcha-location-finder/
 Рыночные предложения хранятся отдельно от UI в `data/listings.json` и обновляются из нескольких источников: Kleinanzeigen, Immowelt, ImmoScout24, Stadt München, сайты маклеров и прямые предложения.
 
 Обновление `data/listings.json` не должно требовать изменения `index.html` или CSS.
+
+### Availability
+
+Поддерживаемые статусы:
+
+- `active` — строго подтверждённое актуальное direct listing.
+- `dead` — объявление удалено или деактивировано.
+- `unknown` — данных недостаточно; лучше unknown, чем ложный active.
+- `search_only` — ссылка ведёт на поиск/выдачу, а не на конкретное объявление.
+- `lead` — проектная, муниципальная, брокерская или ручная зацепка.
+
+Основной UI показывает только `lead` и свежие `active`. Свежесть задаётся в `data/project-config.json`; текущий порог — 48 часов.
+
+### Information Schema
+
+Новая семантика данных не удаляет legacy-поля сразу, но renderer должен опираться на нормализованные поля:
+
+- `listingType`: `direct_listing`, `project_lead`, `broker_lead`, `municipal_lead`, `manual_lead`.
+- `sourceFamily` и `sourceName` нормализуют источники без замены общего dataset одним источником.
+- `unitArea` — площадь конкретного помещения-кандидата.
+- `projectTotalArea` — общая площадь проекта; не используется как площадь Matcha Bar unit.
+- `gastroSuitability`: `confirmed`, `possible`, `unknown`, `no`.
+- `gastroEvidence` объясняет, почему выбран gastro status.
+- `verifiedSummary`, `keyFacts`, `unknowns`, `nextAction` разделяют факты источника и наши действия.
+- `provision`, `abloese`, `kaution`, `nebenkosten` хранят условия входа как `{ value, known }`.
+
+Новые direct listings добавляются с `availabilityStatus: "unknown"` и становятся `active` только после строгой проверки. Project/broker/municipal/manual leads не маскируются под подтверждённые direct listings.
