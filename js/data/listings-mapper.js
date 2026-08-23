@@ -51,6 +51,9 @@ export function mapDatabaseListing(row) {
     discoveryMethod: row.discovery_method,
     canonicalUrl: row.canonical_url,
     rawSourceData: row.raw_source_data,
+    businessFitLevel: row.raw_source_data?.businessFitLevel || null,
+    businessFitReasons: toArray(row.raw_source_data?.businessFitReasons),
+    sourceQuality: row.raw_source_data?.sourceQuality || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
