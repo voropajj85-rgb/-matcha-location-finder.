@@ -1,5 +1,5 @@
-import { applyListingFilters, defaultProjectConfig, isVisibleListing, resetFilters } from './filters.js?v=business-fit-2';
-import { buildListingCard, buildListingDetail, calculateMatchaScore, escapeHtml } from './listings.js?v=business-fit-2';
+import { applyListingFilters, defaultProjectConfig, isVisibleLead, isVisibleListing, resetFilters } from './filters.js?v=source-expansion-1';
+import { buildLeadCard, buildListingCard, buildListingDetail, calculateMatchaScore, escapeHtml } from './listings.js?v=source-expansion-1';
 import { fetchListings } from './data/listings-repository.js?v=business-fit-2';
 import { addUserListing, loadUserListings } from './storage.js?v=info-model-1';
 
@@ -22,6 +22,10 @@ function allListings() {
 
 function getVisibleBaseListings() {
   return state.baseListings.filter((listing) => isVisibleListing(listing, state.projectConfig));
+}
+
+function getVisibleLeads() {
+  return allListings().filter(isVisibleLead);
 }
 
 function formatVerificationDate(value) {
@@ -102,12 +106,11 @@ async function loadListings() {
   }
 }
 
-function renderSummary(listings) {
+function renderSummary(listings, leads = []) {
   const confirmed = listings.filter((listing) => listing.listingType === 'direct_listing').length;
-  const leads = listings.filter((listing) => listing.listingType !== 'direct_listing').length;
-  el('sCount').textContent = listings.length;
+  el('sCount').textContent = confirmed;
   el('sAvg').textContent = confirmed;
-  el('sTop').textContent = leads;
+  el('sTop').textContent = leads.length;
 }
 
 function renderStateCard(type, message, action = '') {
@@ -183,27 +186,34 @@ function renderMap(listings) {
 
 function renderListings() {
   if (state.loading) {
-    renderSummary([]);
+    renderSummary([], []);
     el('list').innerHTML = renderStateCard('loading', 'Загружаю объявления...');
+    el('leadList').innerHTML = '';
     renderMap([]);
     return;
   }
 
   if (state.loadError) {
-    renderSummary([]);
+    renderSummary([], []);
     el('list').innerHTML = renderStateCard('error', 'Не удалось загрузить объявления.', 'retry-load');
+    el('leadList').innerHTML = '';
     renderMap([]);
     return;
   }
 
   const listings = applyListingFilters(allListings(), state.filters, state.projectConfig, calculateMatchaScore);
-  renderSummary(listings);
+  const leads = getVisibleLeads();
+  renderSummary(listings, leads);
   const visibleBaseListings = getVisibleBaseListings();
-  el('listMeta').textContent = `${visibleBaseListings.length} активных/лидов · проверено ${formatVerificationDate(getLastVerifiedAt(state.baseListings))}`;
+  el('listMeta').textContent = `${visibleBaseListings.length} помещений · Обновлено: ${formatVerificationDate(getLastVerifiedAt(state.baseListings))}`;
+  el('leadMeta').textContent = `${leads.length} лидов · не подтверждённые помещения`;
 
   el('list').innerHTML = listings.length
     ? listings.map((listing) => buildListingCard(listing, state.projectConfig)).join('')
     : renderStateCard('empty', 'Нет объектов под текущий фильтр.');
+  el('leadList').innerHTML = leads.length
+    ? leads.map((listing) => buildLeadCard(listing)).join('')
+    : renderStateCard('empty', 'Нет лидов для запроса помещения.');
 
   renderMap(listings);
 }

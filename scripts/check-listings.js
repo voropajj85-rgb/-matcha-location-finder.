@@ -10,6 +10,9 @@ const SOURCE_TYPES = {
   IMMOSCOUT: 'immoscout24',
   IMMOWELT: 'immowelt',
   KLEINANZEIGEN: 'kleinanzeigen',
+  COLLIERS: 'colliers',
+  JLL: 'jll',
+  STADT: 'stadt',
   LEAD: 'lead',
   UNKNOWN: 'unknown'
 };
@@ -67,6 +70,9 @@ function getSourceType(listing) {
   if (source.includes('immobilienscout24') || source.includes('immoscout')) return SOURCE_TYPES.IMMOSCOUT;
   if (source.includes('immowelt')) return SOURCE_TYPES.IMMOWELT;
   if (source.includes('kleinanzeigen')) return SOURCE_TYPES.KLEINANZEIGEN;
+  if (source.includes('colliers')) return SOURCE_TYPES.COLLIERS;
+  if (source.includes('jll') || source.includes('gewerbeimmobilien.jll.de')) return SOURCE_TYPES.JLL;
+  if (source.includes('stadt münchen') || source.includes('stadt.muenchen.de')) return SOURCE_TYPES.STADT;
   if (isLead(listing)) return SOURCE_TYPES.LEAD;
   return SOURCE_TYPES.UNKNOWN;
 }
@@ -74,7 +80,7 @@ function getSourceType(listing) {
 function isLead(listing) {
   return listing.availabilityStatus === 'lead'
     || listing.status === 'LEAD'
-    || LEAD_SOURCES.some((pattern) => pattern.test(listing.source || ''));
+    || (listing.listingType !== 'direct_listing' && LEAD_SOURCES.some((pattern) => pattern.test(listing.source || '')));
 }
 
 function isFreshVerifiedListing(listing, checkedAt = new Date()) {
@@ -114,6 +120,21 @@ function isImmoweltListingUrl(url) {
   return Boolean(parsed?.hostname.includes('immowelt.de') && /\/expose\//.test(parsed.pathname));
 }
 
+function isColliersListingUrl(url) {
+  const parsed = parseUrl(url);
+  return Boolean(parsed?.hostname.includes('colliers.de') && parsed.pathname.includes('/gewerbeimmobilien/objekt/'));
+}
+
+function isJllListingUrl(url) {
+  const parsed = parseUrl(url);
+  return Boolean(parsed?.hostname.includes('gewerbeimmobilien.jll.de') && parsed.pathname.includes('/einzelhandel/'));
+}
+
+function isStadtListingUrl(url) {
+  const parsed = parseUrl(url);
+  return Boolean(parsed?.hostname.includes('stadt.muenchen.de') && /gewerbeflaechen|gewerbeflachen|stadtische-gewerbeflachen/i.test(parsed.pathname));
+}
+
 function getLastPathSegment(url) {
   const parsed = parseUrl(url);
   if (!parsed) return '';
@@ -133,6 +154,10 @@ function isSameConcreteListing(sourceType, originalUrl, finalUrl) {
   if (sourceType === SOURCE_TYPES.IMMOWELT) {
     return isImmoweltListingUrl(finalUrl) && getLastPathSegment(originalUrl) === getLastPathSegment(finalUrl);
   }
+
+  if (sourceType === SOURCE_TYPES.COLLIERS) return isColliersListingUrl(finalUrl);
+  if (sourceType === SOURCE_TYPES.JLL) return isJllListingUrl(finalUrl);
+  if (sourceType === SOURCE_TYPES.STADT) return isStadtListingUrl(finalUrl);
 
   return false;
 }
@@ -177,6 +202,13 @@ function hasStrongListingEvidence(sourceType, listing, html, finalUrl) {
     const hasExposeShell = /immowelt/i.test(html) && /expose/i.test(html);
     const hasObjectShell = /kontakt|anbieter|adresse|objektbeschreibung|ausstattung/i.test(html);
     return hasExposeShell && hasObjectShell;
+  }
+
+  if ([SOURCE_TYPES.COLLIERS, SOURCE_TYPES.JLL, SOURCE_TYPES.STADT].includes(sourceType)) {
+    const expectedTitle = String(listing.title || '').toLowerCase().slice(0, 30);
+    const hasTitle = expectedTitle.length >= 8 && lowerHtml.includes(expectedTitle);
+    const hasRealEstateText = /mietfl[aä]che|ladenfl[aä]che|verkaufsfl[aä]che|einzelhandel|gastronomie|kontakt|expos[eé]/i.test(html);
+    return isSameConcreteListing(sourceType, listing.url, finalUrl) && hasRealEstateText && (hasTitle || lowerHtml.includes('münchen'));
   }
 
   return false;

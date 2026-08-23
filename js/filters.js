@@ -37,7 +37,6 @@ export function getAvailabilityStatus(listing) {
 
 export function isVisibleListing(listing, projectConfig = defaultProjectConfig) {
   const availabilityStatus = getAvailabilityStatus(listing);
-  if (availabilityStatus === 'lead') return true;
   if (availabilityStatus === 'active') {
     const relevance = calculateProjectRelevance(listing, projectConfig);
     return listing.listingType === 'direct_listing'
@@ -48,6 +47,10 @@ export function isVisibleListing(listing, projectConfig = defaultProjectConfig) 
       && isBusinessFitVisible(listing);
   }
   return false;
+}
+
+export function isVisibleLead(listing) {
+  return getAvailabilityStatus(listing) === 'lead' && listing.listingType !== 'direct_listing';
 }
 
 export function isFreshVerifiedListing(listing, maxAgeHours = 48) {

@@ -22,6 +22,8 @@ const {
 } = require('../utils');
 const { checkListing, classifyHtml } = require('../../check-listings');
 const { calculateBusinessFit } = require('../business-fit');
+const { candidateFromPage: stadtCandidateFromPage } = require('../sources/stadt-muenchen');
+const { candidateFromBrokerPage } = require('../sources/brokers');
 const { calculateProjectRelevance } = require('../project-relevance');
 
 async function run() {
@@ -33,6 +35,13 @@ async function run() {
   assert.strictEqual(
     extractExternalId('Kleinanzeigen', 'https://www.kleinanzeigen.de/s-anzeige/demo/123-277-6411'),
     'klein-123-277-6411'
+  );
+  assert.strictEqual(
+    getValidExternalUrl({
+      listingType: 'direct_listing',
+      url: 'https://gewerbeimmobilien.jll.de/einzelhandel/demo-muenchen'
+    }),
+    'https://gewerbeimmobilien.jll.de/einzelhandel/demo-muenchen'
   );
 
   assert.strictEqual(isSearchPageUrl('https://www.kleinanzeigen.de/s-muenchen/kiosk-mieten/k0l6411'), true);
@@ -63,6 +72,36 @@ async function run() {
   assert.strictEqual(projectLead.area, null);
   assert.strictEqual(projectLead.projectTotalArea, 1200);
   assert.strictEqual(projectLead.availabilityStatus, 'lead');
+
+  const stadtDirect = stadtCandidateFromPage(
+    'https://stadt.muenchen.de/service/info/stadtische-gewerbeflachen-verfugbare-objekte/1081087/n0/demo',
+    '<h1>Ladenfläche in München zu vermieten</h1><p>Ladenfläche 47 m². Miete 1.900 €. Gastronomie möglich. Adresse Teststraße 1 München.</p>',
+    '2026-08-23T10:00:00.000Z'
+  );
+  assert.strictEqual(stadtDirect.listingType, 'direct_listing');
+  assert.strictEqual(stadtDirect.unitArea, 47);
+  assert.strictEqual(stadtDirect.rent, 1900);
+
+  const stadtLead = stadtCandidateFromPage(
+    'https://stadt.muenchen.de/lhm-ms-wirtschaftsfoerderung/standort-muenchen/gewerbeflaechen-immobilien/gewerbeflaechen-angebote/project.html',
+    '<h1>Projektentwicklung München</h1><p>Kontaktieren Sie uns für verfügbare Flächen.</p>',
+    '2026-08-23T10:00:00.000Z'
+  );
+  assert.strictEqual(stadtLead.listingType, 'project_lead');
+
+  const colliersParsed = candidateFromBrokerPage({
+    sourceName: 'Colliers',
+    sourceFamily: 'broker'
+  }, 'https://www.colliers.de/gewerbeimmobilien/objekt/laden-muenchen-demo/', '<h1>Laden München</h1><p>Mietfläche 79 m². Miete 2.900 €. Einzelhandel München.</p>', '2026-08-23T10:00:00.000Z');
+  assert.strictEqual(colliersParsed.unitArea, 79);
+  assert.strictEqual(colliersParsed.rent, 2900);
+  assert.strictEqual(colliersParsed.sourceName, 'Colliers');
+
+  const colliersSmall = candidateFromBrokerPage({
+    sourceName: 'Colliers',
+    sourceFamily: 'broker'
+  }, 'https://www.colliers.de/gewerbeimmobilien/objekt/laden-muenchen-small/', '<h1>Shop München</h1><p>Ladenfläche 47 m². Miete 1.900 €.</p>', '2026-08-23T10:00:00.000Z');
+  assert.strictEqual(colliersSmall.unitArea, 47);
 
   assert.strictEqual(normalizeListing({
     sourceName: 'Kleinanzeigen',
@@ -429,6 +468,7 @@ async function run() {
   assert.strictEqual(validationCounts.activeButNotUsable, 1);
 
   const { buildListingCard, buildListingDetail } = await import('../../../js/listings.js');
+  const { buildLeadCard } = await import('../../../js/listings.js');
   const cardWithoutUrl = buildListingCard({
     id: 'missing-url',
     listingType: 'municipal_lead',
@@ -460,7 +500,7 @@ async function run() {
   });
   assert.strictEqual(cardWithUrl.includes('href="https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411"'), true);
 
-  const { applyListingFilters, resetFilters } = await import('../../../js/filters.js');
+  const { applyListingFilters, isVisibleLead, resetFilters } = await import('../../../js/filters.js');
   const filtered = applyListingFilters([
     {
       id: 'active-ok',
@@ -492,7 +532,11 @@ async function run() {
     { id: 'search', listingType: 'direct_listing', availabilityStatus: 'search_only' },
     { id: 'lead', listingType: 'project_lead', availabilityStatus: 'lead' }
   ], resetFilters());
-  assert.deepStrictEqual(filtered.map((listing) => listing.id).sort(), ['active-ok', 'lead']);
+  assert.deepStrictEqual(filtered.map((listing) => listing.id).sort(), ['active-ok']);
+  assert.strictEqual(isVisibleLead({ id: 'lead', listingType: 'project_lead', availabilityStatus: 'lead' }), true);
+  const leadCard = buildLeadCard({ id: 'lead', listingType: 'project_lead', availabilityStatus: 'lead', title: 'FMQ', sourceName: 'Stadt München' });
+  assert.strictEqual(leadCard.includes('Это не подтверждённое помещение'), true);
+  assert.strictEqual(leadCard.includes('Matcha Score'), false);
 
   const insufficientScoreCard = buildListingCard({
     id: 'score-hidden',

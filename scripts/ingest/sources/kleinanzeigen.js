@@ -10,8 +10,11 @@ const SEARCHES = [
   'https://www.kleinanzeigen.de/s-gewerbeimmobilien/muenchen/c277l6411',
   'https://www.kleinanzeigen.de/s-muenchen/laden-mieten/k0l6411',
   'https://www.kleinanzeigen.de/s-muenchen/cafe-mieten/k0l6411',
+  'https://www.kleinanzeigen.de/s-muenchen/ladenflaeche-mieten/k0l6411',
+  'https://www.kleinanzeigen.de/s-muenchen/einzelhandel-mieten/k0l6411',
   'https://www.kleinanzeigen.de/s-muenchen/gastronomie-mieten/k0l6411',
   'https://www.kleinanzeigen.de/s-muenchen/imbiss-mieten/k0l6411',
+  'https://www.kleinanzeigen.de/s-muenchen/take-away-mieten/k0l6411',
   'https://www.kleinanzeigen.de/s-muenchen/kiosk-mieten/k0l6411'
 ];
 

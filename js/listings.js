@@ -300,6 +300,41 @@ export function buildListingCard(listing, projectConfig = defaultProjectConfig) 
   `;
 }
 
+export function buildLeadCard(listing) {
+  const source = getSourceLabel(listing);
+  const url = getValidExternalUrl(listing);
+  const sourceAction = url
+    ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">Источник ↗</a>`
+    : '<span class="source-unavailable" aria-disabled="true">Источник недоступен</span>';
+
+  return `
+    <article class="card lead-card" data-listing-id="${escapeHtml(listing.id)}">
+      <div class="card-body">
+        <div class="card-top">
+          <div class="card-heading">
+            <span class="source-badge">${escapeHtml(source)}</span>
+            <div class="card-title">${escapeHtml(getTitle(listing))}</div>
+            <div class="card-meta">${escapeHtml(listing.address || listing.district || 'Локацию нужно уточнить')}</div>
+          </div>
+        </div>
+
+        <div class="status-row">
+          <span class="status-pill lead">Lead</span>
+          <span class="gastro check">Это не подтверждённое помещение</span>
+        </div>
+
+        <p class="card-note">${escapeHtml(listing.verifiedSummary || listing.note || 'Lead source; конкретную unit, площадь и аренду нужно запросить.')}</p>
+        <p class="card-note"><strong>Следующее действие:</strong> ${escapeHtml(listing.nextAction || 'Запросить доступные помещения 25–80 м² и условия аренды.')}</p>
+      </div>
+
+      <div class="card-actions">
+        <button type="button" data-action="details" data-id="${escapeHtml(listing.id)}">Подробнее</button>
+        ${sourceAction}
+      </div>
+    </article>
+  `;
+}
+
 export function buildListingDetail(listing, projectConfig = defaultProjectConfig) {
   const scoreResult = calculateMatchaScore(listing, projectConfig);
   const url = getValidExternalUrl(listing);

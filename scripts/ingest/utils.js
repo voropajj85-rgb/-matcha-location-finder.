@@ -16,7 +16,9 @@ const DIRECT_URL_PATTERNS = [
   /immowelt\.de\/expose\//i,
   /immobilienscout24\.de\/expose\/\d+/i,
   /colliers\.de\/gewerbeimmobilien\/objekt\//i,
-  /stadt\.muenchen\.de\/.*gewerbeflaechen-angebote/i
+  /stadt\.muenchen\.de\/.*gewerbeflaechen-angebote/i,
+  /stadt\.muenchen\.de\/service\/info\/stadtische-gewerbeflachen-verfugbare-objekte/i,
+  /gewerbeimmobilien\.jll\.de\/einzelhandel\//i
 ];
 
 const SEARCH_URL_PATTERNS = [
@@ -122,6 +124,12 @@ function extractExternalId(sourceName, sourceUrl) {
 
   const immowelt = canonicalUrl.match(/immowelt\.de\/expose\/([a-f0-9-]+)/i);
   if (immowelt) return `immowelt-${immowelt[1]}`;
+
+  const colliers = canonicalUrl.match(/colliers\.de\/gewerbeimmobilien\/objekt\/([^/?#]+)/i);
+  if (colliers) return `colliers-${colliers[1].toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+
+  const jll = canonicalUrl.match(/gewerbeimmobilien\.jll\.de\/einzelhandel\/([^/?#]+)/i);
+  if (jll) return `jll-${jll[1].toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
 
   const slug = crypto
     .createHash('sha256')

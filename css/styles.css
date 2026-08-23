@@ -203,6 +203,16 @@ textarea:focus-visible {
   font-size: 11px;
 }
 
+.secondary-heading {
+  margin-top: 22px;
+}
+
+.lead-list .score,
+.lead-list .value-row,
+.lead-list .deal-box {
+  display: none;
+}
+
 .list {
   display: flex;
   flex-direction: column;

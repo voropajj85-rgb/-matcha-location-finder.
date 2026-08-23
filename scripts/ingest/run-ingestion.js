@@ -12,6 +12,7 @@ const { calculateBusinessFit, withBusinessFit } = require('./business-fit');
 const {
   isSafeForProduction,
   isVisibleCandidate,
+  isVisibleLead,
   isUsableCandidate,
   summarizeValidation,
   validateSourceLink,
@@ -106,6 +107,82 @@ function printSourceSummary(results) {
     for (const error of result.errors.slice(0, 3)) {
       console.log(`    error: ${error.sourceUrl} - ${error.message}`);
     }
+  }
+}
+
+function normalizeSourceBucket(source) {
+  const value = String(source || 'Unknown');
+  const lower = value.toLowerCase();
+  if (lower.includes('kleinanzeigen')) return 'Kleinanzeigen';
+  if (lower.includes('stadt')) return 'Stadt München';
+  if (lower.includes('colliers')) return 'Colliers';
+  if (lower.includes('jll')) return 'JLL';
+  if (lower.includes('immowelt')) return 'Immowelt';
+  if (lower.includes('immoscout')) return 'ImmoScout24';
+  if (lower.includes('broker')) return 'Brokers';
+  return value;
+}
+
+function emptySourceOutcome() {
+  return {
+    found: 0,
+    verifiedActive: 0,
+    rejected: 0,
+    blocked: 0,
+    errors: 0,
+    visibleDirectCandidates: 0,
+    leads: 0
+  };
+}
+
+function getSourceOutcome(outcomes, source) {
+  const bucket = normalizeSourceBucket(source);
+  if (!outcomes[bucket]) outcomes[bucket] = emptySourceOutcome();
+  return outcomes[bucket];
+}
+
+function isBlockedError(error) {
+  return /HTTP (401|403|429)|blocks discovery|blocked|timeout|fetch failed|no individual object URLs/i.test(error.message || '');
+}
+
+function summarizeSourceOutcomes(sourceResults, listings) {
+  const outcomes = {};
+
+  for (const result of sourceResults) {
+    const outcome = getSourceOutcome(outcomes, result.source);
+    outcome.found += result.candidates.length;
+    outcome.errors += result.errors.length;
+    outcome.blocked += result.errors.filter(isBlockedError).length;
+  }
+
+  for (const listing of listings) {
+    const outcome = getSourceOutcome(outcomes, listing.sourceName || listing.source);
+    if (listing.availabilityStatus === 'active') outcome.verifiedActive += 1;
+    if (isVisibleCandidate(listing)) outcome.visibleDirectCandidates += 1;
+    if (isVisibleLead(listing)) outcome.leads += 1;
+
+    const relevance = calculateProjectRelevance(listing);
+    const businessFit = calculateBusinessFit(listing);
+    if (
+      listing.listingType === 'direct_listing' &&
+      (listing.availabilityStatus !== 'active' ||
+        relevance.level === 'reject' ||
+        businessFit.level === 'exclude' ||
+        !validateSourceLink(listing).sourceLinkValid)
+    ) {
+      outcome.rejected += 1;
+    }
+  }
+
+  return outcomes;
+}
+
+function printSourceOutcomes(outcomes) {
+  console.log('\nsource outcomes');
+  for (const [source, outcome] of Object.entries(outcomes)) {
+    console.log(
+      `  ${source}: found ${outcome.found}, verified_active ${outcome.verifiedActive}, rejected ${outcome.rejected}, blocked ${outcome.blocked}, errors ${outcome.errors}, visible_direct ${outcome.visibleDirectCandidates}, leads ${outcome.leads}`
+    );
   }
 }
 
@@ -220,7 +297,7 @@ function existingCleanupActions(existingRows) {
     }));
 }
 
-async function writeValidationReport({ sourceResults, listings, cleanupActions, counts, qualityCounts, validationCounts, relevanceCounts, businessFitCounts, areaCounts, skipped, discoveredCount, now }) {
+async function writeValidationReport({ sourceResults, listings, cleanupActions, counts, qualityCounts, validationCounts, relevanceCounts, businessFitCounts, areaCounts, sourceOutcomes, skipped, discoveredCount, now }) {
   const report = {
     generatedAt: now,
     dryRunSafe: true,
@@ -238,6 +315,7 @@ async function writeValidationReport({ sourceResults, listings, cleanupActions, 
       searchUrlsRejected: validationCounts.searchUrlsRejected,
       safeForProduction: validationCounts.safeForProduction,
       visibleCandidates: validationCounts.visibleCandidates,
+      visibleLeads: validationCounts.visibleLeads,
       strong: relevanceCounts.strong,
       acceptable: relevanceCounts.acceptable,
       weak: relevanceCounts.weak,
@@ -255,6 +333,7 @@ async function writeValidationReport({ sourceResults, listings, cleanupActions, 
       sourceUrl: error.sourceUrl,
       message: error.message
     }))),
+    sourceOutcomes,
     listings: listings.map(validationRecord),
     cleanupActions: cleanupActions.map(validationRecord),
     skippedDuplicates: skipped
@@ -323,9 +402,11 @@ async function run(argv = process.argv.slice(2)) {
   const relevanceCounts = summarizeRelevance(verified);
   const businessFitCounts = summarizeBusinessFit(verified);
   const areaCounts = summarizeAreaExtraction(verified);
+  const sourceOutcomes = summarizeSourceOutcomes(sourceResults, verified);
   const productionReady = [...verified.filter(isSafeForProduction), ...cleanupActions];
 
   printSourceSummary(sourceResults);
+  printSourceOutcomes(sourceOutcomes);
   console.log('\nsummary');
   console.log(`  discovered: ${normalized.length}`);
   console.log(`  new: ${verified.filter((listing) => listing.dedupeAction === 'new').length}`);
@@ -347,6 +428,7 @@ async function run(argv = process.argv.slice(2)) {
   console.log(`  search_urls_rejected: ${validationCounts.searchUrlsRejected}`);
   console.log(`  safe_for_production: ${validationCounts.safeForProduction}`);
   console.log(`  visible_candidates: ${validationCounts.visibleCandidates}`);
+  console.log(`  visible_leads: ${validationCounts.visibleLeads}`);
   console.log(`  strong: ${relevanceCounts.strong}`);
   console.log(`  acceptable: ${relevanceCounts.acceptable}`);
   console.log(`  weak: ${relevanceCounts.weak}`);
@@ -373,6 +455,7 @@ async function run(argv = process.argv.slice(2)) {
       relevanceCounts,
       businessFitCounts,
       areaCounts,
+      sourceOutcomes,
       skipped,
       discoveredCount: normalized.length,
       now

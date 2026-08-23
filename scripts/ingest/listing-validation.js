@@ -62,10 +62,13 @@ function isSafeForProduction(listing) {
 }
 
 function isVisibleCandidate(listing, projectConfig) {
-  if (listing.availabilityStatus === 'lead') return true;
   if (!isUsableCandidate(listing, projectConfig)) return false;
   const relevance = calculateProjectRelevance(listing, projectConfig);
   return (relevance.level === 'strong' || relevance.level === 'acceptable') && isBusinessFitVisible(listing);
+}
+
+function isVisibleLead(listing) {
+  return listing.availabilityStatus === 'lead' && listing.listingType !== 'direct_listing';
 }
 
 function validationIssues(listing) {
@@ -104,6 +107,7 @@ function summarizeValidation(listings) {
     searchUrlsRejected: 0,
     safeForProduction: 0,
     visibleCandidates: 0,
+    visibleLeads: 0,
     businessFit: {
       ideal: 0,
       good: 0,
@@ -126,6 +130,7 @@ function summarizeValidation(listings) {
     if (link.sourceUrlSearch) summary.searchUrlsRejected += 1;
     if (isSafeForProduction(listing)) summary.safeForProduction += 1;
     if (isVisibleCandidate(listing)) summary.visibleCandidates += 1;
+    if (isVisibleLead(listing)) summary.visibleLeads += 1;
     const fit = calculateBusinessFit(listing);
     if (Object.hasOwn(summary.businessFit, fit.level)) summary.businessFit[fit.level] += 1;
   }
@@ -136,6 +141,7 @@ function summarizeValidation(listings) {
 module.exports = {
   getValidExternalUrl,
   isVisibleCandidate,
+  isVisibleLead,
   isSafeForProduction,
   isUsableCandidate,
   summarizeValidation,
