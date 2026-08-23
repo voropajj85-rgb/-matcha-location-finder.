@@ -1,3 +1,5 @@
+import { getValidExternalUrl } from './source-links.js?v=source-links-1';
+
 export const defaultFilters = {
   minArea: '',
   maxArea: '',
@@ -34,7 +36,11 @@ export function getAvailabilityStatus(listing) {
 export function isVisibleListing(listing, projectConfig = defaultProjectConfig) {
   const availabilityStatus = getAvailabilityStatus(listing);
   if (availabilityStatus === 'lead') return true;
-  if (availabilityStatus === 'active') return isFreshVerifiedListing(listing, projectConfig.freshnessHours);
+  if (availabilityStatus === 'active') {
+    return listing.listingType === 'direct_listing'
+      && isFreshVerifiedListing(listing, projectConfig.freshnessHours)
+      && Boolean(getValidExternalUrl(listing));
+  }
   return false;
 }
 

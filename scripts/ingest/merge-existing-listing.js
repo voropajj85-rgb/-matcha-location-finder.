@@ -110,6 +110,7 @@ function mergeExistingListing(existingRow, discovered) {
     discoveryMethod: preferUseful(existing.discoveryMethod, discovered.discoveryMethod),
     rawSourceData: preferUseful(existing.rawSourceData, discovered.rawSourceData),
     availabilityStatus: override?.status || preferAvailability(existing.availabilityStatus, discovered.availabilityStatus),
+    previousAvailabilityStatus: existing.availabilityStatus || null,
     lastVerifiedAt: override?.verifiedAt || discovered.lastVerifiedAt || existing.lastVerifiedAt,
     verificationMethod: override?.status ? 'manual-override' : discovered.verificationMethod || existing.verificationMethod,
     verificationOverride: override || discovered.verificationOverride || null,

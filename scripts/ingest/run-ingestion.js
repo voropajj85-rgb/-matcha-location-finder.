@@ -1,11 +1,19 @@
 #!/usr/bin/env node
 
+const fs = require('fs/promises');
+const path = require('path');
 const { deduplicateListings } = require('./deduplicate-listings');
 const { calculateDataCompleteness, summarizeDataQuality } = require('./data-completeness');
 const { enrichListings } = require('./enrich-listing');
 const { normalizeListing } = require('./normalize-listing');
 const { fetchExistingRows, upsertListings } = require('./supabase-upsert');
-const { isUsableCandidate, summarizeValidation, validateSourceLink } = require('./listing-validation');
+const {
+  isSafeForProduction,
+  isUsableCandidate,
+  summarizeValidation,
+  validateSourceLink,
+  validationIssues
+} = require('./listing-validation');
 const { verifyListings } = require('./verify-listings');
 
 const SOURCES = {
@@ -17,6 +25,7 @@ const SOURCES = {
 };
 
 const REQUEST_TIMEOUT_MS = 15000;
+const REPORT_PATH = path.join(__dirname, 'reports', 'latest-validation.json');
 
 function parseArgs(argv) {
   const sourceArg = argv.find((arg) => arg.startsWith('--source='));
@@ -102,8 +111,85 @@ function printValidationReport(listings) {
     console.log(`  dedupeAction: ${listing.dedupeAction || 'unknown'}`);
     console.log(`  sourceLinkValid: ${link.sourceLinkValid}`);
     console.log(`  usable: ${isUsableCandidate(listing)}`);
+    console.log(`  safeForProduction: ${isSafeForProduction(listing)}`);
     console.log(`  reason: ${listing.reason || listing.rawSourceData?.enrichmentStatus || 'n/a'}`);
   }
+}
+
+function validationRecord(listing) {
+  const link = validateSourceLink(listing);
+  const issues = validationIssues(listing);
+  return {
+    externalId: listing.externalId || listing.id,
+    source: listing.sourceName || listing.source || null,
+    url: listing.sourceUrl || listing.url || null,
+    canonicalUrl: link.canonicalUrl,
+    previousStatus: listing.previousAvailabilityStatus || null,
+    proposedStatus: listing.availabilityStatus || 'unknown',
+    reason: listing.reason || listing.rawSourceData?.enrichmentStatus || null,
+    httpState: listing.rawSourceData?.httpStatus || listing.rawSourceData?.enrichmentStatus || null,
+    finalUrl: listing.finalUrl || listing.rawSourceData?.verificationFinalUrl || listing.rawSourceData?.finalUrl || null,
+    directListingConfirmed: listing.listingType === 'direct_listing' && link.sourceLinkValid && isUsableCandidate(listing),
+    sourceLinkValid: link.sourceLinkValid,
+    issues,
+    dataCompleteness: listing.dataCompleteness ?? calculateDataCompleteness(listing).dataCompleteness,
+    dataQuality: listing.dataQuality ?? calculateDataCompleteness(listing).dataQuality,
+    lastVerifiedAt: listing.lastVerifiedAt || null,
+    safeForProduction: isSafeForProduction(listing),
+    listingType: listing.listingType,
+    rent: listing.rent ?? null,
+    unitArea: listing.unitArea ?? null,
+    gastroSuitability: listing.gastroSuitability || 'unknown',
+    verificationMethod: listing.verificationMethod || null,
+    dedupeAction: listing.dedupeAction || null
+  };
+}
+
+function enforceStrictProductionStatus(listing) {
+  if (listing.listingType === 'direct_listing' && listing.availabilityStatus === 'active' && !isUsableCandidate(listing)) {
+    const issues = validationIssues(listing);
+    return {
+      ...listing,
+      availabilityStatus: 'unknown',
+      verificationMethod: 'insufficient-production-evidence',
+      reason: issues.length ? issues.join('; ') : 'active evidence is insufficient for production use'
+    };
+  }
+
+  return listing;
+}
+
+async function writeValidationReport({ sourceResults, listings, counts, qualityCounts, validationCounts, skipped, discoveredCount, now }) {
+  const report = {
+    generatedAt: now,
+    dryRunSafe: true,
+    counts: {
+      discovered: discoveredCount,
+      ...counts,
+      complete: qualityCounts.complete,
+      partial: qualityCounts.partial,
+      minimal: qualityCounts.minimal,
+      usableDirectListings: validationCounts.usableDirectListings,
+      activeButNotUsable: validationCounts.activeButNotUsable,
+      validDirectUrls: validationCounts.validDirectUrls,
+      missingUrls: validationCounts.missingUrls,
+      invalidUrls: validationCounts.invalidUrls,
+      searchUrlsRejected: validationCounts.searchUrlsRejected,
+      safeForProduction: validationCounts.safeForProduction,
+      skippedDuplicates: skipped.length
+    },
+    blockedSources: sourceResults.flatMap((result) => result.errors.map((error) => ({
+      source: result.source,
+      sourceUrl: error.sourceUrl,
+      message: error.message
+    }))),
+    listings: listings.map(validationRecord),
+    skippedDuplicates: skipped
+  };
+
+  await fs.mkdir(path.dirname(REPORT_PATH), { recursive: true });
+  await fs.writeFile(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+  return REPORT_PATH;
 }
 
 async function run(argv = process.argv.slice(2)) {
@@ -147,13 +233,14 @@ async function run(argv = process.argv.slice(2)) {
 
   const { listings: deduped, skipped } = deduplicateListings(enriched, existingRows);
   const verifiedRaw = args.skipVerification ? deduped : await verifyListings(deduped, now);
-  const verified = verifiedRaw.map((listing) => ({
+  const verified = verifiedRaw.map((listing) => enforceStrictProductionStatus({
     ...listing,
     ...calculateDataCompleteness(listing)
   }));
   const counts = summarize(verified);
   const qualityCounts = summarizeDataQuality(verified);
   const validationCounts = summarizeValidation(verified);
+  const productionReady = verified.filter(isSafeForProduction);
 
   printSourceSummary(sourceResults);
   console.log('\nsummary');
@@ -175,17 +262,31 @@ async function run(argv = process.argv.slice(2)) {
   console.log(`  missing_urls: ${validationCounts.missingUrls}`);
   console.log(`  invalid_urls: ${validationCounts.invalidUrls}`);
   console.log(`  search_urls_rejected: ${validationCounts.searchUrlsRejected}`);
+  console.log(`  safe_for_production: ${validationCounts.safeForProduction}`);
 
   console.log('\npreview');
   printListingPreview(verified);
-  if (args.validationReport) printValidationReport(verified);
+  if (args.validationReport) {
+    printValidationReport(verified);
+    const reportPath = await writeValidationReport({
+      sourceResults,
+      listings: verified,
+      counts,
+      qualityCounts,
+      validationCounts,
+      skipped,
+      discoveredCount: normalized.length,
+      now
+    });
+    console.log(`\nvalidation_report: ${reportPath}`);
+  }
 
   if (args.dryRun) {
     console.log('\ndry-run: no Supabase writes performed');
     return { sourceResults, listings: verified, counts, upserted: [] };
   }
 
-  const upserted = await upsertListings(verified);
+  const upserted = await upsertListings(productionReady);
   console.log(`\nupserted: ${upserted.length}`);
   return { sourceResults, listings: verified, counts, upserted };
 }

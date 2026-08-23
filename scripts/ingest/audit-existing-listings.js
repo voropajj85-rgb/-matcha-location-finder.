@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 
 const { calculateDataCompleteness } = require('./data-completeness');
+const { checkListing } = require('../check-listings');
 const { mapExistingRow } = require('./merge-existing-listing');
 const { fetchExistingRows } = require('./supabase-upsert');
 const {
+  isSafeForProduction,
   isUsableCandidate,
   summarizeValidation,
   validateSourceLink,
@@ -15,27 +17,55 @@ function isVisibleStatus(listing) {
 }
 
 async function main() {
+  const verifyCurrent = process.argv.includes('--verify-current');
+  const checkedAt = new Date().toISOString();
   const rows = await fetchExistingRows({ publicReadOnly: true });
-  const listings = rows.map((row) => {
+  let listings = rows.map((row) => {
     const mapped = mapExistingRow(row);
     return { ...mapped, ...calculateDataCompleteness(mapped) };
   });
+
+  if (verifyCurrent) {
+    const checked = [];
+    for (const listing of listings) {
+      const result = await checkListing({
+        ...listing,
+        source: listing.sourceName || listing.source,
+        url: listing.sourceUrl || listing.url
+      }, checkedAt);
+      checked.push({ ...listing, checkedAvailabilityStatus: result.availabilityStatus, checkedReason: result.reason });
+    }
+    listings = checked;
+  }
+
   const visible = listings.filter(isVisibleStatus);
-  const validation = summarizeValidation(visible);
+  const validation = summarizeValidation(listings);
+  const visibleValidation = summarizeValidation(visible);
+  const byStatus = listings.reduce((counts, listing) => {
+    const status = listing.availabilityStatus || 'unknown';
+    counts[status] = (counts[status] || 0) + 1;
+    return counts;
+  }, {});
 
   console.log('existing Supabase audit');
   console.log(`  total: ${listings.length}`);
   console.log(`  visible_active_or_lead: ${visible.length}`);
-  console.log(`  usable_direct_listings: ${validation.usableDirectListings}`);
-  console.log(`  active_but_not_usable: ${validation.activeButNotUsable}`);
-  console.log(`  leads: ${validation.leads}`);
+  console.log(`  active: ${byStatus.active || 0}`);
+  console.log(`  dead: ${byStatus.dead || 0}`);
+  console.log(`  unknown: ${byStatus.unknown || 0}`);
+  console.log(`  search_only: ${byStatus.search_only || 0}`);
+  console.log(`  lead: ${byStatus.lead || 0}`);
+  console.log(`  usable_direct_listings: ${visibleValidation.usableDirectListings}`);
+  console.log(`  active_but_not_usable: ${visibleValidation.activeButNotUsable}`);
+  console.log(`  leads: ${visibleValidation.leads}`);
   console.log(`  valid_direct_urls: ${validation.validDirectUrls}`);
   console.log(`  missing_urls: ${validation.missingUrls}`);
   console.log(`  invalid_urls: ${validation.invalidUrls}`);
   console.log(`  search_urls_rejected: ${validation.searchUrlsRejected}`);
+  console.log(`  safe_for_production: ${validation.safeForProduction}`);
 
   console.log('\nissues');
-  for (const listing of visible) {
+  for (const listing of listings) {
     const issues = validationIssues(listing);
     if (!issues.length) continue;
     const link = validateSourceLink(listing);
@@ -46,6 +76,11 @@ async function main() {
     console.log(`  sourceUrl: ${listing.sourceUrl || listing.url || 'missing'}`);
     console.log(`  sourceLinkValid: ${link.sourceLinkValid}`);
     console.log(`  usable: ${isUsableCandidate(listing)}`);
+    console.log(`  safeForProduction: ${isSafeForProduction(listing)}`);
+    if (verifyCurrent) {
+      console.log(`  checkedStatus: ${listing.checkedAvailabilityStatus}`);
+      console.log(`  checkedReason: ${listing.checkedReason}`);
+    }
     console.log(`  issues: ${issues.join('; ')}`);
   }
 }

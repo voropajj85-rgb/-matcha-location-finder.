@@ -84,8 +84,11 @@ function isScoreEligible(listing, projectConfig = defaultProjectConfig) {
   return listing.listingType === 'direct_listing'
     && listing.availabilityStatus === 'active'
     && isFreshVerifiedListing(listing, projectConfig.freshnessHours)
-    && (listing.unitArea != null || listing.rent != null)
-    && listing.gastroSuitability !== 'unknown';
+    && Boolean(getValidExternalUrl(listing))
+    && listing.unitArea != null
+    && listing.rent != null
+    && listing.gastroSuitability !== 'unknown'
+    && Boolean(listing.verifiedSummary || listing.gastroEvidence);
 }
 
 export function calculateMatchaScore(listing, projectConfig = defaultProjectConfig) {

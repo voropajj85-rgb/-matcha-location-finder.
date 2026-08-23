@@ -9,12 +9,16 @@ function getSourceUrl(listing) {
   return listing.sourceUrl || listing.url || listing.canonicalUrl || null;
 }
 
+function isDirectListing(listing) {
+  return listing.listingType === 'direct_listing';
+}
+
 function getValidExternalUrl(listing) {
   const url = canonicalizeListingUrl(getSourceUrl(listing));
   if (!url) return null;
   if (!/^https?:\/\//i.test(url)) return null;
   if (url === '#') return null;
-  if (listing.listingType === 'direct_listing' && !isDirectListingUrl(url)) return null;
+  if (isDirectListing(listing) && !isDirectListingUrl(url)) return null;
   return url;
 }
 
@@ -35,23 +39,30 @@ function validateSourceLink(listing) {
 }
 
 function isUsableCandidate(listing) {
-  if (listing.listingType !== 'direct_listing') return false;
+  if (!isDirectListing(listing)) return false;
   if (listing.availabilityStatus !== 'active') return false;
   const link = validateSourceLink(listing);
   if (!link.sourceLinkValid) return false;
 
   const completeness = listing.dataCompleteness ?? calculateDataCompleteness(listing).dataCompleteness;
   if (completeness < 60) return false;
-  if (listing.rent == null && listing.unitArea == null && listing.area == null) return false;
+  if (listing.rent == null || listing.unitArea == null) return false;
   if (!listing.title && !listing.district && !listing.address) return false;
+  if (!listing.verifiedSummary && !listing.gastroEvidence) return false;
   return true;
+}
+
+function isSafeForProduction(listing) {
+  if (listing.verificationOverride?.status === 'dead') return true;
+  if (isDirectListing(listing)) return isUsableCandidate(listing);
+  return listing.availabilityStatus === 'lead';
 }
 
 function validationIssues(listing) {
   const issues = [];
   const link = validateSourceLink(listing);
 
-  if (listing.listingType === 'direct_listing' && listing.availabilityStatus === 'active' && !link.sourceLinkValid) {
+  if (isDirectListing(listing) && listing.availabilityStatus === 'active' && !link.sourceLinkValid) {
     issues.push('active direct listing without valid direct URL');
   }
 
@@ -60,6 +71,11 @@ function validationIssues(listing) {
   }
 
   if (!listing.title) issues.push('missing title');
+  if (isDirectListing(listing) && listing.availabilityStatus === 'active') {
+    if (listing.rent == null) issues.push('active direct listing missing confirmed rent');
+    if (listing.unitArea == null) issues.push('active direct listing missing confirmed unit area');
+    if (!listing.verifiedSummary && !listing.gastroEvidence) issues.push('active direct listing missing verified evidence summary');
+  }
   if (listing.rent == null && listing.unitArea == null && listing.area == null) issues.push('missing rent and unit area');
   if (link.sourceUrlSearch) issues.push('source URL is search page');
   if (link.sourceUrlInvalid) issues.push('source URL invalid for listing type');
@@ -75,21 +91,23 @@ function summarizeValidation(listings) {
     validDirectUrls: 0,
     missingUrls: 0,
     invalidUrls: 0,
-    searchUrlsRejected: 0
+    searchUrlsRejected: 0,
+    safeForProduction: 0
   };
 
   for (const listing of listings) {
     const link = validateSourceLink(listing);
     const usable = isUsableCandidate(listing);
     if (usable) summary.usableDirectListings += 1;
-    if (listing.listingType === 'direct_listing' && listing.availabilityStatus === 'active' && !usable) {
+    if (isDirectListing(listing) && listing.availabilityStatus === 'active' && !usable) {
       summary.activeButNotUsable += 1;
     }
     if (listing.availabilityStatus === 'lead') summary.leads += 1;
-    if (listing.listingType === 'direct_listing' && link.sourceLinkValid) summary.validDirectUrls += 1;
+    if (isDirectListing(listing) && link.sourceLinkValid) summary.validDirectUrls += 1;
     if (link.sourceUrlMissing) summary.missingUrls += 1;
     if (link.sourceUrlInvalid) summary.invalidUrls += 1;
     if (link.sourceUrlSearch) summary.searchUrlsRejected += 1;
+    if (isSafeForProduction(listing)) summary.safeForProduction += 1;
   }
 
   return summary;
@@ -97,6 +115,7 @@ function summarizeValidation(listings) {
 
 module.exports = {
   getValidExternalUrl,
+  isSafeForProduction,
   isUsableCandidate,
   summarizeValidation,
   validateSourceLink,

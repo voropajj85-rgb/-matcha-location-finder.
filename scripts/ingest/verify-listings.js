@@ -16,7 +16,10 @@ async function verifyListings(listings, checkedAt, { delayMs = 1000 } = {}) {
       discoveredAt: listing.discoveredAt,
       discoveryMethod: listing.discoveryMethod,
       canonicalUrl: listing.canonicalUrl,
-      rawSourceData: listing.rawSourceData,
+      rawSourceData: {
+        ...(listing.rawSourceData || {}),
+        verificationFinalUrl: checked.finalUrl || listing.rawSourceData?.verificationFinalUrl || null
+      },
       dedupeAction: listing.dedupeAction
     }));
 

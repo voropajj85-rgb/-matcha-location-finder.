@@ -7,6 +7,7 @@ const { normalizeListing } = require('../normalize-listing');
 const { rowForListing } = require('../supabase-upsert');
 const {
   getValidExternalUrl,
+  isSafeForProduction,
   isUsableCandidate,
   summarizeValidation,
   validateSourceLink
@@ -18,7 +19,7 @@ const {
   isPotentialMatchaListingUrl,
   isSearchPageUrl
 } = require('../utils');
-const { checkListing } = require('../../check-listings');
+const { checkListing, classifyHtml } = require('../../check-listings');
 
 async function run() {
   assert.strictEqual(
@@ -47,6 +48,18 @@ async function run() {
 
   assert.strictEqual(normalized.availabilityStatus, 'unknown');
   assert.strictEqual(normalized.externalId, 'klein-123-277-6411');
+
+  const projectLead = normalizeListing({
+    sourceName: 'Stadt München',
+    sourceUrl: 'https://stadt.muenchen.de/lhm-ms-wirtschaftsfoerderung/standort-muenchen/gewerbeflaechen-immobilien/gewerbeflaechen-angebote/demo.html',
+    listingType: 'project_lead',
+    title: 'Project',
+    projectTotalArea: 1200
+  }, '2026-08-23T10:00:00.000Z');
+  assert.strictEqual(projectLead.unitArea, null);
+  assert.strictEqual(projectLead.area, null);
+  assert.strictEqual(projectLead.projectTotalArea, 1200);
+  assert.strictEqual(projectLead.availabilityStatus, 'lead');
 
   assert.strictEqual(normalizeListing({
     sourceName: 'Kleinanzeigen',
@@ -217,7 +230,18 @@ async function run() {
     dataCompleteness: 100,
     rent: 1500,
     unitArea: 45,
-    title: 'Cafe'
+    title: 'Cafe',
+    verifiedSummary: 'Verified direct listing'
+  }), true);
+  assert.strictEqual(isSafeForProduction({
+    listingType: 'direct_listing',
+    availabilityStatus: 'active',
+    url: 'https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411',
+    dataCompleteness: 100,
+    rent: 1500,
+    unitArea: 45,
+    title: 'Cafe',
+    verifiedSummary: 'Verified direct listing'
   }), true);
 
   const validationCounts = summarizeValidation([
@@ -266,6 +290,43 @@ async function run() {
   });
   assert.strictEqual(cardWithUrl.includes('href="https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411"'), true);
 
+  const { applyListingFilters, resetFilters } = await import('../../../js/filters.js');
+  const filtered = applyListingFilters([
+    {
+      id: 'active-ok',
+      listingType: 'direct_listing',
+      availabilityStatus: 'active',
+      lastVerifiedAt: new Date().toISOString(),
+      url: 'https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411',
+      rent: 1500,
+      unitArea: 45,
+      gastroSuitability: 'possible',
+      gastroEvidence: 'Direct source says cafe',
+      verifiedSummary: 'Verified direct listing'
+    },
+    { id: 'active-missing-url', listingType: 'direct_listing', availabilityStatus: 'active', lastVerifiedAt: new Date().toISOString() },
+    { id: 'dead', listingType: 'direct_listing', availabilityStatus: 'dead' },
+    { id: 'unknown', listingType: 'direct_listing', availabilityStatus: 'unknown' },
+    { id: 'search', listingType: 'direct_listing', availabilityStatus: 'search_only' },
+    { id: 'lead', listingType: 'project_lead', availabilityStatus: 'lead' }
+  ], resetFilters());
+  assert.deepStrictEqual(filtered.map((listing) => listing.id).sort(), ['active-ok', 'lead']);
+
+  const insufficientScoreCard = buildListingCard({
+    id: 'score-hidden',
+    listingType: 'direct_listing',
+    availabilityStatus: 'active',
+    lastVerifiedAt: new Date().toISOString(),
+    sourceName: 'Kleinanzeigen',
+    title: 'Cafe',
+    url: 'https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411',
+    unitArea: 45,
+    rent: null,
+    gastroSuitability: 'possible',
+    gastroEvidence: 'Direct source says cafe'
+  });
+  assert.strictEqual(insufficientScoreCard.includes('aria-label="Оценка пока невозможна"'), true);
+
   const override = await checkListing({
     id: 'manual-dead',
     source: 'ImmoScout24',
@@ -279,6 +340,47 @@ async function run() {
 
   assert.strictEqual(override.availabilityStatus, 'dead');
   assert.strictEqual(override.verificationMethod, 'manual-override');
+
+  const weakHttp200 = classifyHtml({
+    id: 'weak-http-200',
+    source: 'Kleinanzeigen',
+    url: 'https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411',
+    district: 'München'
+  }, {
+    ok: true,
+    status: 200
+  }, '<html><title>Kleinanzeigen</title><body>Gastronomie Mietpreis Anzeigen-ID</body></html>', 'https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411', '2026-08-23T10:00:00.000Z');
+  assert.strictEqual(weakHttp200.availabilityStatus, 'unknown');
+
+  const searchRedirect = classifyHtml({
+    id: 'search-redirect',
+    source: 'Kleinanzeigen',
+    url: 'https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411'
+  }, {
+    ok: true,
+    status: 200
+  }, '<html><body>Suchergebnisse</body></html>', 'https://www.kleinanzeigen.de/s-muenchen/kiosk-mieten/k0l6411', '2026-08-23T10:00:00.000Z');
+  assert.strictEqual(searchRedirect.availabilityStatus, 'search_only');
+
+  const deleted = classifyHtml({
+    id: 'deleted',
+    source: 'Kleinanzeigen',
+    url: 'https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411'
+  }, {
+    ok: true,
+    status: 200
+  }, '<html><body>Anzeige wurde gelöscht</body></html>', 'https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411', '2026-08-23T10:00:00.000Z');
+  assert.strictEqual(deleted.availabilityStatus, 'dead');
+
+  const blocked = classifyHtml({
+    id: 'blocked',
+    source: 'ImmoScout24',
+    url: 'https://www.immobilienscout24.de/expose/123'
+  }, {
+    ok: false,
+    status: 401
+  }, '<html><body>blocked</body></html>', 'https://www.immobilienscout24.de/expose/123', '2026-08-23T10:00:00.000Z');
+  assert.strictEqual(blocked.availabilityStatus, 'unknown');
 
   const row = rowForListing(normalized);
   assert.strictEqual(row.external_id, 'klein-123-277-6411');
