@@ -149,10 +149,22 @@ function summarizeSourceOutcomes(sourceResults, listings) {
   const outcomes = {};
 
   for (const result of sourceResults) {
-    const outcome = getSourceOutcome(outcomes, result.source);
-    outcome.found += result.candidates.length;
-    outcome.errors += result.errors.length;
-    outcome.blocked += result.errors.filter(isBlockedError).length;
+    for (const candidate of result.candidates) {
+      getSourceOutcome(outcomes, candidate.sourceName || candidate.source || result.source).found += 1;
+    }
+
+    const sourceErrors = {};
+    for (const error of result.errors) {
+      const source = error.source || result.source;
+      if (!sourceErrors[source]) sourceErrors[source] = [];
+      sourceErrors[source].push(error);
+    }
+
+    for (const [source, errors] of Object.entries(sourceErrors)) {
+      const outcome = getSourceOutcome(outcomes, source);
+      outcome.errors += errors.length;
+      outcome.blocked += errors.filter(isBlockedError).length;
+    }
   }
 
   for (const listing of listings) {

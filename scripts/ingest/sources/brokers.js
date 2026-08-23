@@ -41,12 +41,98 @@ function titleFromHtml(html) {
     || null;
 }
 
+function matchEvidence(text, patterns) {
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) return { value: parseNumberFromText(match[1]), evidence: match[0] };
+  }
+  return { value: null, evidence: null };
+}
+
+function extractColliersArea(text) {
+  const primary = matchEvidence(text, [
+    /(?:^|\s)Fl[aä]che\s+([0-9][0-9.,]*)\s*m\s*2/i,
+    /(?:^|\s)Fl[aä]che\s+([0-9][0-9.,]*)\s*(?:m²|qm|m2)/i,
+    /(?:mietfl[aä]che|verkaufsfl[aä]che|ladenfl[aä]che|retailfl[aä]che)[^\d]{0,80}(?:ca\.\s*)?([0-9][0-9.,]*)\s*(?:m²|qm|m2)/i
+  ]);
+
+  const divisible = matchEvidence(text, [
+    /(?:teilbar\s+ab|teilfl[aä]che\s+ab|ab)\s+(?:ca\.\s*)?([0-9][0-9.,]*)\s*(?:m²|qm|m2)/i
+  ]);
+
+  const total = matchEvidence(text, [
+    /(?:gesamtfl[aä]che|gesamt)\s+(?:ca\.\s*)?([0-9][0-9.,]*)\s*(?:m²|qm|m2)/i
+  ]);
+
+  if (divisible.value && total.value && total.value > divisible.value) {
+    return {
+      unitArea: divisible.value,
+      projectTotalArea: total.value,
+      areaEvidence: divisible.evidence,
+      projectAreaEvidence: total.evidence,
+      areaType: 'divisible-from'
+    };
+  }
+
+  return {
+    unitArea: primary.value ?? divisible.value ?? total.value,
+    projectTotalArea: total.value && primary.value && total.value !== primary.value ? total.value : null,
+    areaEvidence: primary.evidence ?? divisible.evidence ?? total.evidence,
+    projectAreaEvidence: total.evidence,
+    areaType: primary.value ? 'unit-area' : (divisible.value ? 'divisible-from' : (total.value ? 'total-area' : null))
+  };
+}
+
+function extractColliersRent(text) {
+  if (/preis\s+auf\s+anfrage|miete\s*:\s*auf\s+anfrage|mietpreis\s+(?:ab\s+)?auf\s+anfrage/i.test(text)) {
+    return { rent: null, rentEvidence: 'Preis auf Anfrage', rentConfidence: 'low' };
+  }
+
+  const monthly = matchEvidence(text, [
+    /(?:miete|mietpreis|nettomiete|pacht)[^\d]{0,80}([0-9][0-9.,]*)\s*(?:€|eur)[^.;]{0,40}(?:monat|monatl)/i,
+    /(?:miete|mietpreis|nettomiete|pacht)[^\d]{0,80}([0-9][0-9.,]*)\s*(?:€|eur)/i
+  ]);
+
+  if (!monthly.value) return { rent: null, rentEvidence: null, rentConfidence: 'low' };
+  return { rent: monthly.value, rentEvidence: monthly.evidence, rentConfidence: 'high' };
+}
+
+function extractAvailability(text) {
+  return text.match(/verf[uü]gbar(?:\s+ab)?[^.;]{0,80}/i)?.[0] || null;
+}
+
+function extractLocation(text) {
+  const address = text.match(/(?:adresse|anschrift|lage)[^\w]{0,20}([^.;]{0,120}M[uü]nchen[^.;]{0,80})/i)?.[1]
+    || text.match(/([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.\-\s]+,\s*\d{5}\s*M[uü]nchen)/)?.[1]
+    || text.match(/(M[uü]nchen[^.;,]{0,80})/i)?.[1]
+    || 'München';
+  return address.replace(/\s+/g, ' ').trim();
+}
+
 function candidateFromBrokerPage(adapter, sourceUrl, html, now) {
   const text = plain(html);
   const title = titleFromHtml(html);
-  const area = parseNumberFromText(text.match(/(?:mietfl[aä]che|ladenfl[aä]che|verkaufsfl[aä]che|fl[aä]che|ab)[^\d]{0,50}([0-9][0-9.,]*)\s*(?:m²|qm|m2)/i)?.[1]);
-  const rent = parseNumberFromText(text.match(/(?:miete|nettokaltmiete|pacht)[^\d]{0,60}([0-9][0-9.,]*)\s*(?:€|eur)/i)?.[1]);
-  const location = text.match(/(München[^.;,]{0,80})/i)?.[1] || 'München';
+  const adapterName = adapter.name || adapter.sourceName;
+  const area = adapterName === 'Colliers'
+    ? extractColliersArea(text)
+    : {
+      unitArea: parseNumberFromText(text.match(/(?:mietfl[aä]che|ladenfl[aä]che|verkaufsfl[aä]che|fl[aä]che|ab)[^\d]{0,50}([0-9][0-9.,]*)\s*(?:m²|qm|m2)/i)?.[1]),
+      projectTotalArea: null,
+      areaEvidence: null,
+      projectAreaEvidence: null,
+      areaType: null
+    };
+  const rent = adapterName === 'Colliers'
+    ? extractColliersRent(text)
+    : {
+      rent: parseNumberFromText(text.match(/(?:miete|nettokaltmiete|pacht)[^\d]{0,60}([0-9][0-9.,]*)\s*(?:€|eur)/i)?.[1]),
+      rentEvidence: null,
+      rentConfidence: 'medium'
+    };
+  const availability = extractAvailability(text);
+  const location = extractLocation(text);
+  const usageType = text.match(/(?:nutzung|nutzungsart|objektart)[^.;]{0,90}/i)?.[0] || null;
+  const retailSignal = /gastronomie|cafe|caf[eé]|laden|einzelhandel|retail|verkaufsfl[aä]che/i.test(text);
 
   return {
     sourceFamily: adapter.sourceFamily,
@@ -56,17 +142,35 @@ function candidateFromBrokerPage(adapter, sourceUrl, html, now) {
     title,
     address: location,
     district: 'München',
-    unitArea: area,
-    rent,
+    unitArea: area.unitArea,
+    projectTotalArea: area.projectTotalArea,
+    rent: rent.rent,
     provision: text.match(/provision[^.;]{0,120}/i)?.[0] || null,
-    gastroSuitability: /gastronomie|cafe|caf[eé]|laden|einzelhandel|retail/i.test(text) ? 'possible' : 'unknown',
-    gastroEvidence: /gastronomie|cafe|caf[eé]|laden|einzelhandel|retail/i.test(text) ? `${adapter.sourceName} object page mentions retail/gastro-compatible use.` : null,
+    gastroSuitability: retailSignal ? 'possible' : 'unknown',
+    gastroEvidence: retailSignal ? `${adapter.sourceName} object page mentions retail/gastro-compatible use.` : null,
+    verifiedSummary: [
+      title,
+      area.areaEvidence ? `Fläche: ${area.areaEvidence}` : null,
+      rent.rentEvidence ? `Miete: ${rent.rentEvidence}` : null,
+      availability
+    ].filter(Boolean).join(' · '),
+    nextAction: rent.rent == null
+      ? 'Mietpreis und verfügbare Teilfläche direkt beim Makler anfragen.'
+      : 'Besichtigung und Gastro-/Retail-Nutzung mit dem Makler prüfen.',
     discoveryMethod: `${adapter.sourceName.toLowerCase()}-catalog-direct`,
     rawSourceData: {
       detectedAt: now,
       sourceTitle: title,
-      sourceAreaText: area == null ? null : String(area),
-      sourcePriceText: rent == null ? null : String(rent)
+      sourceAreaText: area.areaEvidence,
+      sourcePriceText: rent.rentEvidence,
+      areaEvidence: area.areaEvidence,
+      projectAreaEvidence: area.projectAreaEvidence,
+      areaType: area.areaType,
+      rentEvidence: rent.rentEvidence,
+      rentConfidence: rent.rentConfidence,
+      availability,
+      usageType,
+      sourceQuality: adapterName === 'Colliers' ? 'high' : 'medium'
     }
   };
 }

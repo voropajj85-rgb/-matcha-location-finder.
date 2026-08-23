@@ -1,7 +1,9 @@
-import { applyListingFilters, defaultProjectConfig, isVisibleLead, isVisibleListing, resetFilters } from './filters.js?v=source-expansion-1';
-import { buildLeadCard, buildListingCard, buildListingDetail, calculateMatchaScore, escapeHtml } from './listings.js?v=source-expansion-1';
+import { applyListingFilters, defaultProjectConfig, isVisibleLead, isVisibleListing, rankLeads, resetFilters } from './filters.js?v=source-expansion-2';
+import { buildLeadCard, buildListingCard, buildListingDetail, calculateMatchaScore, escapeHtml } from './listings.js?v=source-expansion-2';
 import { fetchListings } from './data/listings-repository.js?v=business-fit-2';
 import { addUserListing, loadUserListings } from './storage.js?v=info-model-1';
+
+const LEAD_PREVIEW_LIMIT = 5;
 
 const state = {
   baseListings: [],
@@ -9,7 +11,8 @@ const state = {
   filters: resetFilters(),
   mode: 'list',
   loading: true,
-  loadError: null
+  loadError: null,
+  showAllLeads: false
 };
 
 function el(id) {
@@ -25,7 +28,7 @@ function getVisibleBaseListings() {
 }
 
 function getVisibleLeads() {
-  return allListings().filter(isVisibleLead);
+  return rankLeads(allListings().filter(isVisibleLead));
 }
 
 function formatVerificationDate(value) {
@@ -203,16 +206,23 @@ function renderListings() {
 
   const listings = applyListingFilters(allListings(), state.filters, state.projectConfig, calculateMatchaScore);
   const leads = getVisibleLeads();
+  const shownLeads = state.showAllLeads ? leads : leads.slice(0, LEAD_PREVIEW_LIMIT);
+  const hiddenLeadCount = Math.max(0, leads.length - shownLeads.length);
   renderSummary(listings, leads);
   const visibleBaseListings = getVisibleBaseListings();
   el('listMeta').textContent = `${visibleBaseListings.length} помещений · Обновлено: ${formatVerificationDate(getLastVerifiedAt(state.baseListings))}`;
-  el('leadMeta').textContent = `${leads.length} лидов · не подтверждённые помещения`;
+  el('leadMeta').textContent = hiddenLeadCount
+    ? `${shownLeads.length} из ${leads.length} лидов · не подтверждённые помещения`
+    : `${leads.length} лидов · не подтверждённые помещения`;
 
   el('list').innerHTML = listings.length
     ? listings.map((listing) => buildListingCard(listing, state.projectConfig)).join('')
     : renderStateCard('empty', 'Нет объектов под текущий фильтр.');
   el('leadList').innerHTML = leads.length
-    ? leads.map((listing) => buildLeadCard(listing)).join('')
+    ? [
+      ...shownLeads.map((listing) => buildLeadCard(listing)),
+      hiddenLeadCount ? `<button class="lead-more" type="button" data-action="show-all-leads">Показать ещё ${hiddenLeadCount} лидов</button>` : ''
+    ].join('')
     : renderStateCard('empty', 'Нет лидов для запроса помещения.');
 
   renderMap(listings);
@@ -340,6 +350,12 @@ function bindEvents() {
 
     const detailsButton = event.target.closest('[data-action="details"]');
     if (detailsButton) openDetails(detailsButton.dataset.id);
+
+    const showAllLeadsButton = event.target.closest('[data-action="show-all-leads"]');
+    if (showAllLeadsButton) {
+      state.showAllLeads = true;
+      renderListings();
+    }
 
     const openSheetButton = event.target.closest('[data-open-sheet]');
     if (openSheetButton) openSheet(openSheetButton.dataset.openSheet);

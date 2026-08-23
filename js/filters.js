@@ -53,6 +53,37 @@ export function isVisibleLead(listing) {
   return getAvailabilityStatus(listing) === 'lead' && listing.listingType !== 'direct_listing';
 }
 
+function hasSourceUrl(listing) {
+  return Boolean(listing.sourceUrl || listing.url || listing.canonicalUrl);
+}
+
+export function rankLeads(leads, checkedAt = new Date()) {
+  return [...leads]
+    .filter(isVisibleLead)
+    .sort((left, right) => leadUtilityScore(right, checkedAt) - leadUtilityScore(left, checkedAt));
+}
+
+export function leadUtilityScore(listing, checkedAt = new Date()) {
+  let score = 0;
+  const text = `${listing.title || ''} ${listing.address || ''} ${listing.district || ''} ${listing.verifiedSummary || ''} ${listing.gastroEvidence || ''}`.toLowerCase();
+
+  if (listing.sourceQuality === 'high' || listing.rawSourceData?.sourceQuality === 'high') score += 4;
+  if (/münchen|munich|muenchen/i.test(text)) score += 3;
+  if (listing.address || listing.district) score += 2;
+  if (/gastronomie|gastro|cafe|café|laden|einzelhandel|retail|verkauf/i.test(text)) score += 2;
+  if (isFreshLead(listing, checkedAt)) score += 1;
+  if (hasSourceUrl(listing)) score += 1;
+
+  return score;
+}
+
+function isFreshLead(listing, checkedAt = new Date()) {
+  if (!listing.lastVerifiedAt) return false;
+  const verifiedAt = new Date(listing.lastVerifiedAt);
+  if (Number.isNaN(verifiedAt.getTime())) return false;
+  return checkedAt.getTime() - verifiedAt.getTime() <= 48 * 60 * 60 * 1000;
+}
+
 export function isFreshVerifiedListing(listing, maxAgeHours = 48) {
   if (getAvailabilityStatus(listing) !== 'active') return false;
   if (!listing.lastVerifiedAt) return false;

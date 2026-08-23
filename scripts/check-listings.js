@@ -38,6 +38,12 @@ const DEAD_PATTERNS = {
     /anzeige nicht mehr verf[uü]gbar/i,
     /anzeige wurde gel[oö]scht/i,
     /diese anzeige ist nicht mehr verf[uü]gbar/i
+  ],
+  colliers: [
+    /objekt nicht mehr verf[uü]gbar/i,
+    /angebot nicht mehr verf[uü]gbar/i,
+    /dieses objekt ist nicht mehr verf[uü]gbar/i,
+    /archiviert/i
   ]
 };
 
