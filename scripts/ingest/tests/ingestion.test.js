@@ -1,7 +1,7 @@
 const assert = require('assert');
 const { deduplicateListings } = require('../deduplicate-listings');
 const { calculateDataCompleteness, hasMeaningfulTitle } = require('../data-completeness');
-const { areaFromText, enrichListing, meaningfulTitle, rentFromText } = require('../enrich-listing');
+const { areaFromText, compactSummary, conditionText, enrichListing, meaningfulTitle, rentFromText } = require('../enrich-listing');
 const { mergeExistingListing } = require('../merge-existing-listing');
 const { normalizeListing } = require('../normalize-listing');
 const { rowForListing } = require('../supabase-upsert');
@@ -177,8 +177,19 @@ async function run() {
   assert.strictEqual(rentFromText('€150 Ablöse').rent, null);
   assert.strictEqual(rentFromText('Kaltmiete 1.600 € pro Monat').rent, 1600);
   assert.strictEqual(rentFromText('Kaltmiete 1.600 € pro Monat').rentConfidence, 'high');
+  assert.strictEqual(areaFromText('Ladenfläche: ca. 57 m²').unitArea, 57);
+  assert.strictEqual(areaFromText('Ladenfläche ca. 57 qm').unitArea, 57);
+  assert.strictEqual(areaFromText('Ladenzeile mit ca. 57 m2').unitArea, 57);
+  assert.strictEqual(areaFromText('Verkaufsraum mit circa 45 m²').unitArea, 45);
+  assert.strictEqual(areaFromText('Gastrofläche ungefähr 45 m²').unitArea, 45);
   assert.strictEqual(areaFromText('44 m² Kellerfläche und 57 m² Ladenfläche').unitArea, 57);
   assert.strictEqual(areaFromText('Projektfläche 1200 m²').unitArea, null);
+  assert.strictEqual(areaFromText('Grundstücksfläche 500 m²').unitArea, null);
+  assert.strictEqual(conditionText('Kaution: 4.800 €', 'kaution').amount, 4800);
+  assert.strictEqual(conditionText('Kaution 3 Monatsmieten', 'kaution').amount, 3);
+  assert.strictEqual(conditionText('Kaution 3 € Klimaanlage Küche vorhanden', 'kaution').amount, null);
+  assert.strictEqual(conditionText('Provision nach Vereinbarung', 'provision').amount, null);
+  assert.ok(compactSummary(`Cafe. Ladenfläche 57 m². Kaltmiete 1600 €. Keine Küchenabluft. Energieausweis sehr langer Text ${'x'.repeat(1000)}`).length < 700);
 
   assert.strictEqual(calculateProjectRelevance({
     listingType: 'direct_listing',

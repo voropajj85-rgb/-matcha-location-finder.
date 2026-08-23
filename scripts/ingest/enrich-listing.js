@@ -19,6 +19,46 @@ function descriptionFromHtml(html) {
     || textContent(html, /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i);
 }
 
+function compactSummary(value, maxLength = 700) {
+  const text = String(value || '')
+    .replace(/\s+/g, ' ')
+    .replace(/\b(Energieausweis|Energiebedarf|Endenergieverbrauch)\b[\s\S]*$/i, '')
+    .replace(/\b(RE\/MAX|Karriere|Immobilienmakler)\b[\s\S]*$/i, '')
+    .trim();
+  if (!text) return null;
+
+  const sentences = text
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
+    .slice(0, 5);
+  const summary = sentences.join(' ') || text;
+  return summary.length > maxLength ? `${summary.slice(0, maxLength).trim()}...` : summary;
+}
+
+function scopedListingText(plainText, title) {
+  const text = String(plainText || '').replace(/\s+/g, ' ').trim();
+  const cleanTitle = String(title || '').replace(/\s+/g, ' ').trim();
+  if (!cleanTitle || cleanTitle.length < 8) return text.slice(0, 5000);
+
+  const index = text.toLowerCase().indexOf(cleanTitle.toLowerCase().slice(0, 80));
+  if (index < 0) return text.slice(0, 5000);
+
+  const nextListingMarkers = [
+    'Das könnte dich auch interessieren',
+    'Weitere Anzeigen',
+    'Ähnliche Anzeigen',
+    'Empfohlene Anzeigen'
+  ];
+  let end = Math.min(text.length, index + 5000);
+  for (const marker of nextListingMarkers) {
+    const markerIndex = text.indexOf(marker, index + cleanTitle.length);
+    if (markerIndex > index) end = Math.min(end, markerIndex);
+  }
+
+  return text.slice(index, end);
+}
+
 function jsonLdFacts(html) {
   const facts = {};
   const blocks = html.match(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
@@ -47,13 +87,15 @@ function jsonLdFacts(html) {
 function rentFromText(text) {
   const blockedContext = /(abl[oö]se|kaution|provision|inventar|kaufpreis|umsatz|gewinn|automaten|nebenkosten)/i;
   const patterns = [
-    /((?:kaltmiete|nettokaltmiete|nettomiete|monatsmiete|miete|pacht|monatlich|pro monat)[^.|\n;]{0,80}?([0-9][0-9.,]*)\s*(?:€|eur))/i,
+    /((?:kaltmiete|nettokaltmiete|nettomiete|monatsmiete|miete|pacht|monatlich|pro monat)[^.|\n;€]{0,80}?([0-9][0-9.,]*)\s*(?:€|eur))/i,
     /(([0-9][0-9.,]*)\s*(?:€|eur)[^.|\n;]{0,80}?(?:kaltmiete|nettokaltmiete|nettomiete|monatsmiete|miete|pacht|monatlich|pro monat))/i
   ];
 
   for (const pattern of patterns) {
     const match = text.match(pattern);
     if (!match || blockedContext.test(match[1])) continue;
+    const beforeMatch = text.slice(Math.max(0, match.index - 30), match.index);
+    if (blockedContext.test(beforeMatch)) continue;
     const value = parseNumberFromText(match[2]);
     if (value != null && value >= 100 && value <= 20000) {
       return { rent: value, rentEvidence: match[1].trim(), rentConfidence: /kaltmiete|nettokaltmiete|nettomiete|monatsmiete|pacht/i.test(match[1]) ? 'high' : 'medium' };
@@ -64,18 +106,32 @@ function rentFromText(text) {
 }
 
 function areaFromText(text) {
-  const blockedContext = /(kellerfl[aä]che|grundst[uü]cksfl[aä]che|projektfl[aä]che|gesamtgeb[aä]ude|grundst[uü]ck)/i;
-  const patterns = [
-    /((?:ladenfl[aä]che|verkaufsfl[aä]che|gastrofl[aä]che|gastraumfl[aä]che|nutzfl[aä]che|gesamtfl[aä]che)\s*[:\s-]{0,12}([0-9][0-9.,]*)\s*(?:m²|qm|m2))/gi,
-    /(([0-9][0-9.,]*)\s*(?:m²|qm|m2)\s*(?:ladenfl[aä]che|verkaufsfl[aä]che|gastrofl[aä]che|gastraumfl[aä]che|nutzfl[aä]che|gesamtfl[aä]che))/gi,
-    /((?:ladenfl[aä]che|verkaufsfl[aä]che|gastrofl[aä]che|gastraumfl[aä]che|nutzfl[aä]che|gesamtfl[aä]che)[^.|\n;]{0,80}?([0-9][0-9.,]*)\s*(?:m²|qm|m2))/gi
+  const normalized = String(text || '').replace(/\s+/g, ' ');
+  const blockedContext = /(kellerfl[aä]che|grundst[uü]cksfl[aä]che|terrassenfl[aä]che|projektfl[aä]che|b[uü]rofl[aä]che|gesamtgeb[aä]ude|geb[aä]udefl[aä]che|grundst[uü]ck)/i;
+  const groups = [
+    /ladenfl[aä]che|ladenzeile/i,
+    /verkaufsfl[aä]che|verkaufsraum/i,
+    /gastrofl[aä]che|gastraumfl[aä]che|gastraum/i,
+    /nutzfl[aä]che/i,
+    /gesamtfl[aä]che|fl[aä]che/i
   ];
 
-  for (const pattern of patterns) {
-    for (const match of text.matchAll(pattern)) {
-      if (!match || blockedContext.test(match[1])) continue;
-      const value = parseNumberFromText(match[2]);
-      if (value != null && value >= 5 && value <= 500) return { unitArea: value, areaEvidence: match[1].trim() };
+  for (const keyword of groups) {
+    const keywordMatches = [...normalized.matchAll(new RegExp(keyword.source, 'gi'))];
+    for (const keywordMatch of keywordMatches) {
+      const start = Math.max(0, keywordMatch.index - 35);
+      const end = Math.min(normalized.length, keywordMatch.index + keywordMatch[0].length + 95);
+      const context = normalized.slice(start, end);
+      const genericKeyword = /^(gesamtfl[aä]che|fl[aä]che)$/i.test(keywordMatch[0]);
+      if (genericKeyword && blockedContext.test(context)) continue;
+      const afterKeyword = normalized.slice(keywordMatch.index, end);
+      const beforeKeyword = normalized.slice(start, keywordMatch.index + keywordMatch[0].length);
+      const areaMatch = afterKeyword.match(/(?:ca\.?|circa|ungef[aä]hr|mit)?\s*[:\s-]{0,12}(?:ca\.?|circa|ungef[aä]hr)?\s*([0-9][0-9.,]*)\s*(?:m²|qm|m2)/i)
+        || [...beforeKeyword.matchAll(/(?:ca\.?|circa|ungef[aä]hr)?\s*([0-9][0-9.,]*)\s*(?:m²|qm|m2)/gi)].at(-1);
+      const value = parseNumberFromText(areaMatch?.[1]);
+      if (value != null && value >= 5 && value <= 500) {
+        return { unitArea: value, areaEvidence: context.trim() };
+      }
     }
   }
 
@@ -83,9 +139,20 @@ function areaFromText(text) {
 }
 
 function conditionText(text, label) {
-  const pattern = new RegExp(`(${label}[^.\\n|;]{0,80})`, 'i');
+  const pattern = new RegExp(`(${label}[^\\n|;]{0,100})`, 'i');
   const value = text.match(pattern)?.[1]?.trim() || null;
-  return value ? { known: true, value, amount: parseNumberFromText(value) } : null;
+  if (!value) return null;
+
+  let amount = null;
+  const euroMatch = value.match(/([0-9][0-9.,]*)\s*(?:€|eur)/i);
+  const monthMatch = value.match(/([0-9][0-9.,]*)\s*(?:monatsmieten|monatsmiete|nettokaltmieten|kaltmieten)/i);
+  if (euroMatch) {
+    const parsed = parseNumberFromText(euroMatch[1]);
+    amount = parsed != null && parsed >= 50 ? parsed : null;
+  }
+  else if (monthMatch) amount = parseNumberFromText(monthMatch[1]);
+
+  return { known: true, value, amount };
 }
 
 function gastroSignal(text) {
@@ -129,8 +196,9 @@ async function enrichListing(listing, { fetchPage } = {}) {
     const plainText = html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
     const jsonLd = jsonLdFacts(html);
     const title = jsonLd.title || titleFromHtml(html);
-    const description = jsonLd.verifiedSummary || descriptionFromHtml(html);
-    const extractableText = `${title || ''} ${description || ''} ${plainText}`;
+    const description = compactSummary(jsonLd.verifiedSummary || descriptionFromHtml(html));
+    const scopedText = scopedListingText(plainText, title);
+    const extractableText = `${title || ''} ${description || ''} ${scopedText}`;
     const rentResult = jsonLd.rent
       ? { rent: jsonLd.rent, rentEvidence: 'structured offer price', rentConfidence: 'medium' }
       : rentFromText(extractableText);
@@ -144,7 +212,7 @@ async function enrichListing(listing, { fetchPage } = {}) {
       rent: rentResult.rent ?? listing.rent,
       unitArea: areaResult.unitArea ?? listing.unitArea,
       area: areaResult.unitArea ?? listing.area,
-      verifiedSummary: description || listing.verifiedSummary,
+      verifiedSummary: description || compactSummary(listing.verifiedSummary),
       provision: conditionText(plainText, 'provision') || listing.provision,
       abloese: conditionText(plainText, 'ablöse|abloese') || listing.abloese,
       kaution: conditionText(plainText, 'kaution') || listing.kaution,
@@ -189,5 +257,7 @@ module.exports = {
   enrichListings,
   rentFromText,
   areaFromText,
+  compactSummary,
+  conditionText,
   meaningfulTitle
 };

@@ -77,6 +77,14 @@ function summarizeRelevance(listings) {
   return counts;
 }
 
+function summarizeAreaExtraction(listings) {
+  const direct = listings.filter((listing) => listing.listingType === 'direct_listing');
+  return {
+    areaParsed: direct.filter((listing) => listing.unitArea != null && listing.rawSourceData?.areaEvidence).length,
+    areaMissing: direct.filter((listing) => listing.unitArea == null || !listing.rawSourceData?.areaEvidence).length
+  };
+}
+
 function printSourceSummary(results) {
   console.log('sources');
   for (const result of results) {
@@ -141,6 +149,8 @@ function validationRecord(listing) {
     externalId: listing.externalId || listing.id,
     source: listing.sourceName || listing.source || null,
     url: listing.sourceUrl || listing.url || null,
+    title: listing.title || null,
+    location: listing.address || listing.district || null,
     canonicalUrl: link.canonicalUrl,
     previousStatus: listing.previousAvailabilityStatus || null,
     proposedStatus: listing.availabilityStatus || 'unknown',
@@ -164,6 +174,7 @@ function validationRecord(listing) {
     rent: listing.rent ?? null,
     unitArea: listing.unitArea ?? null,
     gastroSuitability: listing.gastroSuitability || 'unknown',
+    gastroEvidence: listing.gastroEvidence || null,
     verificationMethod: listing.verificationMethod || null,
     dedupeAction: listing.dedupeAction || null
   };
@@ -185,7 +196,7 @@ function existingCleanupActions(existingRows) {
     }));
 }
 
-async function writeValidationReport({ sourceResults, listings, cleanupActions, counts, qualityCounts, validationCounts, relevanceCounts, skipped, discoveredCount, now }) {
+async function writeValidationReport({ sourceResults, listings, cleanupActions, counts, qualityCounts, validationCounts, relevanceCounts, areaCounts, skipped, discoveredCount, now }) {
   const report = {
     generatedAt: now,
     dryRunSafe: true,
@@ -207,6 +218,8 @@ async function writeValidationReport({ sourceResults, listings, cleanupActions, 
       acceptable: relevanceCounts.acceptable,
       weak: relevanceCounts.weak,
       reject: relevanceCounts.reject,
+      areaParsed: areaCounts.areaParsed,
+      areaMissing: areaCounts.areaMissing,
       skippedDuplicates: skipped.length
     },
     blockedSources: sourceResults.flatMap((result) => result.errors.map((error) => ({
@@ -277,6 +290,7 @@ async function run(argv = process.argv.slice(2)) {
   const qualityCounts = summarizeDataQuality(verified);
   const validationCounts = summarizeValidation(verified);
   const relevanceCounts = summarizeRelevance(verified);
+  const areaCounts = summarizeAreaExtraction(verified);
   const productionReady = [...verified.filter(isSafeForProduction), ...cleanupActions];
 
   printSourceSummary(sourceResults);
@@ -305,6 +319,8 @@ async function run(argv = process.argv.slice(2)) {
   console.log(`  acceptable: ${relevanceCounts.acceptable}`);
   console.log(`  weak: ${relevanceCounts.weak}`);
   console.log(`  reject: ${relevanceCounts.reject}`);
+  console.log(`  area_parsed: ${areaCounts.areaParsed}`);
+  console.log(`  area_missing: ${areaCounts.areaMissing}`);
   console.log(`  cleanup_actions: ${cleanupActions.length}`);
 
   console.log('\npreview');
@@ -319,6 +335,7 @@ async function run(argv = process.argv.slice(2)) {
       qualityCounts,
       validationCounts,
       relevanceCounts,
+      areaCounts,
       skipped,
       discoveredCount: normalized.length,
       now
