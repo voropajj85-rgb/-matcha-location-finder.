@@ -17,6 +17,9 @@ jobs:
   ingest:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      SUPABASE_URL: https://gyezuxxihgiagzirabpv.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
     steps:
       - name: Checkout
@@ -35,14 +38,23 @@ jobs:
           node --check scripts/ingest/deduplicate-listings.js
           node --check scripts/ingest/verify-listings.js
           node --check scripts/ingest/supabase-upsert.js
+          node --check scripts/ingest/business-fit.js
 
       - name: Unit-like ingestion tests
         run: node scripts/ingest/tests/ingestion.test.js
 
-      - name: Run ingestion dry-run
+      - name: Run scheduled ingestion
+        shell: bash
         run: |
           SOURCE_ARG=""
           if [ -n "${{ inputs.source }}" ]; then
             SOURCE_ARG="--source=${{ inputs.source }}"
           fi
-          node scripts/ingest/run-ingestion.js $SOURCE_ARG --dry-run
+
+          if [ -n "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "Running controlled production ingestion"
+            node scripts/ingest/run-ingestion.js $SOURCE_ARG --production --validation-report
+          else
+            echo "SUPABASE_SERVICE_ROLE_KEY is not configured; running safe dry-run"
+            node scripts/ingest/run-ingestion.js $SOURCE_ARG --dry-run --validation-report
+          fi
