@@ -21,6 +21,7 @@ const {
   isSearchPageUrl
 } = require('../utils');
 const { checkListing, classifyHtml } = require('../../check-listings');
+const { calculateBusinessFit } = require('../business-fit');
 const { calculateProjectRelevance } = require('../project-relevance');
 
 async function run() {
@@ -356,6 +357,62 @@ async function run() {
     verifiedSummary: 'Verified direct listing',
     gastroSuitability: 'possible'
   }), false);
+
+  const visibleBase = {
+    listingType: 'direct_listing',
+    availabilityStatus: 'active',
+    url: 'https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411',
+    dataCompleteness: 100,
+    rent: 1700,
+    unitArea: 50,
+    lastVerifiedAt: new Date().toISOString(),
+    gastroSuitability: 'confirmed',
+    verifiedSummary: 'Verified direct listing'
+  };
+  assert.strictEqual(calculateBusinessFit({
+    ...visibleBase,
+    title: 'Dog Café Konzept sucht Betreiber'
+  }).level, 'exclude');
+  assert.strictEqual(calculateBusinessFit({
+    ...visibleBase,
+    externalId: 'klein-bogenhausen-prinzregent',
+    title: 'Cafe am Prinzregentenplatz'
+  }).level, 'exclude');
+  assert.strictEqual(isVisibleCandidate({
+    ...visibleBase,
+    title: 'Dog Café Konzept sucht Betreiber'
+  }), false);
+  assert.notStrictEqual(calculateBusinessFit({
+    ...visibleBase,
+    title: 'Café / Take-away Laden'
+  }).level, 'exclude');
+  assert.notStrictEqual(calculateBusinessFit({
+    ...visibleBase,
+    title: 'Kiosk / Laden'
+  }).level, 'exclude');
+  assert.ok(['conditional', 'exclude'].includes(calculateBusinessFit({
+    ...visibleBase,
+    title: 'Kiosk mit Automatenaufsteller verpflichtend'
+  }).level));
+  assert.strictEqual(calculateBusinessFit({
+    ...visibleBase,
+    title: 'Shisha Bar'
+  }).level, 'exclude');
+  assert.notStrictEqual(calculateBusinessFit({
+    ...visibleBase,
+    title: 'Café ohne warme Küche',
+    gastroEvidence: 'keine Küchenabluft'
+  }).level, 'exclude');
+  assert.notStrictEqual(calculateBusinessFit({
+    ...visibleBase,
+    title: 'Café Laden',
+    abloese: { known: true, value: 'optional Ablöse verhandelbar', amount: 10000 }
+  }).level, 'exclude');
+  assert.strictEqual(calculateBusinessFit({
+    ...visibleBase,
+    title: 'Metzgerei & Imbiss zur Pacht mit Inventar Ablöse 65.000 Euro',
+    abloese: { known: true, value: 'mandatory Ablöse 65.000 €', amount: 65000 }
+  }).level, 'exclude');
 
   const validationCounts = summarizeValidation([
     {

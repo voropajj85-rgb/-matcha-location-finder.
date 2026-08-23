@@ -8,6 +8,7 @@ const { enrichListings } = require('./enrich-listing');
 const { mapExistingRow } = require('./merge-existing-listing');
 const { normalizeListing } = require('./normalize-listing');
 const { fetchExistingRows, upsertListings } = require('./supabase-upsert');
+const { calculateBusinessFit, withBusinessFit } = require('./business-fit');
 const {
   isSafeForProduction,
   isVisibleCandidate,
@@ -32,8 +33,10 @@ const REPORT_PATH = path.join(__dirname, 'reports', 'latest-validation.json');
 
 function parseArgs(argv) {
   const sourceArg = argv.find((arg) => arg.startsWith('--source='));
+  const production = argv.includes('--production');
   return {
-    dryRun: argv.includes('--dry-run'),
+    dryRun: !production,
+    production,
     source: sourceArg ? sourceArg.split('=')[1] : null,
     skipVerification: argv.includes('--skip-verification'),
     validationReport: argv.includes('--validation-report')
@@ -73,6 +76,16 @@ function summarizeRelevance(listings) {
     if (listing.listingType !== 'direct_listing') continue;
     const relevance = calculateProjectRelevance(listing);
     counts[relevance.level] += 1;
+  }
+  return counts;
+}
+
+function summarizeBusinessFit(listings) {
+  const counts = { ideal: 0, good: 0, conditional: 0, exclude: 0 };
+  for (const listing of listings) {
+    if (listing.listingType !== 'direct_listing') continue;
+    const fit = calculateBusinessFit(listing);
+    counts[fit.level] += 1;
   }
   return counts;
 }
@@ -134,6 +147,10 @@ function printValidationReport(listings) {
     const relevance = calculateProjectRelevance(listing);
     console.log(`  relevanceLevel: ${relevance.level}`);
     console.log(`  relevanceReasons: ${relevance.reasons.join('; ')}`);
+    const businessFit = calculateBusinessFit(listing);
+    console.log(`  businessFit: ${businessFit.level}`);
+    console.log(`  businessFitReasons: ${businessFit.reasons.join('; ')}`);
+    console.log(`  sourceQuality: ${listing.sourceQuality || 'unknown'}`);
     console.log(`  usable: ${isUsableCandidate(listing)}`);
     console.log(`  safeForProduction: ${isSafeForProduction(listing)}`);
     console.log(`  visibleCandidate: ${isVisibleCandidate(listing)}`);
@@ -145,12 +162,15 @@ function validationRecord(listing) {
   const link = validateSourceLink(listing);
   const issues = validationIssues(listing);
   const relevance = calculateProjectRelevance(listing);
+  const businessFit = calculateBusinessFit(listing);
   return {
     externalId: listing.externalId || listing.id,
     source: listing.sourceName || listing.source || null,
     url: listing.sourceUrl || listing.url || null,
     title: listing.title || null,
     location: listing.address || listing.district || null,
+    verifiedSummary: listing.verifiedSummary || null,
+    nextAction: listing.nextAction || null,
     canonicalUrl: link.canonicalUrl,
     previousStatus: listing.previousAvailabilityStatus || null,
     proposedStatus: listing.availabilityStatus || 'unknown',
@@ -168,6 +188,9 @@ function validationRecord(listing) {
     areaType: listing.rawSourceData?.areaType || null,
     projectRelevance: relevance.level,
     relevanceReasons: relevance.reasons,
+    businessFit: businessFit.level,
+    businessFitReasons: businessFit.reasons,
+    sourceQuality: listing.sourceQuality || listing.rawSourceData?.sourceQuality || null,
     lastVerifiedAt: listing.lastVerifiedAt || null,
     safeForProduction: isSafeForProduction(listing),
     visibleCandidate: isVisibleCandidate(listing),
@@ -197,7 +220,7 @@ function existingCleanupActions(existingRows) {
     }));
 }
 
-async function writeValidationReport({ sourceResults, listings, cleanupActions, counts, qualityCounts, validationCounts, relevanceCounts, areaCounts, skipped, discoveredCount, now }) {
+async function writeValidationReport({ sourceResults, listings, cleanupActions, counts, qualityCounts, validationCounts, relevanceCounts, businessFitCounts, areaCounts, skipped, discoveredCount, now }) {
   const report = {
     generatedAt: now,
     dryRunSafe: true,
@@ -219,6 +242,10 @@ async function writeValidationReport({ sourceResults, listings, cleanupActions, 
       acceptable: relevanceCounts.acceptable,
       weak: relevanceCounts.weak,
       reject: relevanceCounts.reject,
+      businessFitIdeal: businessFitCounts.ideal,
+      businessFitGood: businessFitCounts.good,
+      businessFitConditional: businessFitCounts.conditional,
+      businessFitExclude: businessFitCounts.exclude,
       areaParsed: areaCounts.areaParsed,
       areaMissing: areaCounts.areaMissing,
       skippedDuplicates: skipped.length
@@ -240,6 +267,9 @@ async function writeValidationReport({ sourceResults, listings, cleanupActions, 
 
 async function run(argv = process.argv.slice(2)) {
   const args = parseArgs(argv);
+  if (args.production && !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('--production requires SUPABASE_SERVICE_ROLE_KEY; dry-run is the default safe mode.');
+  }
   const selected = args.source ? [args.source] : Object.keys(SOURCES);
   const unknownSource = selected.find((name) => !SOURCES[name]);
   if (unknownSource) throw new Error(`Unknown source: ${unknownSource}`);
@@ -283,7 +313,7 @@ async function run(argv = process.argv.slice(2)) {
     ...calculateDataCompleteness(listing)
   }));
   const verifiedRaw = args.skipVerification ? deduped : await verifyListings(deduped, now);
-  const verified = verifiedRaw.map((listing) => ({
+  const verified = verifiedRaw.map((listing) => withBusinessFit({
     ...listing,
     ...calculateDataCompleteness(listing)
   }));
@@ -291,6 +321,7 @@ async function run(argv = process.argv.slice(2)) {
   const qualityCounts = summarizeDataQuality(verified);
   const validationCounts = summarizeValidation(verified);
   const relevanceCounts = summarizeRelevance(verified);
+  const businessFitCounts = summarizeBusinessFit(verified);
   const areaCounts = summarizeAreaExtraction(verified);
   const productionReady = [...verified.filter(isSafeForProduction), ...cleanupActions];
 
@@ -320,6 +351,10 @@ async function run(argv = process.argv.slice(2)) {
   console.log(`  acceptable: ${relevanceCounts.acceptable}`);
   console.log(`  weak: ${relevanceCounts.weak}`);
   console.log(`  reject: ${relevanceCounts.reject}`);
+  console.log(`  business_fit_ideal: ${businessFitCounts.ideal}`);
+  console.log(`  business_fit_good: ${businessFitCounts.good}`);
+  console.log(`  business_fit_conditional: ${businessFitCounts.conditional}`);
+  console.log(`  business_fit_exclude: ${businessFitCounts.exclude}`);
   console.log(`  area_parsed: ${areaCounts.areaParsed}`);
   console.log(`  area_missing: ${areaCounts.areaMissing}`);
   console.log(`  cleanup_actions: ${cleanupActions.length}`);
@@ -336,6 +371,7 @@ async function run(argv = process.argv.slice(2)) {
       qualityCounts,
       validationCounts,
       relevanceCounts,
+      businessFitCounts,
       areaCounts,
       skipped,
       discoveredCount: normalized.length,
@@ -349,8 +385,13 @@ async function run(argv = process.argv.slice(2)) {
     return { sourceResults, listings: verified, counts, upserted: [] };
   }
 
+  console.log('\nproduction mode');
+  console.log(`  rows_before: ${existingRows.length}`);
+  console.log(`  safe_rows_to_upsert: ${productionReady.length}`);
+  console.log(`  cleanup_actions: ${cleanupActions.length}`);
   const upserted = await upsertListings(productionReady);
   console.log(`\nupserted: ${upserted.length}`);
+  console.log(`  rows_after_estimate: ${existingRows.length + verified.filter((listing) => listing.dedupeAction === 'new').length}`);
   return { sourceResults, listings: verified, cleanupActions, counts, upserted };
 }
 

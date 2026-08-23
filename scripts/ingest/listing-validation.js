@@ -4,6 +4,7 @@ const {
   isSearchPageUrl
 } = require('./utils');
 const { calculateDataCompleteness } = require('./data-completeness');
+const { calculateBusinessFit, isBusinessFitVisible } = require('./business-fit');
 const { calculateProjectRelevance } = require('./project-relevance');
 
 function getSourceUrl(listing) {
@@ -64,7 +65,7 @@ function isVisibleCandidate(listing, projectConfig) {
   if (listing.availabilityStatus === 'lead') return true;
   if (!isUsableCandidate(listing, projectConfig)) return false;
   const relevance = calculateProjectRelevance(listing, projectConfig);
-  return relevance.level === 'strong' || relevance.level === 'acceptable';
+  return (relevance.level === 'strong' || relevance.level === 'acceptable') && isBusinessFitVisible(listing);
 }
 
 function validationIssues(listing) {
@@ -102,7 +103,13 @@ function summarizeValidation(listings) {
     invalidUrls: 0,
     searchUrlsRejected: 0,
     safeForProduction: 0,
-    visibleCandidates: 0
+    visibleCandidates: 0,
+    businessFit: {
+      ideal: 0,
+      good: 0,
+      conditional: 0,
+      exclude: 0
+    }
   };
 
   for (const listing of listings) {
@@ -119,6 +126,8 @@ function summarizeValidation(listings) {
     if (link.sourceUrlSearch) summary.searchUrlsRejected += 1;
     if (isSafeForProduction(listing)) summary.safeForProduction += 1;
     if (isVisibleCandidate(listing)) summary.visibleCandidates += 1;
+    const fit = calculateBusinessFit(listing);
+    if (Object.hasOwn(summary.businessFit, fit.level)) summary.businessFit[fit.level] += 1;
   }
 
   return summary;

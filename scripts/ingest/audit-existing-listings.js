@@ -12,6 +12,7 @@ const {
   validateSourceLink,
   validationIssues
 } = require('./listing-validation');
+const { calculateBusinessFit, withBusinessFit } = require('./business-fit');
 const { calculateProjectRelevance } = require('./project-relevance');
 
 function isVisibleStatus(listing) {
@@ -24,7 +25,7 @@ async function main() {
   const rows = await fetchExistingRows({ publicReadOnly: true });
   let listings = rows.map((row) => {
     const mapped = mapExistingRow(row);
-    return { ...mapped, ...calculateDataCompleteness(mapped) };
+    return withBusinessFit({ ...mapped, ...calculateDataCompleteness(mapped) });
   });
 
   if (verifyCurrent) {
@@ -79,8 +80,12 @@ async function main() {
     console.log(`  sourceUrl: ${listing.sourceUrl || listing.url || 'missing'}`);
     console.log(`  sourceLinkValid: ${link.sourceLinkValid}`);
     const relevance = calculateProjectRelevance(listing);
+    const businessFit = calculateBusinessFit(listing);
     console.log(`  projectRelevance: ${relevance.level}`);
     console.log(`  relevanceReasons: ${relevance.reasons.join('; ')}`);
+    console.log(`  businessFit: ${businessFit.level}`);
+    console.log(`  businessFitReasons: ${businessFit.reasons.join('; ')}`);
+    console.log(`  sourceQuality: ${listing.sourceQuality || 'unknown'}`);
     console.log(`  usable: ${isUsableCandidate(listing)}`);
     console.log(`  safeForProduction: ${isSafeForProduction(listing)}`);
     console.log(`  visibleCandidate: ${isVisibleCandidate(listing)}`);
@@ -89,6 +94,27 @@ async function main() {
       console.log(`  checkedReason: ${listing.checkedReason}`);
     }
     console.log(`  issues: ${issues.join('; ')}`);
+  }
+
+  const auditIds = new Set([
+    'klein-3470636624-277-16373',
+    'klein-3471053348-277-16388',
+    'klein-3484241799-277-6451',
+    'klein-3484404879-277-6459',
+    'klein-3484857394-277-6451',
+    'klein-bogenhausen-prinzregent',
+    'klein-westend-66'
+  ]);
+
+  console.log('\ncurrent active audit');
+  for (const listing of listings.filter((item) => auditIds.has(item.externalId || item.id))) {
+    const relevance = calculateProjectRelevance(listing);
+    const businessFit = calculateBusinessFit(listing);
+    console.log(`${listing.externalId || listing.id}`);
+    console.log(`  projectRelevance: ${relevance.level}`);
+    console.log(`  businessFit: ${businessFit.level}`);
+    console.log(`  businessFitReasons: ${businessFit.reasons.join('; ')}`);
+    console.log(`  visibleCandidate: ${isVisibleCandidate(listing)}`);
   }
 }
 
