@@ -1,4 +1,5 @@
 import { defaultProjectConfig, isFreshVerifiedListing } from './filters.js?v=info-model-1';
+import { calculateBusinessFit } from './business-fit.js?v=business-fit-1';
 import { calculateProjectRelevance } from './project-relevance.js?v=relevance-1';
 import { getValidExternalUrl } from './source-links.js?v=source-links-1';
 
@@ -83,6 +84,7 @@ function hasKnownCondition(condition, matcher) {
 
 function isScoreEligible(listing, projectConfig = defaultProjectConfig) {
   const relevance = calculateProjectRelevance(listing, projectConfig);
+  const businessFit = calculateBusinessFit(listing);
   return listing.listingType === 'direct_listing'
     && listing.availabilityStatus === 'active'
     && isFreshVerifiedListing(listing, projectConfig.freshnessHours)
@@ -91,7 +93,8 @@ function isScoreEligible(listing, projectConfig = defaultProjectConfig) {
     && listing.rent != null
     && listing.gastroSuitability !== 'unknown'
     && Boolean(listing.verifiedSummary || listing.gastroEvidence)
-    && (relevance.level === 'strong' || relevance.level === 'acceptable');
+    && (relevance.level === 'strong' || relevance.level === 'acceptable')
+    && businessFit.level !== 'exclude';
 }
 
 export function calculateMatchaScore(listing, projectConfig = defaultProjectConfig) {
@@ -190,6 +193,7 @@ function buildBadges(listing, projectConfig, scoreResult) {
   if (listing.gastroSuitability === 'confirmed') badges.push('Готовая гастрономия');
   if (listing.gastroSuitability === 'unknown' || area == null || rent == null) badges.push('Нужно уточнить');
   if (listing.listingType !== 'direct_listing') badges.push('Проект / Lead');
+  if (calculateBusinessFit(listing).level === 'conditional') badges.push('Условно');
 
   return `
     <div class="conditions badges">

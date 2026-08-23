@@ -1,5 +1,6 @@
 import { getValidExternalUrl } from './source-links.js?v=source-links-1';
 import { calculateProjectRelevance } from './project-relevance.js?v=relevance-1';
+import { isBusinessFitVisible } from './business-fit.js?v=business-fit-1';
 
 export const defaultFilters = {
   minArea: '',
@@ -43,7 +44,8 @@ export function isVisibleListing(listing, projectConfig = defaultProjectConfig) 
       && isFreshVerifiedListing(listing, projectConfig.freshnessHours)
       && Boolean(getValidExternalUrl(listing))
       && hasUsableDirectData(listing)
-      && (relevance.level === 'strong' || relevance.level === 'acceptable');
+      && (relevance.level === 'strong' || relevance.level === 'acceptable')
+      && isBusinessFitVisible(listing);
   }
   return false;
 }

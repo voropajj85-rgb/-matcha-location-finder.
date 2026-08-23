@@ -163,10 +163,10 @@ Source adapters выполняют только discovery. Они не имею�
 
 Новый direct listing получает `availabilityStatus: "unknown"`. `active` возможен только после строгой source-specific verification из `scripts/check-listings.js`. Municipal/project/broker leads получают `availabilityStatus: "lead"` только когда это действительно lead, а не direct market listing.
 
-Dry run без записи в Supabase:
+Dry run без записи в Supabase является режимом по умолчанию:
 
 ```bash
-node scripts/ingest/run-ingestion.js --dry-run
+node scripts/ingest/run-ingestion.js
 ```
 
 Отладка одного источника:
@@ -175,15 +175,15 @@ node scripts/ingest/run-ingestion.js --dry-run
 node scripts/ingest/run-ingestion.js --source=kleinanzeigen --dry-run
 ```
 
-Production ingestion пишет только в Supabase:
+Production ingestion включается только явным флагом `--production` и пишет только safeForProduction rows плюс cleanupActions:
 
 ```bash
 SUPABASE_URL="https://<project-ref>.supabase.co" \
 SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
-node scripts/ingest/run-ingestion.js
+node scripts/ingest/run-ingestion.js --production
 ```
 
-Если `SUPABASE_SERVICE_ROLE_KEY` отсутствует, real run завершается явной ошибкой. Pipeline не пишет production output в `data/listings.json`.
+Если `SUPABASE_SERVICE_ROLE_KEY` отсутствует, `--production` завершается явной ошибкой. Pipeline не пишет production output в `data/listings.json` и не использует frontend secrets для write mode.
 
 GitHub Actions workflow: `.github/workflows/ingest-listings.yml`
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-23T12:09:59.088Z",
+  "generatedAt": "2026-08-23T17:18:07.469Z",
   "dryRunSafe": true,
   "counts": {
     "discovered": 25,
@@ -18,11 +18,15 @@
     "invalidUrls": 0,
     "searchUrlsRejected": 0,
     "safeForProduction": 22,
-    "visibleCandidates": 8,
+    "visibleCandidates": 7,
     "strong": 1,
     "acceptable": 4,
     "weak": 2,
     "reject": 12,
+    "businessFitIdeal": 0,
+    "businessFitGood": 7,
+    "businessFitConditional": 7,
+    "businessFitExclude": 5,
     "areaParsed": 15,
     "areaMissing": 4,
     "skippedDuplicates": 3
@@ -66,8 +70,10 @@
       "url": "https://www.kleinanzeigen.de/s-anzeige/laden-kiosk-imbiss-mit-kueche-in-maxvorstadt-sehr-guter-lage-/3484404879-277-6459",
       "title": "Laden/ Kiosk/ Imbiss mit Küche in Maxvorstadt, sehr guter lage!!!",
       "location": "München",
+      "verifiedSummary": "75 м² в München, €2.800/мес.. Формат выглядит применимым для компактного beverage/café concept. Gastro/Café-разрешение нужно уточнить у источника.",
+      "nextAction": "Уточнить у владельца разрешён ли Café/Tea-Bar, cold prep, drinks и take-away.",
       "canonicalUrl": "https://www.kleinanzeigen.de/s-anzeige/laden-kiosk-imbiss-mit-kueche-in-maxvorstadt-sehr-guter-lage-/3484404879-277-6459",
-      "previousStatus": null,
+      "previousStatus": "active",
       "proposedStatus": "active",
       "reason": "success",
       "httpState": 200,
@@ -87,7 +93,14 @@
         "rent €2800 within preferred budget",
         "gastro/cafe use appears possible"
       ],
-      "lastVerifiedAt": "2026-08-23T12:09:59.088Z",
+      "businessFit": "good",
+      "businessFitReasons": [
+        "small kiosk format signal",
+        "bakery/retail counter signal",
+        "customer-facing retail area signal"
+      ],
+      "sourceQuality": "medium",
+      "lastVerifiedAt": "2026-08-23T17:18:07.469Z",
       "safeForProduction": true,
       "visibleCandidate": true,
       "listingType": "direct_listing",
@@ -96,7 +109,7 @@
       "gastroSuitability": "possible",
       "gastroEvidence": "Direct page text contains relevant use signal: Laden",
       "verificationMethod": "kleinanzeigen-strong-listing-check",
-      "dedupeAction": "new"
+      "dedupeAction": "updated"
     },
     {
       "externalId": "klein-2825047877-277-6443",
@@ -104,6 +117,8 @@
       "url": "https://www.kleinanzeigen.de/s-anzeige/von-privat-eg-22m2-bestlage-am-hochfrequentierten-isartor-verkauf-teilgastro/2825047877-277-6443",
       "title": "Von Privat: EG 22m2 Bestlage am hochfrequentierten Isartor. Verkauf/ Teilgastro",
       "location": "München",
+      "verifiedSummary": "76 м² в München, аренда не опубликована. Формат условно подходит, но входные условия или модель эксплуатации нужно проверить. Gastro/Café-разрешение нужно уточнить у источника.",
+      "nextAction": "Уточнить обязательность Ablöse/оборудования/концепта и можно ли запустить независимый Matcha/Tea-Bar.",
       "canonicalUrl": "https://www.kleinanzeigen.de/s-anzeige/von-privat-eg-22m2-bestlage-am-hochfrequentierten-isartor-verkauf-teilgastro/2825047877-277-6443",
       "previousStatus": null,
       "proposedStatus": "active",
@@ -127,7 +142,12 @@
         "area 76 m² in acceptable range",
         "gastro/cafe use appears possible"
       ],
-      "lastVerifiedAt": "2026-08-23T12:09:59.088Z",
+      "businessFit": "conditional",
+      "businessFitReasons": [
+        "high provision should be checked before committing"
+      ],
+      "sourceQuality": "medium",
+      "lastVerifiedAt": "2026-08-23T17:18:07.469Z",
       "safeForProduction": true,
       "visibleCandidate": false,
       "listingType": "direct_listing",
@@ -144,6 +164,8 @@
       "url": "https://www.kleinanzeigen.de/s-anzeige/cafe-bar-in-muenchen-6-stellig-gewinn-4-automaten/3477375265-277-16373",
       "title": "Cafe-Bar in München |6-stellig Gewinn|4 Automaten",
       "location": "München",
+      "verifiedSummary": "110 м² в München, €6.000/мес.. Есть сильный business-fit риск: объект не должен идти в обычный shortlist. Gastro/Café-разрешение нужно уточнить у источника.",
+      "nextAction": "Не включать в основной shortlist; оставить как историю и проверить только если стратегия изменится.",
       "canonicalUrl": "https://www.kleinanzeigen.de/s-anzeige/cafe-bar-in-muenchen-6-stellig-gewinn-4-automaten/3477375265-277-16373",
       "previousStatus": null,
       "proposedStatus": "active",
@@ -165,7 +187,14 @@
         "rent €6000 > soft maximum €3500",
         "gastro/cafe use appears possible"
       ],
-      "lastVerifiedAt": "2026-08-23T12:09:59.088Z",
+      "businessFit": "exclude",
+      "businessFitReasons": [
+        "specialized existing concept or nightlife/use constraint is not a neutral Matcha Bar unit",
+        "automated gaming/operator context needs business-model review",
+        "café format signal"
+      ],
+      "sourceQuality": "medium",
+      "lastVerifiedAt": "2026-08-23T17:18:07.469Z",
       "safeForProduction": true,
       "visibleCandidate": false,
       "listingType": "direct_listing",
@@ -182,6 +211,8 @@
       "url": "https://www.kleinanzeigen.de/s-anzeige/kiosk-gastronomie-von-automatenaufsteller-brauerreifrei-klimaanl/3487446534-277-6451",
       "title": "Kiosk Gastronomie von Automatenaufsteller Brauerreifrei, Klimaanl",
       "location": "München",
+      "verifiedSummary": "30 м² в München, аренда не опубликована. Формат условно подходит, но входные условия или модель эксплуатации нужно проверить. Gastro/Café-разрешение нужно уточнить у источника.",
+      "nextAction": "Уточнить обязательность Ablöse/оборудования/концепта и можно ли запустить независимый Matcha/Tea-Bar.",
       "canonicalUrl": "https://www.kleinanzeigen.de/s-anzeige/kiosk-gastronomie-von-automatenaufsteller-brauerreifrei-klimaanl/3487446534-277-6451",
       "previousStatus": null,
       "proposedStatus": "active",
@@ -205,7 +236,13 @@
         "area 30 m² in acceptable range",
         "gastro/cafe use appears possible"
       ],
-      "lastVerifiedAt": "2026-08-23T12:09:59.088Z",
+      "businessFit": "conditional",
+      "businessFitReasons": [
+        "automated gaming/operator context needs business-model review",
+        "small kiosk format signal"
+      ],
+      "sourceQuality": "medium",
+      "lastVerifiedAt": "2026-08-23T17:18:07.469Z",
       "safeForProduction": true,
       "visibleCandidate": false,
       "listingType": "direct_listing",
@@ -222,6 +259,8 @@
       "url": "https://www.kleinanzeigen.de/s-anzeige/caf-bar-restaurant/3483268342-277-16356",
       "title": "Café Bar Restaurant",
       "location": "München",
+      "verifiedSummary": "Площадь не опубликована в München, аренда не опубликована. Формат условно подходит, но входные условия или модель эксплуатации нужно проверить. Gastro/Café-разрешение нужно уточнить у источника.",
+      "nextAction": "Уточнить обязательность Ablöse/оборудования/концепта и можно ли запустить независимый Matcha/Tea-Bar.",
       "canonicalUrl": "https://www.kleinanzeigen.de/s-anzeige/caf-bar-restaurant/3483268342-277-16356",
       "previousStatus": null,
       "proposedStatus": "active",
@@ -247,7 +286,13 @@
         "rent is not confirmed",
         "gastro/cafe use appears possible"
       ],
-      "lastVerifiedAt": "2026-08-23T12:09:59.088Z",
+      "businessFit": "conditional",
+      "businessFitReasons": [
+        "high provision should be checked before committing",
+        "café format signal"
+      ],
+      "sourceQuality": "medium",
+      "lastVerifiedAt": "2026-08-23T17:18:07.469Z",
       "safeForProduction": true,
       "visibleCandidate": false,
       "listingType": "direct_listing",
@@ -264,6 +309,8 @@
       "url": "https://www.kleinanzeigen.de/s-anzeige/imbiss-pizzeria-gaststaette-restaurant/3476684574-277-6428",
       "title": "Imbiss / Pizzeria, Gaststätte, Restaurant",
       "location": "München",
+      "verifiedSummary": "Площадь не опубликована в München, аренда не опубликована. Формат выглядит применимым для компактного beverage/café concept. Gastro/Café-разрешение нужно уточнить у источника.",
+      "nextAction": "Уточнить у владельца разрешён ли Café/Tea-Bar, cold prep, drinks и take-away.",
       "canonicalUrl": "https://www.kleinanzeigen.de/s-anzeige/imbiss-pizzeria-gaststaette-restaurant/3476684574-277-6428",
       "previousStatus": null,
       "proposedStatus": "active",
@@ -289,7 +336,12 @@
         "rent is not confirmed",
         "gastro/cafe use appears possible"
       ],
-      "lastVerifiedAt": "2026-08-23T12:09:59.088Z",
+      "businessFit": "good",
+      "businessFitReasons": [
+        "no special concept constraint detected"
+      ],
+      "sourceQuality": "medium",
+      "lastVerifiedAt": "2026-08-23T17:18:07.469Z",
       "safeForProduction": true,
       "visibleCandidate": false,
       "listingType": "direct_listing",
@@ -306,8 +358,10 @@
       "url": "https://www.kleinanzeigen.de/s-anzeige/imbiss-in-guter-lage-sofort-abzugeben/3471053348-277-16388",
       "title": "Imbiss in guter Lage sofort abzugeben",
       "location": "München",
+      "verifiedSummary": "26 м² в München, €1.350/мес.. Формат выглядит применимым для компактного beverage/café concept. Gastro/Café-разрешение нужно уточнить у источника.",
+      "nextAction": "Уточнить у владельца разрешён ли Café/Tea-Bar, cold prep, drinks и take-away.",
       "canonicalUrl": "https://www.kleinanzeigen.de/s-anzeige/imbiss-in-guter-lage-sofort-abzugeben/3471053348-277-16388",
-      "previousStatus": null,
+      "previousStatus": "active",
       "proposedStatus": "active",
       "reason": "success",
       "httpState": 200,
@@ -327,7 +381,12 @@
         "rent €1350 within preferred budget",
         "gastro/cafe use appears possible"
       ],
-      "lastVerifiedAt": "2026-08-23T12:09:59.088Z",
+      "businessFit": "good",
+      "businessFitReasons": [
+        "small kiosk format signal"
+      ],
+      "sourceQuality": "medium",
+      "lastVerifiedAt": "2026-08-23T17:18:07.469Z",
       "safeForProduction": true,
       "visibleCandidate": true,
       "listingType": "direct_listing",
@@ -336,7 +395,7 @@
       "gastroSuitability": "possible",
       "gastroEvidence": "Direct page text contains relevant use signal: Imbiss",
       "verificationMethod": "kleinanzeigen-strong-listing-check",
-      "dedupeAction": "new"
+      "dedupeAction": "updated"
     },
     {
       "externalId": "klein-3447266819-277-6426",
@@ -344,6 +403,8 @@
       "url": "https://www.kleinanzeigen.de/s-anzeige/metzgerei-imbiss-zur-pacht-mit-inventar-abloese-65-000-euro/3447266819-277-6426",
       "title": "Metzgerei &amp; Imbiss zur Pacht mit Inventar Ablöse 65.000 Euro",
       "location": "München",
+      "verifiedSummary": "75 м² в München, аренда не опубликована. Есть сильный business-fit риск: объект не должен идти в обычный shortlist. Gastro/Café-разрешение нужно уточнить у источника.",
+      "nextAction": "Не включать в основной shortlist; оставить как историю и проверить только если стратегия изменится.",
       "canonicalUrl": "https://www.kleinanzeigen.de/s-anzeige/metzgerei-imbiss-zur-pacht-mit-inventar-abloese-65-000-euro/3447266819-277-6426",
       "previousStatus": null,
       "proposedStatus": "active",
@@ -367,7 +428,12 @@
         "area 75 m² in acceptable range",
         "gastro/cafe use appears possible"
       ],
-      "lastVerifiedAt": "2026-08-23T12:09:59.088Z",
+      "businessFit": "exclude",
+      "businessFitReasons": [
+        "specialized existing concept or nightlife/use constraint is not a neutral Matcha Bar unit"
+      ],
+      "sourceQuality": "medium",
+      "lastVerifiedAt": "2026-08-23T17:18:07.469Z",
       "safeForProduction": true,
       "visibleCandidate": false,
       "listingType": "direct_listing",
@@ -384,6 +450,8 @@
       "url": "https://www.kleinanzeigen.de/s-anzeige/bar-club-restaurant-bistro-top-lage-ab-sofort/3468687868-277-16339",
       "title": "Bar, Club, Restaurant, Bistro Top lage ab sofort",
       "location": "München",
+      "verifiedSummary": "80 м² в München, аренда не опубликована. Есть сильный business-fit риск: объект не должен идти в обычный shortlist. Gastro/Café-разрешение нужно уточнить у источника.",
+      "nextAction": "Не включать в основной shortlist; оставить как историю и проверить только если стратегия изменится.",
       "canonicalUrl": "https://www.kleinanzeigen.de/s-anzeige/bar-club-restaurant-bistro-top-lage-ab-sofort/3468687868-277-16339",
       "previousStatus": null,
       "proposedStatus": "active",
@@ -407,7 +475,14 @@
         "area 80 m² in acceptable range",
         "gastro/cafe use appears possible"
       ],
-      "lastVerifiedAt": "2026-08-23T12:09:59.088Z",
+      "businessFit": "exclude",
+      "businessFitReasons": [
+        "specialized existing concept or nightlife/use constraint is not a neutral Matcha Bar unit",
+        "high provision should be checked before committing",
+        "small bistro signal"
+      ],
+      "sourceQuality": "medium",
+      "lastVerifiedAt": "2026-08-23T17:18:07.469Z",
       "safeForProduction": true,
       "visibleCandidate": false,
       "listingType": "direct_listing",
@@ -424,6 +499,8 @@
       "url": "https://www.kleinanzeigen.de/s-anzeige/kiosk-baeckerei-bistro-eisdiele/3487924327-277-16362",
       "title": "Kiosk , Bäckerei , Bistro , Eisdiele",
       "location": "München",
+      "verifiedSummary": "Площадь не опубликована в München, аренда не опубликована. Формат выглядит применимым для компактного beverage/café concept. Gastro/Café-разрешение нужно уточнить у источника.",
+      "nextAction": "Уточнить у владельца разрешён ли Café/Tea-Bar, cold prep, drinks и take-away.",
       "canonicalUrl": "https://www.kleinanzeigen.de/s-anzeige/kiosk-baeckerei-bistro-eisdiele/3487924327-277-16362",
       "previousStatus": null,
       "proposedStatus": "active",
@@ -449,7 +526,14 @@
         "rent is not confirmed",
         "gastro/cafe use appears possible"
       ],
-      "lastVerifiedAt": "2026-08-23T12:09:59.088Z",
+      "businessFit": "good",
+      "businessFitReasons": [
+        "small kiosk format signal",
+        "bakery/retail counter signal",
+        "small bistro signal"
+      ],
+      "sourceQuality": "medium",
+      "lastVerifiedAt": "2026-08-23T17:18:07.469Z",
       "safeForProduction": true,
       "visibleCandidate": false,
       "listingType": "direct_listing",
@@ -466,8 +550,10 @@
       "url": "https://www.kleinanzeigen.de/s-anzeige/gaststaette-stehausschank-muenchner-norden-brauerreifrei-klima/3484857394-277-6451",
       "title": "Gaststätte, Stehausschank Münchner Norden , Brauerreifrei, Klima",
       "location": "München",
+      "verifiedSummary": "25 м² в München, €1.950/мес.. Есть сильный business-fit риск: объект не должен идти в обычный shortlist. Gastro/Café-разрешение нужно уточнить у источника.",
+      "nextAction": "Не включать в основной shortlist; оставить как историю и проверить только если стратегия изменится.",
       "canonicalUrl": "https://www.kleinanzeigen.de/s-anzeige/gaststaette-stehausschank-muenchner-norden-brauerreifrei-klima/3484857394-277-6451",
-      "previousStatus": null,
+      "previousStatus": "active",
       "proposedStatus": "active",
       "reason": "success",
       "httpState": 200,
@@ -487,16 +573,22 @@
         "rent €1950 within preferred budget",
         "gastro/cafe use appears possible"
       ],
-      "lastVerifiedAt": "2026-08-23T12:09:59.088Z",
+      "businessFit": "exclude",
+      "businessFitReasons": [
+        "automated gaming/operator context needs business-model review",
+        "small kiosk format signal"
+      ],
+      "sourceQuality": "medium",
+      "lastVerifiedAt": "2026-08-23T17:18:07.469Z",
       "safeForProduction": true,
-      "visibleCandidate": true,
+      "visibleCandidate": false,
       "listingType": "direct_listing",
       "rent": 1950,
       "unitArea": 25,
       "gastroSuitability": "possible",
       "gastroEvidence": "Direct page text contains relevant use signal: Gaststätte",
       "verificationMethod": "kleinanzeigen-strong-listing-check",
-      "dedupeAction": "new"
+      "dedupeAction": "updated"
     },
     {
       "externalId": "klein-3484241799-277-6451",
@@ -504,8 +596,10 @@
       "url": "https://www.kleinanzeigen.de/s-anzeige/laden-kiosk-fuee-mieten/3484241799-277-6451",
       "title": "Laden / Kiosk füe mieten",
       "location": "München",
+      "verifiedSummary": "30 м² в München, €1.200/мес.. Формат выглядит применимым для компактного beverage/café concept. Gastro/Café-разрешение нужно уточнить у источника.",
+      "nextAction": "Уточнить у владельца разрешён ли Café/Tea-Bar, cold prep, drinks и take-away.",
       "canonicalUrl": "https://www.kleinanzeigen.de/s-anzeige/laden-kiosk-fuee-mieten/3484241799-277-6451",
-      "previousStatus": null,
+      "previousStatus": "active",
       "proposedStatus": "active",
       "reason": "success",
       "httpState": 200,
@@ -525,7 +619,12 @@
         "rent €1200 within preferred budget",
         "gastro/cafe use appears possible"
       ],
-      "lastVerifiedAt": "2026-08-23T12:09:59.088Z",
+      "businessFit": "good",
+      "businessFitReasons": [
+        "small kiosk format signal"
+      ],
+      "sourceQuality": "medium",
+      "lastVerifiedAt": "2026-08-23T17:18:07.469Z",
       "safeForProduction": true,
       "visibleCandidate": true,
       "listingType": "direct_listing",
@@ -534,7 +633,7 @@
       "gastroSuitability": "possible",
       "gastroEvidence": "Direct page text contains relevant use signal: Laden",
       "verificationMethod": "kleinanzeigen-strong-listing-check",
-      "dedupeAction": "new"
+      "dedupeAction": "updated"
     },
     {
       "externalId": "klein-3477680803-277-16343",
@@ -542,6 +641,8 @@
       "url": "https://www.kleinanzeigen.de/s-anzeige/kiosk-zum-abgeben-top-lage-mit-stammkundschaft-mit-hermes-dpd/3477680803-277-16343",
       "title": "Kiosk zum Abgeben Top Lage mit Stammkundschaft mit Hermes, Dpd",
       "location": "München",
+      "verifiedSummary": "85 м² в München, €1.600/мес.. Формат выглядит применимым для компактного beverage/café concept. Gastro/Café-разрешение нужно уточнить у источника.",
+      "nextAction": "Уточнить у владельца разрешён ли Café/Tea-Bar, cold prep, drinks и take-away.",
       "canonicalUrl": "https://www.kleinanzeigen.de/s-anzeige/kiosk-zum-abgeben-top-lage-mit-stammkundschaft-mit-hermes-dpd/3477680803-277-16343",
       "previousStatus": null,
       "proposedStatus": "active",
@@ -563,7 +664,13 @@
         "rent €1600 within preferred budget",
         "gastro/cafe use appears possible"
       ],
-      "lastVerifiedAt": "2026-08-23T12:09:59.088Z",
+      "businessFit": "good",
+      "businessFitReasons": [
+        "small kiosk format signal",
+        "customer-facing retail area signal"
+      ],
+      "sourceQuality": "medium",
+      "lastVerifiedAt": "2026-08-23T17:18:07.469Z",
       "safeForProduction": true,
       "visibleCandidate": false,
       "listingType": "direct_listing",
@@ -580,6 +687,8 @@
       "url": "https://www.kleinanzeigen.de/s-anzeige/laden-zum-mieten/3477066020-277-6432",
       "title": "Laden zum mieten",
       "location": "München",
+      "verifiedSummary": "Площадь не опубликована в München, аренда не опубликована. Формат выглядит применимым для компактного beverage/café concept. Gastro/Café-разрешение нужно уточнить у источника.",
+      "nextAction": "Уточнить у владельца разрешён ли Café/Tea-Bar, cold prep, drinks и take-away.",
       "canonicalUrl": "https://www.kleinanzeigen.de/s-anzeige/laden-zum-mieten/3477066020-277-6432",
       "previousStatus": null,
       "proposedStatus": "active",
@@ -605,7 +714,12 @@
         "rent is not confirmed",
         "gastro/cafe use appears possible"
       ],
-      "lastVerifiedAt": "2026-08-23T12:09:59.088Z",
+      "businessFit": "good",
+      "businessFitReasons": [
+        "small kiosk format signal"
+      ],
+      "sourceQuality": "medium",
+      "lastVerifiedAt": "2026-08-23T17:18:07.469Z",
       "safeForProduction": true,
       "visibleCandidate": false,
       "listingType": "direct_listing",
@@ -622,6 +736,8 @@
       "url": "https://www.kleinanzeigen.de/s-anzeige/-caf-take-away-laden-in-muenchen-schwabing-top-lage-/3473746094-277-16356",
       "title": "**☕ Café-/Take-away-Laden in München-Schwabing – Top-Lage!**",
       "location": "München",
+      "verifiedSummary": "27 м² в München, аренда не опубликована. Формат условно подходит, но входные условия или модель эксплуатации нужно проверить. Gastro/Café-разрешение нужно уточнить у источника.",
+      "nextAction": "Уточнить обязательность Ablöse/оборудования/концепта и можно ли запустить независимый Matcha/Tea-Bar.",
       "canonicalUrl": "https://www.kleinanzeigen.de/s-anzeige/-caf-take-away-laden-in-muenchen-schwabing-top-lage-/3473746094-277-16356",
       "previousStatus": null,
       "proposedStatus": "active",
@@ -645,7 +761,15 @@
         "area 27 m² in acceptable range",
         "gastro/cafe use appears possible"
       ],
-      "lastVerifiedAt": "2026-08-23T12:09:59.088Z",
+      "businessFit": "conditional",
+      "businessFitReasons": [
+        "high provision should be checked before committing",
+        "café format signal",
+        "take-away use signal",
+        "small kiosk format signal"
+      ],
+      "sourceQuality": "medium",
+      "lastVerifiedAt": "2026-08-23T17:18:07.469Z",
       "safeForProduction": true,
       "visibleCandidate": false,
       "listingType": "direct_listing",
@@ -662,8 +786,10 @@
       "url": "https://www.kleinanzeigen.de/s-anzeige/gewerbeflaeche-ladenflaeche-mit-terasse-in-muenchen-milbertshofen-top-lage-nahe-bmw/3470636624-277-16373",
       "title": "Gewerbefläche / Ladenfläche mit Terasse in München-Milbertshofen – Top Lage nahe BMW",
       "location": "München",
+      "verifiedSummary": "60 м² в München, €3.000/мес.. Формат условно подходит, но входные условия или модель эксплуатации нужно проверить. Gastro/Café-разрешение нужно уточнить у источника.",
+      "nextAction": "Уточнить обязательность Ablöse/оборудования/концепта и можно ли запустить независимый Matcha/Tea-Bar.",
       "canonicalUrl": "https://www.kleinanzeigen.de/s-anzeige/gewerbeflaeche-ladenflaeche-mit-terasse-in-muenchen-milbertshofen-top-lage-nahe-bmw/3470636624-277-16373",
-      "previousStatus": null,
+      "previousStatus": "active",
       "proposedStatus": "active",
       "reason": "success",
       "httpState": 200,
@@ -683,7 +809,13 @@
         "rent €3000 within preferred budget",
         "gastro/cafe use appears possible"
       ],
-      "lastVerifiedAt": "2026-08-23T12:09:59.088Z",
+      "businessFit": "conditional",
+      "businessFitReasons": [
+        "high provision should be checked before committing",
+        "customer-facing retail area signal"
+      ],
+      "sourceQuality": "medium",
+      "lastVerifiedAt": "2026-08-23T17:18:07.469Z",
       "safeForProduction": true,
       "visibleCandidate": true,
       "listingType": "direct_listing",
@@ -692,7 +824,7 @@
       "gastroSuitability": "possible",
       "gastroEvidence": "Direct page text contains relevant use signal: Laden",
       "verificationMethod": "kleinanzeigen-strong-listing-check",
-      "dedupeAction": "new"
+      "dedupeAction": "updated"
     },
     {
       "externalId": "klein-3458629980-277-6462",
@@ -700,6 +832,8 @@
       "url": "https://www.kleinanzeigen.de/s-anzeige/kiosk-zu-verpachten/3458629980-277-6462",
       "title": "Kiosk zu verpachten",
       "location": "München",
+      "verifiedSummary": "7 м² в München, €1.850/мес.. Формат условно подходит, но входные условия или модель эксплуатации нужно проверить. Gastro/Café-разрешение нужно уточнить у источника.",
+      "nextAction": "Уточнить обязательность Ablöse/оборудования/концепта и можно ли запустить независимый Matcha/Tea-Bar.",
       "canonicalUrl": "https://www.kleinanzeigen.de/s-anzeige/kiosk-zu-verpachten/3458629980-277-6462",
       "previousStatus": null,
       "proposedStatus": "active",
@@ -721,7 +855,14 @@
         "rent €1850 within preferred budget",
         "gastro/cafe use appears possible"
       ],
-      "lastVerifiedAt": "2026-08-23T12:09:59.088Z",
+      "businessFit": "conditional",
+      "businessFitReasons": [
+        "high provision should be checked before committing",
+        "small kiosk format signal",
+        "beverage use signal"
+      ],
+      "sourceQuality": "medium",
+      "lastVerifiedAt": "2026-08-23T17:18:07.469Z",
       "safeForProduction": true,
       "visibleCandidate": false,
       "listingType": "direct_listing",
@@ -738,6 +879,8 @@
       "url": "https://www.kleinanzeigen.de/s-anzeige/kiosk-shisha-tabak-paket-shop-e-kiosk-abzugeben/3454423583-277-6452",
       "title": "Kiosk Shisha Tabak Paket Shop E-Kiosk abzugeben",
       "location": "München",
+      "verifiedSummary": "100 м² в München, €2.770/мес.. Есть сильный business-fit риск: объект не должен идти в обычный shortlist. Gastro/Café-разрешение нужно уточнить у источника.",
+      "nextAction": "Не включать в основной shortlist; оставить как историю и проверить только если стратегия изменится.",
       "canonicalUrl": "https://www.kleinanzeigen.de/s-anzeige/kiosk-shisha-tabak-paket-shop-e-kiosk-abzugeben/3454423583-277-6452",
       "previousStatus": null,
       "proposedStatus": "active",
@@ -759,7 +902,15 @@
         "rent €2770 within preferred budget",
         "gastro/cafe use appears possible"
       ],
-      "lastVerifiedAt": "2026-08-23T12:09:59.088Z",
+      "businessFit": "exclude",
+      "businessFitReasons": [
+        "specialized existing concept or nightlife/use constraint is not a neutral Matcha Bar unit",
+        "high provision should be checked before committing",
+        "small kiosk format signal",
+        "customer-facing retail area signal"
+      ],
+      "sourceQuality": "medium",
+      "lastVerifiedAt": "2026-08-23T17:18:07.469Z",
       "safeForProduction": true,
       "visibleCandidate": false,
       "listingType": "direct_listing",
@@ -776,6 +927,8 @@
       "url": "https://www.kleinanzeigen.de/s-anzeige/kiosk-zu-verpachten/3405409044-277-6454",
       "title": "Kiosk zu verpachten",
       "location": "München",
+      "verifiedSummary": "6 м² в München, €1.850/мес.. Формат условно подходит, но входные условия или модель эксплуатации нужно проверить. Gastro/Café-разрешение нужно уточнить у источника.",
+      "nextAction": "Уточнить обязательность Ablöse/оборудования/концепта и можно ли запустить независимый Matcha/Tea-Bar.",
       "canonicalUrl": "https://www.kleinanzeigen.de/s-anzeige/kiosk-zu-verpachten/3405409044-277-6454",
       "previousStatus": null,
       "proposedStatus": "active",
@@ -797,7 +950,14 @@
         "rent €1850 within preferred budget",
         "gastro/cafe use appears possible"
       ],
-      "lastVerifiedAt": "2026-08-23T12:09:59.088Z",
+      "businessFit": "conditional",
+      "businessFitReasons": [
+        "high provision should be checked before committing",
+        "small kiosk format signal",
+        "beverage use signal"
+      ],
+      "sourceQuality": "medium",
+      "lastVerifiedAt": "2026-08-23T17:18:07.469Z",
       "safeForProduction": true,
       "visibleCandidate": false,
       "listingType": "direct_listing",
@@ -814,6 +974,8 @@
       "url": "https://stadt.muenchen.de/lhm-ms-wirtschaftsfoerderung/standort-muenchen/gewerbeflaechen-immobilien/gewerbeflaechen-angebote/buero-gewerbestandorte-FMQM%C3%BCnchen.html",
       "title": "FMQ",
       "location": "Schwanthalerstraße 55–57, München",
+      "verifiedSummary": "Official municipal project lead; concrete gastro unit must be requested.",
+      "nextAction": "Contact provider for a concrete gastro unit.",
       "canonicalUrl": "https://stadt.muenchen.de/lhm-ms-wirtschaftsfoerderung/standort-muenchen/gewerbeflaechen-immobilien/gewerbeflaechen-angebote/buero-gewerbestandorte-FMQM%C3%BCnchen.html",
       "previousStatus": "lead",
       "proposedStatus": "lead",
@@ -835,7 +997,12 @@
       "relevanceReasons": [
         "lead/project source, not a confirmed direct unit"
       ],
-      "lastVerifiedAt": "2026-08-23T12:09:59.088Z",
+      "businessFit": "conditional",
+      "businessFitReasons": [
+        "lead/project source, not a confirmed direct operating unit"
+      ],
+      "sourceQuality": "high",
+      "lastVerifiedAt": "2026-08-23T17:18:07.469Z",
       "safeForProduction": true,
       "visibleCandidate": true,
       "listingType": "project_lead",
@@ -852,6 +1019,8 @@
       "url": "https://stadt.muenchen.de/lhm-ms-wirtschaftsfoerderung/standort-muenchen/gewerbeflaechen-immobilien/gewerbeflaechen-angebote/buero-gewerbestandorte-AMALIE.html",
       "title": "AMALIE",
       "location": "Amalienstraße 33, München",
+      "verifiedSummary": "Official municipal project lead; concrete unit must be requested.",
+      "nextAction": "Contact provider for a concrete unit.",
       "canonicalUrl": "https://stadt.muenchen.de/lhm-ms-wirtschaftsfoerderung/standort-muenchen/gewerbeflaechen-immobilien/gewerbeflaechen-angebote/buero-gewerbestandorte-AMALIE.html",
       "previousStatus": "lead",
       "proposedStatus": "lead",
@@ -873,7 +1042,12 @@
       "relevanceReasons": [
         "lead/project source, not a confirmed direct unit"
       ],
-      "lastVerifiedAt": "2026-08-23T12:09:59.088Z",
+      "businessFit": "conditional",
+      "businessFitReasons": [
+        "lead/project source, not a confirmed direct operating unit"
+      ],
+      "sourceQuality": "high",
+      "lastVerifiedAt": "2026-08-23T17:18:07.469Z",
       "safeForProduction": true,
       "visibleCandidate": true,
       "listingType": "project_lead",
@@ -890,6 +1064,8 @@
       "url": "https://www.colliers.de/gewerbeimmobilien/objekt/laden-muenchen-m-p4428-g1-e1/",
       "title": "Leopoldstraße broker lead",
       "location": "Leopoldstraße, München",
+      "verifiedSummary": "Broker lead; request concrete unit details.",
+      "nextAction": "Request concrete unit details.",
       "canonicalUrl": "https://www.colliers.de/gewerbeimmobilien/objekt/laden-muenchen-m-p4428-g1-e1/",
       "previousStatus": "lead",
       "proposedStatus": "lead",
@@ -911,7 +1087,12 @@
       "relevanceReasons": [
         "lead/project source, not a confirmed direct unit"
       ],
-      "lastVerifiedAt": "2026-08-23T12:09:59.088Z",
+      "businessFit": "conditional",
+      "businessFitReasons": [
+        "lead/project source, not a confirmed direct operating unit"
+      ],
+      "sourceQuality": "high",
+      "lastVerifiedAt": "2026-08-23T17:18:07.469Z",
       "safeForProduction": true,
       "visibleCandidate": true,
       "listingType": "broker_lead",
@@ -923,84 +1104,7 @@
       "dedupeAction": "updated"
     }
   ],
-  "cleanupActions": [
-    {
-      "externalId": "klein-isartor-23",
-      "source": "Kleinanzeigen",
-      "url": null,
-      "title": "Isartor",
-      "location": "Isartor",
-      "canonicalUrl": null,
-      "previousStatus": "active",
-      "proposedStatus": "unknown",
-      "reason": "active direct listing cannot remain active without a valid direct source URL",
-      "httpState": null,
-      "finalUrl": null,
-      "directListingConfirmed": false,
-      "sourceLinkValid": false,
-      "issues": [],
-      "dataCompleteness": 60,
-      "dataQuality": "partial",
-      "rentEvidence": null,
-      "rentConfidence": "low",
-      "areaEvidence": null,
-      "areaType": null,
-      "projectRelevance": "reject",
-      "relevanceReasons": [
-        "rent is not confirmed",
-        "area 23 m² outside target range",
-        "gastro use confirmed"
-      ],
-      "lastVerifiedAt": null,
-      "safeForProduction": false,
-      "visibleCandidate": false,
-      "listingType": "direct_listing",
-      "rent": null,
-      "unitArea": 23,
-      "gastroSuitability": "confirmed",
-      "gastroEvidence": null,
-      "verificationMethod": "production-cleanup-invalid-source-url",
-      "dedupeAction": "cleanup"
-    },
-    {
-      "externalId": "klein-freimann-48",
-      "source": "Kleinanzeigen",
-      "url": null,
-      "title": "Freimann",
-      "location": "Freimann",
-      "canonicalUrl": null,
-      "previousStatus": "active",
-      "proposedStatus": "unknown",
-      "reason": "active direct listing cannot remain active without a valid direct source URL",
-      "httpState": null,
-      "finalUrl": null,
-      "directListingConfirmed": false,
-      "sourceLinkValid": false,
-      "issues": [],
-      "dataCompleteness": 60,
-      "dataQuality": "partial",
-      "rentEvidence": null,
-      "rentConfidence": "low",
-      "areaEvidence": null,
-      "areaType": null,
-      "projectRelevance": "reject",
-      "relevanceReasons": [
-        "rent is not confirmed",
-        "area 48 m² in preferred range",
-        "gastro use confirmed"
-      ],
-      "lastVerifiedAt": null,
-      "safeForProduction": false,
-      "visibleCandidate": false,
-      "listingType": "direct_listing",
-      "rent": null,
-      "unitArea": 48,
-      "gastroSuitability": "confirmed",
-      "gastroEvidence": null,
-      "verificationMethod": "production-cleanup-invalid-source-url",
-      "dedupeAction": "cleanup"
-    }
-  ],
+  "cleanupActions": [],
   "skippedDuplicates": [
     {
       "candidate": {
@@ -1053,13 +1157,13 @@
         "nextAction": null,
         "coordinates": null,
         "discoveryMethod": "search-page",
-        "discoveredAt": "2026-08-23T12:09:59.088Z",
-        "lastSeenAt": "2026-08-23T12:09:59.088Z",
+        "discoveredAt": "2026-08-23T17:18:07.469Z",
+        "lastSeenAt": "2026-08-23T17:18:07.469Z",
         "rawSourceData": {
           "sourceTitle": "Laden/ Kiosk/ Imbiss mit Küche in Maxvorstadt, sehr guter lage!!!",
           "sourcePriceText": "2800",
           "sourceAreaText": "75",
-          "detectedAt": "2026-08-23T12:09:59.088Z",
+          "detectedAt": "2026-08-23T17:18:07.469Z",
           "searchUrl": "https://www.kleinanzeigen.de/s-muenchen/imbiss-mieten/k0l6411",
           "rentEvidence": "Monatsmiete für Gesamtfläche 2.800 €",
           "rentConfidence": "high",
@@ -1137,13 +1241,13 @@
         "nextAction": null,
         "coordinates": null,
         "discoveryMethod": "search-page",
-        "discoveredAt": "2026-08-23T12:09:59.088Z",
-        "lastSeenAt": "2026-08-23T12:09:59.088Z",
+        "discoveredAt": "2026-08-23T17:18:07.469Z",
+        "lastSeenAt": "2026-08-23T17:18:07.469Z",
         "rawSourceData": {
           "sourceTitle": "Laden/ Kiosk/ Imbiss mit Küche in Maxvorstadt, sehr guter lage!!!",
           "sourcePriceText": "2800",
           "sourceAreaText": "75",
-          "detectedAt": "2026-08-23T12:09:59.088Z",
+          "detectedAt": "2026-08-23T17:18:07.469Z",
           "searchUrl": "https://www.kleinanzeigen.de/s-muenchen/kiosk-mieten/k0l6411",
           "rentEvidence": "Monatsmiete für Gesamtfläche 2.800 €",
           "rentConfidence": "high",
@@ -1221,13 +1325,13 @@
         "nextAction": null,
         "coordinates": null,
         "discoveryMethod": "search-page",
-        "discoveredAt": "2026-08-23T12:09:59.088Z",
-        "lastSeenAt": "2026-08-23T12:09:59.088Z",
+        "discoveredAt": "2026-08-23T17:18:07.469Z",
+        "lastSeenAt": "2026-08-23T17:18:07.469Z",
         "rawSourceData": {
           "sourceTitle": "Kiosk Gastronomie von Automatenaufsteller Brauerreifrei, Klimaanl",
           "sourcePriceText": null,
           "sourceAreaText": "30",
-          "detectedAt": "2026-08-23T12:09:59.088Z",
+          "detectedAt": "2026-08-23T17:18:07.469Z",
           "searchUrl": "https://www.kleinanzeigen.de/s-muenchen/kiosk-mieten/k0l6411",
           "rentEvidence": null,
           "rentConfidence": "low",
