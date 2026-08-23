@@ -46,6 +46,11 @@ export function mapDatabaseListing(row) {
     status: row.status,
     note: row.notes,
     coordinates: getCoordinates(row),
+    discoveredAt: row.discovered_at,
+    lastSeenAt: row.last_seen_at,
+    discoveryMethod: row.discovery_method,
+    canonicalUrl: row.canonical_url,
+    rawSourceData: row.raw_source_data,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };

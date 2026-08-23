@@ -1,14 +1,14 @@
-#!/usr/bin/env node
-
 const fs = require('fs');
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const LISTINGS_PATH = process.env.LISTINGS_PATH || 'data/listings.json';
-
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.');
-  process.exit(1);
+function readFrontendPublishableKey() {
+  try {
+    const config = fs.readFileSync('js/config.js', 'utf8');
+    const url = config.match(/SUPABASE_URL\s*=\s*'([^']+)'/)?.[1];
+    const key = config.match(/SUPABASE_PUBLISHABLE_KEY\s*=\s*'([^']+)'/)?.[1];
+    return { url, key };
+  } catch {
+    return { url: null, key: null };
+  }
 }
 
 function condition(value) {
@@ -23,21 +23,17 @@ function condition(value) {
   return { known: value != null, value: value ?? null, amount: null };
 }
 
-function titleFor(listing) {
-  return listing.title || listing.district || listing.address || listing.id;
-}
-
-function rowFor(listing) {
+function rowForListing(listing) {
   const coords = listing.coordinates || {};
   return {
     external_id: listing.externalId || listing.id,
-    title: titleFor(listing),
+    title: listing.title || listing.district || listing.address || listing.externalId || listing.id,
     address: listing.address || null,
     district: listing.district || null,
     price: listing.rent ?? null,
     area: listing.unitArea ?? listing.area ?? null,
     source: listing.source || listing.sourceName || null,
-    source_url: listing.url || null,
+    source_url: listing.sourceUrl || listing.url || null,
     status: listing.status || null,
     notes: listing.note || listing.verifiedSummary || null,
     source_family: listing.sourceFamily || null,
@@ -65,21 +61,50 @@ function rowFor(listing) {
     discovered_at: listing.discoveredAt || null,
     last_seen_at: listing.lastSeenAt || null,
     discovery_method: listing.discoveryMethod || null,
-    canonical_url: listing.canonicalUrl || listing.url || null,
+    canonical_url: listing.canonicalUrl || listing.sourceUrl || listing.url || null,
     raw_source_data: listing.rawSourceData || null
   };
 }
 
-async function main() {
-  const listings = JSON.parse(fs.readFileSync(LISTINGS_PATH, 'utf8'));
-  const rows = listings.map(rowFor);
-  const endpoint = `${SUPABASE_URL.replace(/\/$/, '')}/rest/v1/listings?on_conflict=external_id`;
+async function fetchExistingRows() {
+  const envUrl = process.env.SUPABASE_URL;
+  const envKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
+  const frontend = readFrontendPublishableKey();
+  const url = envUrl || frontend.url;
+  const key = envKey || frontend.key;
 
+  if (!url || !key) return [];
+
+  const endpoint = `${url.replace(/\/$/, '')}/rest/v1/listings?select=external_id,source,source_name,source_url,canonical_url,availability_status,last_verified_at,verification_method,verification_override,discovered_at`;
+  const response = await fetch(endpoint, {
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Supabase read failed: HTTP ${response.status} ${await response.text()}`);
+  }
+
+  return response.json();
+}
+
+async function upsertListings(listings) {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !key) {
+    throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY for real ingestion.');
+  }
+
+  const rows = listings.map(rowForListing);
+  const endpoint = `${url.replace(/\/$/, '')}/rest/v1/listings?on_conflict=external_id`;
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
-      apikey: SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      apikey: key,
+      Authorization: `Bearer ${key}`,
       'Content-Type': 'application/json',
       Prefer: 'resolution=merge-duplicates,return=representation'
     },
@@ -87,15 +112,14 @@ async function main() {
   });
 
   if (!response.ok) {
-    console.error(await response.text());
-    process.exit(1);
+    throw new Error(`Supabase upsert failed: HTTP ${response.status} ${await response.text()}`);
   }
 
-  const imported = await response.json();
-  console.log(`Upserted ${imported.length} listings into Supabase.`);
+  return response.json();
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+module.exports = {
+  fetchExistingRows,
+  rowForListing,
+  upsertListings
+};
