@@ -165,6 +165,7 @@ function validationRecord(listing) {
     rentEvidence: listing.rawSourceData?.rentEvidence || null,
     rentConfidence: listing.rawSourceData?.rentConfidence || (listing.rent == null ? 'low' : 'medium'),
     areaEvidence: listing.rawSourceData?.areaEvidence || null,
+    areaType: listing.rawSourceData?.areaType || null,
     projectRelevance: relevance.level,
     relevanceReasons: relevance.reasons,
     lastVerifiedAt: listing.lastVerifiedAt || null,

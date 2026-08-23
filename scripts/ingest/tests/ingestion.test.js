@@ -1,12 +1,13 @@
 const assert = require('assert');
 const { deduplicateListings } = require('../deduplicate-listings');
 const { calculateDataCompleteness, hasMeaningfulTitle } = require('../data-completeness');
-const { areaFromText, compactSummary, conditionText, enrichListing, meaningfulTitle, rentFromText } = require('../enrich-listing');
+const { areaFromText, collectAreaCandidates, compactSummary, conditionText, enrichListing, meaningfulTitle, rentFromText } = require('../enrich-listing');
 const { mergeExistingListing } = require('../merge-existing-listing');
 const { normalizeListing } = require('../normalize-listing');
 const { rowForListing } = require('../supabase-upsert');
 const {
   getValidExternalUrl,
+  isVisibleCandidate,
   isSafeForProduction,
   isUsableCandidate,
   summarizeValidation,
@@ -183,8 +184,17 @@ async function run() {
   assert.strictEqual(areaFromText('Verkaufsraum mit circa 45 m²').unitArea, 45);
   assert.strictEqual(areaFromText('Gastrofläche ungefähr 45 m²').unitArea, 45);
   assert.strictEqual(areaFromText('44 m² Kellerfläche und 57 m² Ladenfläche').unitArea, 57);
+  assert.strictEqual(areaFromText('Gesamtfläche ca. 100 qm: 85 qm Verkaufs-/Ladenfläche 15 qm zusätzlicher Raum im Obergeschoss').unitArea, 85);
+  assert.strictEqual(areaFromText('Gesamtfläche ca. 100 qm: 85 qm Verkaufs-/Ladenfläche 15 qm zusätzlicher Raum im Obergeschoss').areaEvidence, '85 qm Verkaufs-/Ladenfläche');
+  assert.strictEqual(areaFromText('Ladenfläche 57 m² Kellerfläche 44 m²').unitArea, 57);
+  assert.strictEqual(areaFromText('Gesamtfläche 75 m² Verkaufsfläche 60 m²').unitArea, 60);
+  assert.strictEqual(areaFromText('Terrasse 20 m² Ladenfläche 45 m²').unitArea, 45);
   assert.strictEqual(areaFromText('Projektfläche 1200 m²').unitArea, null);
   assert.strictEqual(areaFromText('Grundstücksfläche 500 m²').unitArea, null);
+  assert.deepStrictEqual(
+    collectAreaCandidates('85 qm Verkaufs-/Ladenfläche 15 qm zusätzlicher Raum').map((candidate) => candidate.areaType),
+    ['sales_area']
+  );
   assert.strictEqual(conditionText('Kaution: 4.800 €', 'kaution').amount, 4800);
   assert.strictEqual(conditionText('Kaution 3 Monatsmieten', 'kaution').amount, 3);
   assert.strictEqual(conditionText('Kaution 3 € Klimaanlage Küche vorhanden', 'kaution').amount, null);
@@ -215,6 +225,42 @@ async function run() {
     rent: 1850,
     gastroSuitability: 'possible'
   }).level, 'reject');
+  assert.strictEqual(calculateProjectRelevance({
+    listingType: 'direct_listing',
+    unitArea: 19,
+    rent: 1600,
+    gastroSuitability: 'possible'
+  }).level, 'reject');
+  assert.strictEqual(calculateProjectRelevance({
+    listingType: 'direct_listing',
+    unitArea: 101,
+    rent: 1600,
+    gastroSuitability: 'possible'
+  }).level, 'reject');
+  assert.strictEqual(calculateProjectRelevance({
+    listingType: 'direct_listing',
+    unitArea: 100,
+    rent: 2770,
+    gastroSuitability: 'possible'
+  }).level, 'weak');
+  assert.strictEqual(calculateProjectRelevance({
+    listingType: 'direct_listing',
+    unitArea: 85,
+    rent: 1600,
+    gastroSuitability: 'possible'
+  }).level, 'weak');
+  assert.strictEqual(calculateProjectRelevance({
+    listingType: 'direct_listing',
+    unitArea: 75,
+    rent: 2800,
+    gastroSuitability: 'possible'
+  }).level, 'acceptable');
+  assert.ok(['strong', 'acceptable'].includes(calculateProjectRelevance({
+    listingType: 'direct_listing',
+    unitArea: 60,
+    rent: 3000,
+    gastroSuitability: 'possible'
+  }).level));
   assert.strictEqual(calculateProjectRelevance({
     listingType: 'direct_listing',
     unitArea: 57,
@@ -299,6 +345,17 @@ async function run() {
     title: 'Cafe',
     verifiedSummary: 'Verified direct listing'
   }), true);
+  assert.strictEqual(isVisibleCandidate({
+    listingType: 'direct_listing',
+    availabilityStatus: 'active',
+    url: 'https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411',
+    dataCompleteness: 100,
+    rent: 2770,
+    unitArea: 100,
+    title: 'Large kiosk',
+    verifiedSummary: 'Verified direct listing',
+    gastroSuitability: 'possible'
+  }), false);
 
   const validationCounts = summarizeValidation([
     {

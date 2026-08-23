@@ -13,6 +13,8 @@ const defaultProjectConfig = {
 const SOFT_RENT_MAX = 3500;
 const HARD_MIN_AREA = 20;
 const HARD_MAX_AREA = 100;
+const WEAK_LOW_MAX_AREA = 24;
+const WEAK_HIGH_MIN_AREA = 81;
 const NEGATIVE_GASTRO_PATTERNS = [
   /keine abluft/i,
   /keine k[uü]chenabluft/i,
@@ -47,6 +49,7 @@ export function calculateProjectRelevance(listing, projectConfig = defaultProjec
   const reasons = [];
   const rejectReasons = [];
   let score = 0;
+  let areaIsOutsideTarget = false;
 
   if (area == null) rejectReasons.push('unit area is not confirmed');
   else if (area < HARD_MIN_AREA) rejectReasons.push(`area ${area} m² < hard minimum ${HARD_MIN_AREA} m²`);
@@ -59,6 +62,7 @@ export function calculateProjectRelevance(listing, projectConfig = defaultProjec
     score += 1;
   } else {
     reasons.push(`area ${area} m² outside target range`);
+    areaIsOutsideTarget = area <= WEAK_LOW_MAX_AREA || area >= WEAK_HIGH_MIN_AREA;
   }
 
   if (rent == null) rejectReasons.push('rent is not confirmed');
@@ -88,6 +92,7 @@ export function calculateProjectRelevance(listing, projectConfig = defaultProjec
   }
 
   if (rejectReasons.length) return { relevant: false, level: 'reject', reasons: [...rejectReasons, ...reasons] };
+  if (areaIsOutsideTarget) return { relevant: false, level: 'weak', reasons };
   if (score >= 5) return { relevant: true, level: 'strong', reasons };
   if (score >= 3) return { relevant: true, level: 'acceptable', reasons };
   return { relevant: false, level: 'weak', reasons };

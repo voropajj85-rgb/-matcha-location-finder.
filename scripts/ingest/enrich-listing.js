@@ -105,37 +105,101 @@ function rentFromText(text) {
   return { rent: null, rentEvidence: null, rentConfidence: 'low' };
 }
 
-function areaFromText(text) {
-  const normalized = String(text || '').replace(/\s+/g, ' ');
-  const blockedContext = /(kellerfl[aä]che|grundst[uü]cksfl[aä]che|terrassenfl[aä]che|projektfl[aä]che|b[uü]rofl[aä]che|gesamtgeb[aä]ude|geb[aä]udefl[aä]che|grundst[uü]ck)/i;
-  const groups = [
-    /ladenfl[aä]che|ladenzeile/i,
-    /verkaufsfl[aä]che|verkaufsraum/i,
-    /gastrofl[aä]che|gastraumfl[aä]che|gastraum/i,
-    /nutzfl[aä]che/i,
-    /gesamtfl[aä]che|fl[aä]che/i
-  ];
+const HIGH_AREA_PATTERN = /verkaufs[\s-/]*ladenfl[aä]che|verkaufsfl[aä]che|ladenfl[aä]che|ladenzeile|verkaufsraum|gastrofl[aä]che|gastraumfl[aä]che|gastraum/i;
+const MEDIUM_AREA_PATTERN = /nutzfl[aä]che|gesamtfl[aä]che|gewerbefl[aä]che|(?:^|[^a-zäöüß])fl[aä]che(?:$|[^a-zäöüß])/i;
+const SECONDARY_AREA_PATTERN = /kellerfl[aä]che|lagerfl[aä]che|nebenfl[aä]che|nebenraum|zus[aä]tzlicher\s+raum|obergeschoss[-\s]*zusatzraum|terrasse|terrassenfl[aä]che|au[sß]enfl[aä]che|grundst[uü]ck|grundst[uü]cksfl[aä]che|projektfl[aä]che|geb[aä]udefl[aä]che/i;
 
-  for (const keyword of groups) {
-    const keywordMatches = [...normalized.matchAll(new RegExp(keyword.source, 'gi'))];
-    for (const keywordMatch of keywordMatches) {
-      const start = Math.max(0, keywordMatch.index - 35);
-      const end = Math.min(normalized.length, keywordMatch.index + keywordMatch[0].length + 95);
-      const context = normalized.slice(start, end);
-      const genericKeyword = /^(gesamtfl[aä]che|fl[aä]che)$/i.test(keywordMatch[0]);
-      if (genericKeyword && blockedContext.test(context)) continue;
-      const afterKeyword = normalized.slice(keywordMatch.index, end);
-      const beforeKeyword = normalized.slice(start, keywordMatch.index + keywordMatch[0].length);
-      const areaMatch = afterKeyword.match(/(?:ca\.?|circa|ungef[aä]hr|mit)?\s*[:\s-]{0,12}(?:ca\.?|circa|ungef[aä]hr)?\s*([0-9][0-9.,]*)\s*(?:m²|qm|m2)/i)
-        || [...beforeKeyword.matchAll(/(?:ca\.?|circa|ungef[aä]hr)?\s*([0-9][0-9.,]*)\s*(?:m²|qm|m2)/gi)].at(-1);
-      const value = parseNumberFromText(areaMatch?.[1]);
-      if (value != null && value >= 5 && value <= 500) {
-        return { unitArea: value, areaEvidence: context.trim() };
-      }
-    }
+function classifyAreaContext(context, { allowSecondary = true } = {}) {
+  if (HIGH_AREA_PATTERN.test(context)) return { areaType: 'sales_area', priority: 100 };
+  if (MEDIUM_AREA_PATTERN.test(context) && !SECONDARY_AREA_PATTERN.test(context)) return { areaType: 'main_unit_area', priority: 60 };
+  if (allowSecondary && SECONDARY_AREA_PATTERN.test(context)) return { areaType: 'secondary_area', priority: -100 };
+  return { areaType: 'unknown_area', priority: 0 };
+}
+
+function classifyAreaCandidate(beforeContext, afterContext, { hasPreviousArea = false } = {}) {
+  const secondaryBefore = SECONDARY_AREA_PATTERN.test(beforeContext);
+  const separatedFromSecondary = /\b(?:und|oder|,|;)\s*$/i.test(beforeContext);
+  if (secondaryBefore && !separatedFromSecondary) {
+    return { areaType: 'secondary_area', priority: -100 };
   }
 
-  return { unitArea: null, areaEvidence: null };
+  if (hasPreviousArea && SECONDARY_AREA_PATTERN.test(afterContext)) {
+    return { areaType: 'secondary_area', priority: -100 };
+  }
+
+  const before = classifyAreaContext(beforeContext, { allowSecondary: false });
+  if (before.priority !== 0) return before;
+  if (SECONDARY_AREA_PATTERN.test(afterContext)) {
+    return { areaType: 'secondary_area', priority: -100 };
+  }
+  const after = classifyAreaContext(afterContext, { allowSecondary: false });
+  if (after.priority !== 0) return after;
+  return classifyAreaContext(`${beforeContext} ${afterContext}`);
+}
+
+function compactAreaEvidence(value, context) {
+  const text = String(context || '').replace(/\s+/g, ' ').trim();
+  const valuePattern = String(value).replace('.', '[,.]');
+  const unitPattern = new RegExp(`(?:ca\\.?\\s*)?${valuePattern}\\s*(?:m²|qm|m2)`, 'i');
+  const valueMatch = text.match(unitPattern);
+  if (!valueMatch) return text.slice(0, 160);
+
+  const start = Math.max(0, valueMatch.index - 45);
+  const end = Math.min(text.length, valueMatch.index + valueMatch[0].length + 55);
+  return text.slice(start, end).replace(/^[\s:;,\-)]+/, '').trim();
+}
+
+function collectAreaCandidates(text) {
+  const normalized = String(text || '').replace(/\s+/g, ' ').trim();
+  const candidates = [];
+  const areaRegex = /(?:ca\.?|circa|ungef[aä]hr)?\s*([0-9][0-9.,]*)\s*(?:m²|qm|m2)/gi;
+  const matches = [...normalized.matchAll(areaRegex)];
+
+  for (const [index, match] of matches.entries()) {
+    const value = parseNumberFromText(match[1]);
+    if (value == null || value < 5 || value > 500) continue;
+
+    const previousEnd = index > 0 ? matches[index - 1].index + matches[index - 1][0].length : 0;
+    const nextStart = index < matches.length - 1 ? matches[index + 1].index : normalized.length;
+    const start = Math.max(previousEnd, match.index - 70);
+    const end = Math.min(nextStart, match.index + match[0].length + 80);
+    const beforeContext = normalized.slice(start, match.index);
+    const afterContext = normalized.slice(match.index, end);
+    const context = normalized.slice(start, end);
+    const classified = classifyAreaCandidate(beforeContext, afterContext, { hasPreviousArea: index > 0 });
+    if (classified.priority < 0) continue;
+
+    candidates.push({
+      value,
+      evidence: compactAreaEvidence(value, context),
+      areaType: classified.areaType,
+      priority: classified.priority,
+      index: match.index
+    });
+  }
+
+  return candidates.sort((a, b) => {
+    if (b.priority !== a.priority) return b.priority - a.priority;
+    return a.index - b.index;
+  });
+}
+
+function areaFromText(text) {
+  const candidates = collectAreaCandidates(text);
+  const best = candidates[0];
+  if (!best) return { unitArea: null, areaEvidence: null, areaType: null, areaCandidates: [] };
+
+  return {
+    unitArea: best.value,
+    areaEvidence: best.evidence,
+    areaType: best.areaType,
+    areaCandidates: candidates.map(({ value, evidence, areaType, priority }) => ({
+      value,
+      evidence,
+      areaType,
+      priority
+    }))
+  };
 }
 
 function conditionText(text, label) {
@@ -226,6 +290,8 @@ async function enrichListing(listing, { fetchPage } = {}) {
         rentEvidence: rentResult.rentEvidence,
         rentConfidence: rentResult.rentConfidence,
         areaEvidence: areaResult.areaEvidence,
+        areaType: areaResult.areaType,
+        areaCandidates: areaResult.areaCandidates,
         detectedAt: listing.rawSourceData?.detectedAt || listing.lastSeenAt,
         enrichmentStatus: 'success',
         httpStatus: response.status,
@@ -257,6 +323,7 @@ module.exports = {
   enrichListings,
   rentFromText,
   areaFromText,
+  collectAreaCandidates,
   compactSummary,
   conditionText,
   meaningfulTitle
