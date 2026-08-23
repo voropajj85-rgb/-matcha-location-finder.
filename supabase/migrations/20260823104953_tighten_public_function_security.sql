@@ -11,7 +11,10 @@ begin
 end;
 $$;
 
-revoke execute on function public.set_updated_at() from anon, authenticated;
+-- PostgreSQL grants EXECUTE on functions to PUBLIC by default.
+-- Revoke from PUBLIC as well as Supabase runtime roles so these helpers
+-- cannot be called through the exposed API.
+revoke execute on function public.set_updated_at() from public, anon, authenticated;
 
 do $$
 begin
@@ -23,6 +26,6 @@ begin
       and p.proname = 'rls_auto_enable'
       and pg_get_function_identity_arguments(p.oid) = ''
   ) then
-    revoke execute on function public.rls_auto_enable() from anon, authenticated;
+    revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
   end if;
 end $$;
