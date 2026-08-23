@@ -1,6 +1,6 @@
 import { hasSupabaseConfig } from '../config.js?v=supabase-1';
 import { getSupabaseClient } from '../supabase.js?v=supabase-1';
-import { mapDatabaseListing } from './listings-mapper.js?v=supabase-1';
+import { mapDatabaseListing } from './listings-mapper.js?v=business-fit-2';
 
 const FIXTURE_URL = './data/listings.json';
 
