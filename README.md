@@ -33,6 +33,9 @@ matcha-location-finder/
 ├── data/
 │   ├── listings.json
 │   └── project-config.json
+├── scripts/
+│   ├── check-listings.js
+│   └── ingest/
 ├── supabase/
 │   └── migrations/
 ├── assets/
@@ -56,6 +59,7 @@ matcha-location-finder/
 - `js/storage.js` — локально добавленные пользователем объекты.
 - `data/listings.json` — development fixture и migration/import source, не production database.
 - `data/project-config.json` — централизованные критерии проекта.
+- `scripts/ingest/` — discovery → normalization → dedupe → verification → Supabase upsert pipeline.
 - `supabase/migrations/` — SQL migrations для production schema.
 - `assets/images/` — будущие изображения и превью.
 
@@ -133,3 +137,67 @@ RLS policy должна оставаться read-only для public frontend:
 - `anon` может `SELECT`.
 - public `INSERT`, `UPDATE`, `DELETE` не разрешены.
 - Service role используется только локально/CI для admin import, никогда в frontend.
+
+### Ingestion Pipeline
+
+Phase 2 pipeline находится в `scripts/ingest/`:
+
+```text
+DISCOVERY
+→ NORMALIZATION
+→ DEDUPLICATION
+→ VERIFICATION
+→ SUPABASE UPSERT
+→ FRONTEND
+```
+
+Source adapters выполняют только discovery. Они не имеют права объявлять новый direct listing `active`.
+
+Поддержанные source families:
+
+- `kleinanzeigen`
+- `immowelt`
+- `immoscout24`
+- `stadt-muenchen`
+- `brokers`
+
+Новый direct listing получает `availabilityStatus: "unknown"`. `active` возможен только после строгой source-specific verification из `scripts/check-listings.js`. Municipal/project/broker leads получают `availabilityStatus: "lead"` только когда это действительно lead, а не direct market listing.
+
+Dry run без записи в Supabase:
+
+```bash
+node scripts/ingest/run-ingestion.js --dry-run
+```
+
+Отладка одного источника:
+
+```bash
+node scripts/ingest/run-ingestion.js --source=kleinanzeigen --dry-run
+```
+
+Production ingestion пишет только в Supabase:
+
+```bash
+SUPABASE_URL="https://<project-ref>.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+node scripts/ingest/run-ingestion.js
+```
+
+Если `SUPABASE_SERVICE_ROLE_KEY` отсутствует, real run завершается явной ошибкой. Pipeline не пишет production output в `data/listings.json`.
+
+GitHub Actions workflow: `.github/workflows/ingest-listings.yml`
+
+- `workflow_dispatch`
+- schedule: два раза в день (`06:17` и `18:17` UTC)
+- сейчас запускает syntax checks, unit-like tests и ingestion `--dry-run`
+- не использует `SUPABASE_SERVICE_ROLE_KEY` и не пишет в production Supabase из PR review mode
+
+Logs печатают только safe summary: discovered/new/updated/status counts и per-source errors без секретов.
+
+Source limitations:
+
+- Portal adapters используют лёгкий HTTP discovery и не обходят CAPTCHA/anti-bot.
+- Если источник блокирует запрос, этот source получает partial/error summary, остальные sources продолжают работу.
+- Search pages не превращаются в direct listings.
+- Stadt München adapter currently uses curated project seeds, not full dynamic municipal discovery.
+- Immowelt currently returns partial discovery in this environment, and ImmoScout24 can block automated discovery with HTTP 401/403.

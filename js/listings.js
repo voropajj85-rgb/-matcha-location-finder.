@@ -1,4 +1,6 @@
 import { defaultProjectConfig, isFreshVerifiedListing } from './filters.js?v=info-model-1';
+import { calculateProjectRelevance } from './project-relevance.js?v=relevance-1';
+import { getValidExternalUrl } from './source-links.js?v=source-links-1';
 
 export function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (character) => ({
@@ -80,11 +82,16 @@ function hasKnownCondition(condition, matcher) {
 }
 
 function isScoreEligible(listing, projectConfig = defaultProjectConfig) {
+  const relevance = calculateProjectRelevance(listing, projectConfig);
   return listing.listingType === 'direct_listing'
     && listing.availabilityStatus === 'active'
     && isFreshVerifiedListing(listing, projectConfig.freshnessHours)
-    && (listing.unitArea != null || listing.rent != null)
-    && listing.gastroSuitability !== 'unknown';
+    && Boolean(getValidExternalUrl(listing))
+    && listing.unitArea != null
+    && listing.rent != null
+    && listing.gastroSuitability !== 'unknown'
+    && Boolean(listing.verifiedSummary || listing.gastroEvidence)
+    && (relevance.level === 'strong' || relevance.level === 'acceptable');
 }
 
 export function calculateMatchaScore(listing, projectConfig = defaultProjectConfig) {
@@ -239,8 +246,11 @@ export function buildListingCard(listing, projectConfig = defaultProjectConfig) 
   const source = getSourceLabel(listing);
   const status = listing.status || 'уточнить';
   const statusClass = getStatusClass(status);
-  const url = listing.url || '#';
+  const url = getValidExternalUrl(listing);
   const projectArea = listing.projectTotalArea == null ? '' : `<span>Проект: ${formatArea(listing.projectTotalArea)}</span>`;
+  const sourceAction = url
+    ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">Источник ↗</a>`
+    : '<span class="source-unavailable" aria-disabled="true">Источник недоступен</span>';
 
   return `
     <article class="card" data-listing-id="${escapeHtml(listing.id)}">
@@ -280,7 +290,7 @@ export function buildListingCard(listing, projectConfig = defaultProjectConfig) 
 
       <div class="card-actions">
         <button type="button" data-action="details" data-id="${escapeHtml(listing.id)}">Подробнее</button>
-        <a href="${escapeHtml(url)}" target="_blank" rel="noopener">Источник ↗</a>
+        ${sourceAction}
       </div>
     </article>
   `;
@@ -288,6 +298,10 @@ export function buildListingCard(listing, projectConfig = defaultProjectConfig) 
 
 export function buildListingDetail(listing, projectConfig = defaultProjectConfig) {
   const scoreResult = calculateMatchaScore(listing, projectConfig);
+  const url = getValidExternalUrl(listing);
+  const sourceAction = url
+    ? `<a class="primary-link" target="_blank" rel="noopener" href="${escapeHtml(url)}">Открыть оригинальный источник</a>`
+    : '<span class="primary-link source-unavailable" aria-disabled="true">Ссылка на источник недоступна</span>';
 
   return `
     <article class="detail-card">
@@ -358,9 +372,7 @@ export function buildListingDetail(listing, projectConfig = defaultProjectConfig
           </div>
         </div>
 
-        <a class="primary-link" target="_blank" rel="noopener" href="${escapeHtml(listing.url || '#')}">
-          Открыть оригинальный источник
-        </a>
+        ${sourceAction}
       </div>
     </article>
   `;
