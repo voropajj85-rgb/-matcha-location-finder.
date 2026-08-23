@@ -33,6 +33,8 @@ matcha-location-finder/
 ├── data/
 │   ├── listings.json
 │   └── project-config.json
+├── supabase/
+│   └── migrations/
 ├── assets/
 │   └── images/
 ├── README.md
@@ -46,16 +48,30 @@ matcha-location-finder/
 - `index.html` — только HTML-каркас приложения.
 - `css/styles.css` — утверждённый внешний вид.
 - `js/app.js` — запуск приложения и управление интерфейсом.
+- `js/config.js` — public Supabase URL и publishable key для браузера.
+- `js/supabase.js` — создание read-only Supabase client.
+- `js/data/listings-repository.js` — data access layer и DB → domain mapper.
 - `js/listings.js` — карточки объявлений, Matcha Score и breakdown.
 - `js/filters.js` — фильтрация и сортировка.
 - `js/storage.js` — локально добавленные пользователем объекты.
-- `data/listings.json` — актуальная база рынка.
+- `data/listings.json` — development fixture и migration/import source, не production database.
 - `data/project-config.json` — централизованные критерии проекта.
+- `supabase/migrations/` — SQL migrations для production schema.
 - `assets/images/` — будущие изображения и превью.
 
 ## Данные
 
-Рыночные предложения хранятся отдельно от UI в `data/listings.json` и обновляются из нескольких источников: Kleinanzeigen, Immowelt, ImmoScout24, Stadt München, сайты маклеров и прямые предложения.
+Production source of truth для объявлений — Supabase `public.listings`.
+
+Архитектура:
+
+- GitHub — код, migrations, fixtures и история разработки.
+- GitHub Pages — frontend.
+- Supabase — production listings data.
+- Codex — development workflow.
+- `scripts/check-listings.js` — availability verification pipeline.
+
+`data/listings.json` остаётся как fixture/migration source. Runtime frontend читает объявления через `fetchListings()` из `js/data/listings-repository.js`; repository обращается к Supabase и мапит snake_case DB rows в camelCase domain model.
 
 Обновление `data/listings.json` не должно требовать изменения `index.html` или CSS.
 
@@ -85,3 +101,35 @@ matcha-location-finder/
 - `provision`, `abloese`, `kaution`, `nebenkosten` хранят условия входа как `{ value, known }`.
 
 Новые direct listings добавляются с `availabilityStatus: "unknown"` и становятся `active` только после строгой проверки. Project/broker/municipal/manual leads не маскируются под подтверждённые direct listings.
+
+### Supabase Setup
+
+Frontend использует только public publishable key:
+
+- `SUPABASE_URL` в `js/config.js`
+- `SUPABASE_PUBLISHABLE_KEY` в `js/config.js`
+
+Нельзя коммитить:
+
+- `SUPABASE_SERVICE_ROLE_KEY`
+- database password
+- JWT secret
+- private API keys
+
+Для применения schema changes использовать SQL migrations из `supabase/migrations/`.
+
+Для импорта fixture в Supabase:
+
+```bash
+SUPABASE_URL="https://<project-ref>.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+node scripts/import-listings-to-supabase.js
+```
+
+Import script делает idempotent upsert по `external_id`, поэтому повторный запуск не создаёт дубли.
+
+RLS policy должна оставаться read-only для public frontend:
+
+- `anon` может `SELECT`.
+- public `INSERT`, `UPDATE`, `DELETE` не разрешены.
+- Service role используется только локально/CI для admin import, никогда в frontend.

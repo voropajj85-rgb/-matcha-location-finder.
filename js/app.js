@@ -1,5 +1,6 @@
 import { applyListingFilters, defaultProjectConfig, isVisibleListing, resetFilters } from './filters.js?v=info-model-1';
 import { buildListingCard, buildListingDetail, calculateMatchaScore, escapeHtml } from './listings.js?v=info-model-1';
+import { fetchListings } from './data/listings-repository.js?v=supabase-1';
 import { addUserListing, loadUserListings } from './storage.js?v=info-model-1';
 
 const state = {
@@ -89,12 +90,12 @@ async function loadListings() {
   try {
     const [projectConfig, listings] = await Promise.all([
       loadJson('./data/project-config.json'),
-      loadJson('./data/listings.json')
+      fetchListings()
     ]);
     state.projectConfig = { ...defaultProjectConfig, ...projectConfig };
     state.baseListings = Array.isArray(listings) ? listings : [];
   } catch (error) {
-    console.error('Не удалось загрузить listings.json', error);
+    console.error('Не удалось загрузить объявления', error);
     state.loadError = error;
   } finally {
     state.loading = false;
