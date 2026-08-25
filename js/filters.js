@@ -1,5 +1,5 @@
 import { getValidExternalUrl } from './source-links.js?v=source-links-1';
-import { calculateProjectRelevance } from './project-relevance.js?v=relevance-1';
+import { calculateProjectRelevance } from './project-relevance.js?v=relevance-2';
 import { isBusinessFitVisible } from './business-fit.js?v=business-fit-1';
 
 export const defaultFilters = {
@@ -35,9 +35,14 @@ export function getAvailabilityStatus(listing) {
   return 'unknown';
 }
 
+function isPriceOnRequest(listing) {
+  const evidence = `${listing.rawSourceData?.rentEvidence || ''} ${listing.rawSourceData?.sourcePriceText || ''} ${listing.verifiedSummary || ''}`;
+  const sourceHigh = listing.sourceQuality === 'high' || listing.rawSourceData?.sourceQuality === 'high';
+  return sourceHigh && /preis\s+auf\s+anfrage|miete\s*:\s*auf\s+anfrage|mietpreis\s+(?:ab\s+)?auf\s+anfrage/i.test(evidence);
+}
+
 export function isVisibleListing(listing, projectConfig = defaultProjectConfig) {
   const availabilityStatus = getAvailabilityStatus(listing);
-  if (availabilityStatus === 'lead') return true;
   if (availabilityStatus === 'active') {
     const relevance = calculateProjectRelevance(listing, projectConfig);
     return listing.listingType === 'direct_listing'
@@ -48,6 +53,41 @@ export function isVisibleListing(listing, projectConfig = defaultProjectConfig) 
       && isBusinessFitVisible(listing);
   }
   return false;
+}
+
+export function isVisibleLead(listing) {
+  return getAvailabilityStatus(listing) === 'lead' && listing.listingType !== 'direct_listing';
+}
+
+function hasSourceUrl(listing) {
+  return Boolean(listing.sourceUrl || listing.url || listing.canonicalUrl);
+}
+
+export function rankLeads(leads, checkedAt = new Date()) {
+  return [...leads]
+    .filter(isVisibleLead)
+    .sort((left, right) => leadUtilityScore(right, checkedAt) - leadUtilityScore(left, checkedAt));
+}
+
+export function leadUtilityScore(listing, checkedAt = new Date()) {
+  let score = 0;
+  const text = `${listing.title || ''} ${listing.address || ''} ${listing.district || ''} ${listing.verifiedSummary || ''} ${listing.gastroEvidence || ''}`.toLowerCase();
+
+  if (listing.sourceQuality === 'high' || listing.rawSourceData?.sourceQuality === 'high') score += 4;
+  if (/münchen|munich|muenchen/i.test(text)) score += 3;
+  if (listing.address || listing.district) score += 2;
+  if (/gastronomie|gastro|cafe|café|laden|einzelhandel|retail|verkauf/i.test(text)) score += 2;
+  if (isFreshLead(listing, checkedAt)) score += 1;
+  if (hasSourceUrl(listing)) score += 1;
+
+  return score;
+}
+
+function isFreshLead(listing, checkedAt = new Date()) {
+  if (!listing.lastVerifiedAt) return false;
+  const verifiedAt = new Date(listing.lastVerifiedAt);
+  if (Number.isNaN(verifiedAt.getTime())) return false;
+  return checkedAt.getTime() - verifiedAt.getTime() <= 48 * 60 * 60 * 1000;
 }
 
 export function isFreshVerifiedListing(listing, maxAgeHours = 48) {
@@ -62,8 +102,8 @@ export function isFreshVerifiedListing(listing, maxAgeHours = 48) {
 }
 
 function hasUsableDirectData(listing) {
-  return listing.rent != null
-    && listing.unitArea != null
+  return listing.unitArea != null
+    && (listing.rent != null || isPriceOnRequest(listing))
     && Boolean(listing.verifiedSummary || listing.gastroEvidence);
 }
 
@@ -85,9 +125,11 @@ function getListingSortScore(listing, projectConfig) {
     && unitArea >= projectConfig.targetArea.preferredMin
     && unitArea <= projectConfig.targetArea.preferredMax;
   const acceptableRent = rent != null && rent <= projectConfig.targetRent.preferredMax;
+  const priceOnRequest = rent == null && isPriceOnRequest(listing);
 
   if (isDirect && isFreshActive && preferredArea && acceptableRent) return 300;
-  if (isDirect && isFreshActive) return 250;
+  if (isDirect && isFreshActive && rent != null) return 250;
+  if (isDirect && isFreshActive && priceOnRequest) return 225;
   if (availabilityStatus === 'lead') {
     const facts = Array.isArray(listing.keyFacts) ? listing.keyFacts.length : 0;
     return 150 + Math.min(40, facts * 8);

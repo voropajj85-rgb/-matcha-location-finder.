@@ -17,11 +17,14 @@ const {
   extractExternalId,
   canonicalizeListingUrl,
   isMunichKleinanzeigenUrl,
+  isDirectListingUrl,
   isPotentialMatchaListingUrl,
   isSearchPageUrl
 } = require('../utils');
 const { checkListing, classifyHtml } = require('../../check-listings');
 const { calculateBusinessFit } = require('../business-fit');
+const { candidateFromPage: stadtCandidateFromPage } = require('../sources/stadt-muenchen');
+const { candidateFromBrokerPage } = require('../sources/brokers');
 const { calculateProjectRelevance } = require('../project-relevance');
 
 async function run() {
@@ -34,6 +37,15 @@ async function run() {
     extractExternalId('Kleinanzeigen', 'https://www.kleinanzeigen.de/s-anzeige/demo/123-277-6411'),
     'klein-123-277-6411'
   );
+  assert.strictEqual(
+    getValidExternalUrl({
+      listingType: 'direct_listing',
+      url: 'https://gewerbeimmobilien.jll.de/einzelhandel/demo-muenchen'
+    }),
+    'https://gewerbeimmobilien.jll.de/einzelhandel/demo-muenchen'
+  );
+  assert.strictEqual(isDirectListingUrl('https://www.colliers.de/gewerbeimmobilien/objekt/laden-muenchen-m-p4485-g1-e1/'), true);
+  assert.strictEqual(isDirectListingUrl('https://www.colliers.de/gewerbeimmobilien/muenchen/einzelhandel/'), false);
 
   assert.strictEqual(isSearchPageUrl('https://www.kleinanzeigen.de/s-muenchen/kiosk-mieten/k0l6411'), true);
   assert.strictEqual(isPotentialMatchaListingUrl('https://www.kleinanzeigen.de/s-anzeige/bueroraum-in-muenchen/111-277-6411'), false);
@@ -63,6 +75,53 @@ async function run() {
   assert.strictEqual(projectLead.area, null);
   assert.strictEqual(projectLead.projectTotalArea, 1200);
   assert.strictEqual(projectLead.availabilityStatus, 'lead');
+
+  const stadtDirect = stadtCandidateFromPage(
+    'https://stadt.muenchen.de/service/info/stadtische-gewerbeflachen-verfugbare-objekte/1081087/n0/demo',
+    '<h1>Ladenfläche in München zu vermieten</h1><p>Ladenfläche 47 m². Miete 1.900 €. Gastronomie möglich. Adresse Teststraße 1 München.</p>',
+    '2026-08-23T10:00:00.000Z'
+  );
+  assert.strictEqual(stadtDirect.listingType, 'direct_listing');
+  assert.strictEqual(stadtDirect.unitArea, 47);
+  assert.strictEqual(stadtDirect.rent, 1900);
+
+  const stadtLead = stadtCandidateFromPage(
+    'https://stadt.muenchen.de/lhm-ms-wirtschaftsfoerderung/standort-muenchen/gewerbeflaechen-immobilien/gewerbeflaechen-angebote/project.html',
+    '<h1>Projektentwicklung München</h1><p>Kontaktieren Sie uns für verfügbare Flächen.</p>',
+    '2026-08-23T10:00:00.000Z'
+  );
+  assert.strictEqual(stadtLead.listingType, 'project_lead');
+
+  const colliersParsed = candidateFromBrokerPage({
+    sourceName: 'Colliers',
+    sourceFamily: 'broker'
+  }, 'https://www.colliers.de/gewerbeimmobilien/objekt/laden-muenchen-demo/', '<h1>Laden München</h1><p>Mietfläche 79 m². Miete 2.900 €. Einzelhandel München.</p>', '2026-08-23T10:00:00.000Z');
+  assert.strictEqual(colliersParsed.unitArea, 79);
+  assert.strictEqual(colliersParsed.rent, 2900);
+  assert.strictEqual(colliersParsed.sourceName, 'Colliers');
+
+  const colliersSmall = candidateFromBrokerPage({
+    sourceName: 'Colliers',
+    sourceFamily: 'broker'
+  }, 'https://www.colliers.de/gewerbeimmobilien/objekt/laden-muenchen-small/', '<h1>Shop München</h1><p>Ladenfläche 47 m². Miete 1.900 €.</p>', '2026-08-23T10:00:00.000Z');
+  assert.strictEqual(colliersSmall.unitArea, 47);
+  assert.strictEqual(colliersSmall.rawSourceData.areaEvidence, 'Ladenfläche 47 m²');
+
+  const colliersDivisible = candidateFromBrokerPage({
+    sourceName: 'Colliers',
+    sourceFamily: 'broker'
+  }, 'https://www.colliers.de/gewerbeimmobilien/objekt/laden-muenchen-teilbar/', '<h1>Retail München</h1><p>Gesamtfläche 150 m². Teilbar ab 47 m². Mietpreis auf Anfrage.</p>', '2026-08-23T10:00:00.000Z');
+  assert.strictEqual(colliersDivisible.unitArea, 47);
+  assert.strictEqual(colliersDivisible.projectTotalArea, 150);
+  assert.strictEqual(colliersDivisible.rent, null);
+  assert.strictEqual(colliersDivisible.rawSourceData.rentEvidence, 'Preis auf Anfrage');
+
+  const colliersSeventyNine = candidateFromBrokerPage({
+    sourceName: 'Colliers',
+    sourceFamily: 'broker'
+  }, 'https://www.colliers.de/gewerbeimmobilien/objekt/laden-muenchen-79/', '<h1>Einzelhandel München</h1><p>Fläche 79 m 2 Mietpreis ab auf Anfrage Verfügbar ab sofort.</p>', '2026-08-23T10:00:00.000Z');
+  assert.strictEqual(colliersSeventyNine.unitArea, 79);
+  assert.strictEqual(colliersSeventyNine.rent, null);
 
   assert.strictEqual(normalizeListing({
     sourceName: 'Kleinanzeigen',
@@ -429,6 +488,7 @@ async function run() {
   assert.strictEqual(validationCounts.activeButNotUsable, 1);
 
   const { buildListingCard, buildListingDetail } = await import('../../../js/listings.js');
+  const { buildLeadCard } = await import('../../../js/listings.js');
   const cardWithoutUrl = buildListingCard({
     id: 'missing-url',
     listingType: 'municipal_lead',
@@ -460,7 +520,7 @@ async function run() {
   });
   assert.strictEqual(cardWithUrl.includes('href="https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411"'), true);
 
-  const { applyListingFilters, resetFilters } = await import('../../../js/filters.js');
+  const { applyListingFilters, isVisibleLead, rankLeads, resetFilters } = await import('../../../js/filters.js');
   const filtered = applyListingFilters([
     {
       id: 'active-ok',
@@ -492,7 +552,35 @@ async function run() {
     { id: 'search', listingType: 'direct_listing', availabilityStatus: 'search_only' },
     { id: 'lead', listingType: 'project_lead', availabilityStatus: 'lead' }
   ], resetFilters());
-  assert.deepStrictEqual(filtered.map((listing) => listing.id).sort(), ['active-ok', 'lead']);
+  assert.deepStrictEqual(filtered.map((listing) => listing.id).sort(), ['active-ok']);
+  assert.strictEqual(isVisibleLead({ id: 'lead', listingType: 'project_lead', availabilityStatus: 'lead' }), true);
+  const leadCard = buildLeadCard({ id: 'lead', listingType: 'project_lead', availabilityStatus: 'lead', title: 'FMQ', sourceName: 'Stadt München' });
+  assert.strictEqual(leadCard.includes('Это не подтверждённое помещение'), true);
+  assert.strictEqual(leadCard.includes('Matcha Score'), false);
+  const rankedLeads = rankLeads([
+    { id: 'dead-lead', listingType: 'project_lead', availabilityStatus: 'dead', sourceName: 'Stadt München' },
+    { id: 'low', listingType: 'project_lead', availabilityStatus: 'lead', sourceName: 'Manual' },
+    { id: 'high', listingType: 'project_lead', availabilityStatus: 'lead', sourceName: 'Stadt München', sourceQuality: 'high', address: 'München', gastroEvidence: 'Gastronomie Laden', sourceUrl: 'https://stadt.muenchen.de/demo' }
+  ]);
+  assert.deepStrictEqual(rankedLeads.map((listing) => listing.id), ['high', 'low']);
+  assert.strictEqual(rankedLeads.slice(0, 5).length, 2);
+  const leadWithoutUrlCard = buildLeadCard({ id: 'lead-no-url', listingType: 'project_lead', availabilityStatus: 'lead', title: 'Lead' });
+  assert.strictEqual(leadWithoutUrlCard.includes('Источник недоступен'), true);
+
+  assert.strictEqual(isVisibleCandidate({
+    id: 'colliers-visible',
+    listingType: 'direct_listing',
+    availabilityStatus: 'active',
+    lastVerifiedAt: new Date().toISOString(),
+    sourceName: 'Colliers',
+    sourceUrl: 'https://www.colliers.de/gewerbeimmobilien/objekt/laden-muenchen-visible/',
+    title: 'Ladenfläche München',
+    rent: 1900,
+    unitArea: 47,
+    gastroSuitability: 'possible',
+    gastroEvidence: 'Colliers object page mentions retail/gastro-compatible use.',
+    verifiedSummary: 'Verified Colliers direct listing'
+  }), true);
 
   const insufficientScoreCard = buildListingCard({
     id: 'score-hidden',
@@ -553,6 +641,18 @@ async function run() {
     status: 200
   }, '<html><body>Anzeige wurde gelöscht</body></html>', 'https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411', '2026-08-23T10:00:00.000Z');
   assert.strictEqual(deleted.availabilityStatus, 'dead');
+
+  const colliersArchived = classifyHtml({
+    id: 'colliers-archived',
+    source: 'Colliers',
+    listingType: 'direct_listing',
+    url: 'https://www.colliers.de/gewerbeimmobilien/objekt/laden-muenchen-archiviert/',
+    title: 'Laden München'
+  }, {
+    ok: true,
+    status: 200
+  }, '<html><h1>Laden München</h1><p>Dieses Objekt ist nicht mehr verfügbar.</p></html>', 'https://www.colliers.de/gewerbeimmobilien/objekt/laden-muenchen-archiviert/', '2026-08-23T10:00:00.000Z');
+  assert.strictEqual(colliersArchived.availabilityStatus, 'dead');
 
   const blocked = classifyHtml({
     id: 'blocked',

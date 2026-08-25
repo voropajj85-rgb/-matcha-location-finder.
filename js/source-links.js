@@ -3,7 +3,9 @@ const DIRECT_SOURCE_PATTERNS = [
   /immowelt\.de\/expose\//i,
   /immobilienscout24\.de\/expose\/\d+/i,
   /colliers\.de\/gewerbeimmobilien\/objekt\//i,
-  /stadt\.muenchen\.de\/.*gewerbeflaechen-angebote/i
+  /stadt\.muenchen\.de\/.*gewerbeflaechen-angebote/i,
+  /stadt\.muenchen\.de\/service\/info\/stadtische-gewerbeflachen-verfugbare-objekte/i,
+  /gewerbeimmobilien\.jll\.de\/einzelhandel\//i
 ];
 
 function canonicalUrl(input) {
@@ -23,7 +25,7 @@ function canonicalUrl(input) {
 
 function isSearchUrl(url) {
   if (/kleinanzeigen\.de/i.test(url)) return !/\/s-anzeige\//i.test(url);
-  return /\/suche\/|search|gewerbeimmobilien.*mieten/i.test(url)
+  return /\/suche\/|search|gewerbeimmobilien.*mieten|ladenflaechen-mieten/i.test(url)
     && !/\/expose\/|\/objekt\//i.test(url);
 }
 

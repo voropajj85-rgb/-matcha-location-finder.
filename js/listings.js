@@ -300,6 +300,32 @@ export function buildListingCard(listing, projectConfig = defaultProjectConfig) 
   `;
 }
 
+export function buildLeadCard(listing) {
+  const source = getSourceLabel(listing);
+  const url = getValidExternalUrl(listing);
+  const sourceAction = url
+    ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">Источник ↗</a>`
+    : '<span class="source-unavailable" aria-disabled="true">Источник недоступен</span>';
+  const location = listing.address || listing.district || 'Локацию уточнить';
+  const action = listing.nextAction || 'Запросить конкретный gastro unit 25–80 м².';
+
+  return `
+    <article class="lead-card compact-lead" data-listing-id="${escapeHtml(listing.id)}">
+      <div class="lead-main">
+        <span class="source-badge">${escapeHtml(source)}</span>
+        <strong>${escapeHtml(getTitle(listing))}</strong>
+        <span>${escapeHtml(location)}</span>
+        <small>Это не подтверждённое помещение</small>
+      </div>
+      <p>${escapeHtml(action)}</p>
+      <div class="lead-actions">
+        <button type="button" data-action="details" data-id="${escapeHtml(listing.id)}">Details</button>
+        ${sourceAction}
+      </div>
+    </article>
+  `;
+}
+
 export function buildListingDetail(listing, projectConfig = defaultProjectConfig) {
   const scoreResult = calculateMatchaScore(listing, projectConfig);
   const url = getValidExternalUrl(listing);

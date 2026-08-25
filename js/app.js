@@ -1,7 +1,9 @@
-import { applyListingFilters, defaultProjectConfig, isVisibleListing, resetFilters } from './filters.js?v=business-fit-2';
-import { buildListingCard, buildListingDetail, calculateMatchaScore, escapeHtml } from './listings.js?v=business-fit-2';
+import { applyListingFilters, defaultProjectConfig, isVisibleLead, isVisibleListing, rankLeads, resetFilters } from './filters.js?v=source-expansion-2';
+import { buildLeadCard, buildListingCard, buildListingDetail, calculateMatchaScore, escapeHtml } from './listings.js?v=source-expansion-2';
 import { fetchListings } from './data/listings-repository.js?v=business-fit-2';
 import { addUserListing, loadUserListings } from './storage.js?v=info-model-1';
+
+const LEAD_PREVIEW_LIMIT = 5;
 
 const state = {
   baseListings: [],
@@ -9,7 +11,8 @@ const state = {
   filters: resetFilters(),
   mode: 'list',
   loading: true,
-  loadError: null
+  loadError: null,
+  showAllLeads: false
 };
 
 function el(id) {
@@ -22,6 +25,10 @@ function allListings() {
 
 function getVisibleBaseListings() {
   return state.baseListings.filter((listing) => isVisibleListing(listing, state.projectConfig));
+}
+
+function getVisibleLeads() {
+  return rankLeads(allListings().filter(isVisibleLead));
 }
 
 function formatVerificationDate(value) {
@@ -102,12 +109,11 @@ async function loadListings() {
   }
 }
 
-function renderSummary(listings) {
+function renderSummary(listings, leads = []) {
   const confirmed = listings.filter((listing) => listing.listingType === 'direct_listing').length;
-  const leads = listings.filter((listing) => listing.listingType !== 'direct_listing').length;
-  el('sCount').textContent = listings.length;
+  el('sCount').textContent = confirmed;
   el('sAvg').textContent = confirmed;
-  el('sTop').textContent = leads;
+  el('sTop').textContent = leads.length;
 }
 
 function renderStateCard(type, message, action = '') {
@@ -183,27 +189,41 @@ function renderMap(listings) {
 
 function renderListings() {
   if (state.loading) {
-    renderSummary([]);
+    renderSummary([], []);
     el('list').innerHTML = renderStateCard('loading', 'Загружаю объявления...');
+    el('leadList').innerHTML = '';
     renderMap([]);
     return;
   }
 
   if (state.loadError) {
-    renderSummary([]);
+    renderSummary([], []);
     el('list').innerHTML = renderStateCard('error', 'Не удалось загрузить объявления.', 'retry-load');
+    el('leadList').innerHTML = '';
     renderMap([]);
     return;
   }
 
   const listings = applyListingFilters(allListings(), state.filters, state.projectConfig, calculateMatchaScore);
-  renderSummary(listings);
+  const leads = getVisibleLeads();
+  const shownLeads = state.showAllLeads ? leads : leads.slice(0, LEAD_PREVIEW_LIMIT);
+  const hiddenLeadCount = Math.max(0, leads.length - shownLeads.length);
+  renderSummary(listings, leads);
   const visibleBaseListings = getVisibleBaseListings();
-  el('listMeta').textContent = `${visibleBaseListings.length} активных/лидов · проверено ${formatVerificationDate(getLastVerifiedAt(state.baseListings))}`;
+  el('listMeta').textContent = `${visibleBaseListings.length} помещений · Обновлено: ${formatVerificationDate(getLastVerifiedAt(state.baseListings))}`;
+  el('leadMeta').textContent = hiddenLeadCount
+    ? `${shownLeads.length} из ${leads.length} лидов · не подтверждённые помещения`
+    : `${leads.length} лидов · не подтверждённые помещения`;
 
   el('list').innerHTML = listings.length
     ? listings.map((listing) => buildListingCard(listing, state.projectConfig)).join('')
     : renderStateCard('empty', 'Нет объектов под текущий фильтр.');
+  el('leadList').innerHTML = leads.length
+    ? [
+      ...shownLeads.map((listing) => buildLeadCard(listing)),
+      hiddenLeadCount ? `<button class="lead-more" type="button" data-action="show-all-leads">Показать ещё ${hiddenLeadCount} лидов</button>` : ''
+    ].join('')
+    : renderStateCard('empty', 'Нет лидов для запроса помещения.');
 
   renderMap(listings);
 }
@@ -330,6 +350,12 @@ function bindEvents() {
 
     const detailsButton = event.target.closest('[data-action="details"]');
     if (detailsButton) openDetails(detailsButton.dataset.id);
+
+    const showAllLeadsButton = event.target.closest('[data-action="show-all-leads"]');
+    if (showAllLeadsButton) {
+      state.showAllLeads = true;
+      renderListings();
+    }
 
     const openSheetButton = event.target.closest('[data-open-sheet]');
     if (openSheetButton) openSheet(openSheetButton.dataset.openSheet);

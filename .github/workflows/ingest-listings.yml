@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       source:
-        description: "Optional source: kleinanzeigen, immowelt, immoscout24, stadt-muenchen, brokers"
+        description: "Optional source: kleinanzeigen, immowelt, immoscout24, stadt-muenchen, brokers (Colliers/JLL)"
         required: false
         type: string
   schedule:
@@ -58,3 +58,10 @@ jobs:
             echo "SUPABASE_SERVICE_ROLE_KEY is not configured; running safe dry-run"
             node scripts/ingest/run-ingestion.js $SOURCE_ARG --dry-run --validation-report
           fi
+
+      - name: Upload validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ingestion-validation-report
+          path: scripts/ingest/reports/latest-validation.json
