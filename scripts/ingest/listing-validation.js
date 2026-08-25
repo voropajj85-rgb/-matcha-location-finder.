@@ -5,7 +5,7 @@ const {
 } = require('./utils');
 const { calculateDataCompleteness } = require('./data-completeness');
 const { calculateBusinessFit, isBusinessFitVisible } = require('./business-fit');
-const { calculateProjectRelevance } = require('./project-relevance');
+const { calculateProjectRelevance, isPriceOnRequest } = require('./project-relevance');
 
 function getSourceUrl(listing) {
   return listing.sourceUrl || listing.url || listing.canonicalUrl || null;
@@ -13,6 +13,14 @@ function getSourceUrl(listing) {
 
 function isDirectListing(listing) {
   return listing.listingType === 'direct_listing';
+}
+
+function hasHighSourceQuality(listing) {
+  return listing.sourceQuality === 'high' || listing.rawSourceData?.sourceQuality === 'high';
+}
+
+function allowsPriceOnRequest(listing) {
+  return listing.rent == null && isPriceOnRequest(listing) && hasHighSourceQuality(listing);
 }
 
 function getValidExternalUrl(listing) {
@@ -48,8 +56,9 @@ function isUsableCandidate(listing, projectConfig) {
 
   const completeness = listing.dataCompleteness ?? calculateDataCompleteness(listing).dataCompleteness;
   if (completeness < 60) return false;
-  if (listing.rent == null || listing.unitArea == null) return false;
-  if (listing.rawSourceData?.rentConfidence && !['high', 'medium'].includes(listing.rawSourceData.rentConfidence)) return false;
+  if (listing.unitArea == null) return false;
+  if (listing.rent == null && !allowsPriceOnRequest(listing)) return false;
+  if (listing.rent != null && listing.rawSourceData?.rentConfidence && !['high', 'medium'].includes(listing.rawSourceData.rentConfidence)) return false;
   if (!listing.title && !listing.district && !listing.address) return false;
   if (!listing.verifiedSummary && !listing.gastroEvidence) return false;
   return true;
@@ -85,7 +94,8 @@ function validationIssues(listing) {
 
   if (!listing.title) issues.push('missing title');
   if (isDirectListing(listing) && listing.availabilityStatus === 'active') {
-    if (listing.rent == null) issues.push('active direct listing missing confirmed rent');
+    if (listing.rent == null && !allowsPriceOnRequest(listing)) issues.push('active direct listing missing confirmed rent');
+    if (listing.rent == null && allowsPriceOnRequest(listing)) issues.push('rent is price on request');
     if (listing.unitArea == null) issues.push('active direct listing missing confirmed unit area');
     if (!listing.verifiedSummary && !listing.gastroEvidence) issues.push('active direct listing missing verified evidence summary');
   }
