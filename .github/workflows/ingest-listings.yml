@@ -1,9 +1,6 @@
 name: Ingest listings
 
 on:
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       source:
