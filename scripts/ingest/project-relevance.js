@@ -36,11 +36,14 @@ function hasNegativeGastroSignal(listing) {
 
 function isPriceOnRequest(listing) {
   const evidence = `${listing.rawSourceData?.rentEvidence || ''} ${listing.rawSourceData?.sourcePriceText || ''} ${listing.verifiedSummary || ''}`;
-  return /preis\s+auf\s+anfrage|miete\s*:\s*auf\s+anfrage|mietpreis\s+(?:ab\s+)?auf\s+anfrage/i.test(evidence);
+  return listing.priceStatus === 'request'
+    || /preis\s+auf\s+anfrage|miete\s*:\s*auf\s+anfrage|mietpreis\s+(?:ab\s+)?auf\s+anfrage/i.test(evidence);
 }
 
-function hasHighSourceQuality(listing) {
-  return listing.sourceQuality === 'high' || listing.rawSourceData?.sourceQuality === 'high';
+function isOutsideMunich(listing) {
+  if (listing.rawSourceData?.outsideMunich) return true;
+  const text = `${listing.title || ''} ${listing.address || ''} ${listing.district || ''}`.toLowerCase();
+  return /(penzberg|ottobrunn|dachau|freising|unterhaching|karlsfeld|gauting|emmering|fürstenfeldbruck|furstenfeldbruck|grünwald|gruenwald|haar|asheim|germering)/i.test(text);
 }
 
 function calculateProjectRelevance(listing, projectConfig = defaultProjectConfig) {
@@ -56,11 +59,15 @@ function calculateProjectRelevance(listing, projectConfig = defaultProjectConfig
   };
   const area = unitArea(listing);
   const rent = listing.rent ?? null;
-  const priceOnRequest = rent == null && isPriceOnRequest(listing) && hasHighSourceQuality(listing);
+  const priceOnRequest = rent == null && isPriceOnRequest(listing);
   const reasons = [];
   const rejectReasons = [];
   let score = 0;
   let areaIsOutsideTarget = false;
+
+  if (isOutsideMunich(listing)) {
+    rejectReasons.push('outside Munich target area');
+  }
 
   if (area == null) {
     rejectReasons.push('unit area is not confirmed');
@@ -81,7 +88,7 @@ function calculateProjectRelevance(listing, projectConfig = defaultProjectConfig
 
   if (rent == null) {
     if (priceOnRequest) {
-      reasons.push('rent is explicitly price on request from high-quality broker source');
+      reasons.push('rent is explicitly price on request');
     } else {
       rejectReasons.push('rent is not confirmed');
     }

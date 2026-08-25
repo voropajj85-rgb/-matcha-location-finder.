@@ -126,6 +126,13 @@ function normalizeSourceBucket(source) {
 function emptySourceOutcome() {
   return {
     found: 0,
+    pagesScanned: 0,
+    queries: 0,
+    direct: 0,
+    duplicate: 0,
+    newlyDiscovered: 0,
+    alreadyKnown: 0,
+    updated: 0,
     verifiedActive: 0,
     rejected: 0,
     blocked: 0,
@@ -149,8 +156,24 @@ function summarizeSourceOutcomes(sourceResults, listings) {
   const outcomes = {};
 
   for (const result of sourceResults) {
+    if (result.meta?.sources) {
+      for (const [source, meta] of Object.entries(result.meta.sources)) {
+        const sourceOutcome = getSourceOutcome(outcomes, source);
+        sourceOutcome.pagesScanned += meta.pagesScanned || 0;
+        sourceOutcome.queries += meta.queries || 0;
+        sourceOutcome.duplicate += meta.duplicateLinks || 0;
+      }
+    } else {
+      const sourceOutcome = getSourceOutcome(outcomes, result.source);
+      sourceOutcome.pagesScanned += result.meta?.pagesScanned || 0;
+      sourceOutcome.queries += result.meta?.queries || 0;
+      sourceOutcome.duplicate += result.meta?.duplicateLinks || 0;
+    }
+
     for (const candidate of result.candidates) {
-      getSourceOutcome(outcomes, candidate.sourceName || candidate.source || result.source).found += 1;
+      const outcome = getSourceOutcome(outcomes, candidate.sourceName || candidate.source || result.source);
+      outcome.found += 1;
+      if (candidate.listingType === 'direct_listing') outcome.direct += 1;
     }
 
     const sourceErrors = {};
@@ -169,6 +192,9 @@ function summarizeSourceOutcomes(sourceResults, listings) {
 
   for (const listing of listings) {
     const outcome = getSourceOutcome(outcomes, listing.sourceName || listing.source);
+    if (listing.dedupeAction === 'new') outcome.newlyDiscovered += 1;
+    if (listing.dedupeAction === 'updated') outcome.updated += 1;
+    if (listing.dedupeAction !== 'new') outcome.alreadyKnown += 1;
     if (listing.availabilityStatus === 'active') outcome.verifiedActive += 1;
     if (isVisibleCandidate(listing)) outcome.visibleDirectCandidates += 1;
     if (isVisibleLead(listing)) outcome.leads += 1;
@@ -193,7 +219,7 @@ function printSourceOutcomes(outcomes) {
   console.log('\nsource outcomes');
   for (const [source, outcome] of Object.entries(outcomes)) {
     console.log(
-      `  ${source}: found ${outcome.found}, verified_active ${outcome.verifiedActive}, rejected ${outcome.rejected}, blocked ${outcome.blocked}, errors ${outcome.errors}, visible_direct ${outcome.visibleDirectCandidates}, leads ${outcome.leads}`
+      `  ${source}: pages ${outcome.pagesScanned}, found ${outcome.found}, direct ${outcome.direct}, verified_active ${outcome.verifiedActive}, rejected ${outcome.rejected}, blocked ${outcome.blocked}, errors ${outcome.errors}, visible_direct ${outcome.visibleDirectCandidates}, leads ${outcome.leads}, duplicate ${outcome.duplicate}`
     );
   }
 }
@@ -273,8 +299,12 @@ function validationRecord(listing) {
     dataQuality: listing.dataQuality ?? calculateDataCompleteness(listing).dataQuality,
     rentEvidence: listing.rawSourceData?.rentEvidence || null,
     rentConfidence: listing.rawSourceData?.rentConfidence || (listing.rent == null ? 'low' : 'medium'),
+    priceStatus: listing.priceStatus || null,
     areaEvidence: listing.rawSourceData?.areaEvidence || null,
     areaType: listing.rawSourceData?.areaType || null,
+    rawDescription: listing.rawSourceData?.rawDescription || null,
+    financialEvidence: listing.rawSourceData?.financialEvidence || [],
+    outsideMunich: Boolean(listing.rawSourceData?.outsideMunich),
     projectRelevance: relevance.level,
     relevanceReasons: relevance.reasons,
     businessFit: businessFit.level,
@@ -346,6 +376,12 @@ async function writeValidationReport({ sourceResults, listings, cleanupActions, 
       message: error.message
     }))),
     sourceOutcomes,
+    sourceResults: sourceResults.map((result) => ({
+      source: result.source,
+      found: result.candidates.length,
+      errors: result.errors,
+      meta: result.meta || {}
+    })),
     listings: listings.map(validationRecord),
     cleanupActions: cleanupActions.map(validationRecord),
     skippedDuplicates: skipped
@@ -374,7 +410,8 @@ async function run(argv = process.argv.slice(2)) {
       sourceResults.push({
         source: result.source || sourceName,
         candidates: result.candidates || [],
-        errors: result.errors || []
+        errors: result.errors || [],
+        meta: result.meta || {}
       });
     } catch (error) {
       sourceResults.push({

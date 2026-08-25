@@ -15,12 +15,8 @@ function isDirectListing(listing) {
   return listing.listingType === 'direct_listing';
 }
 
-function hasHighSourceQuality(listing) {
-  return listing.sourceQuality === 'high' || listing.rawSourceData?.sourceQuality === 'high';
-}
-
 function allowsPriceOnRequest(listing) {
-  return listing.rent == null && isPriceOnRequest(listing) && hasHighSourceQuality(listing);
+  return listing.rent == null && isPriceOnRequest(listing);
 }
 
 function getValidExternalUrl(listing) {
