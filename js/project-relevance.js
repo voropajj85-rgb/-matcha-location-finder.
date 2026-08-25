@@ -33,6 +33,15 @@ function hasNegativeGastroSignal(listing) {
   return NEGATIVE_GASTRO_PATTERNS.some((pattern) => pattern.test(evidence));
 }
 
+function isPriceOnRequest(listing) {
+  const evidence = `${listing.rawSourceData?.rentEvidence || ''} ${listing.rawSourceData?.sourcePriceText || ''} ${listing.verifiedSummary || ''}`;
+  return /preis\s+auf\s+anfrage|miete\s*:\s*auf\s+anfrage|mietpreis\s+(?:ab\s+)?auf\s+anfrage/i.test(evidence);
+}
+
+function hasHighSourceQuality(listing) {
+  return listing.sourceQuality === 'high' || listing.rawSourceData?.sourceQuality === 'high';
+}
+
 export function calculateProjectRelevance(listing, projectConfig = defaultProjectConfig) {
   if (listing.listingType !== 'direct_listing') {
     return { relevant: false, level: 'weak', reasons: ['lead/project source, not a confirmed direct unit'] };
@@ -46,6 +55,7 @@ export function calculateProjectRelevance(listing, projectConfig = defaultProjec
   };
   const area = unitArea(listing);
   const rent = listing.rent ?? null;
+  const priceOnRequest = rent == null && isPriceOnRequest(listing) && hasHighSourceQuality(listing);
   const reasons = [];
   const rejectReasons = [];
   let score = 0;
@@ -65,8 +75,10 @@ export function calculateProjectRelevance(listing, projectConfig = defaultProjec
     areaIsOutsideTarget = area <= WEAK_LOW_MAX_AREA || area >= WEAK_HIGH_MIN_AREA;
   }
 
-  if (rent == null) rejectReasons.push('rent is not confirmed');
-  else if (rent > SOFT_RENT_MAX) rejectReasons.push(`rent €${rent} > soft maximum €${SOFT_RENT_MAX}`);
+  if (rent == null) {
+    if (priceOnRequest) reasons.push('rent is explicitly price on request from high-quality broker source');
+    else rejectReasons.push('rent is not confirmed');
+  } else if (rent > SOFT_RENT_MAX) rejectReasons.push(`rent €${rent} > soft maximum €${SOFT_RENT_MAX}`);
   else if (rent <= config.targetRent.preferredMax) {
     reasons.push(`rent €${rent} within preferred budget`);
     score += 2;
@@ -93,6 +105,10 @@ export function calculateProjectRelevance(listing, projectConfig = defaultProjec
 
   if (rejectReasons.length) return { relevant: false, level: 'reject', reasons: [...rejectReasons, ...reasons] };
   if (areaIsOutsideTarget) return { relevant: false, level: 'weak', reasons };
+  if (priceOnRequest) {
+    const areaInTarget = area != null && area >= config.targetArea.acceptableMin && area <= config.targetArea.acceptableMax;
+    if (areaInTarget && listing.gastroSuitability !== 'no') return { relevant: true, level: 'acceptable', reasons };
+  }
   if (score >= 5) return { relevant: true, level: 'strong', reasons };
   if (score >= 3) return { relevant: true, level: 'acceptable', reasons };
   return { relevant: false, level: 'weak', reasons };
