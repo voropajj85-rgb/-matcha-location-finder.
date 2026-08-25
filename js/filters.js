@@ -1,5 +1,5 @@
 import { getValidExternalUrl } from './source-links.js?v=source-links-1';
-import { calculateProjectRelevance } from './project-relevance.js?v=relevance-1';
+import { calculateProjectRelevance } from './project-relevance.js?v=relevance-2';
 import { isBusinessFitVisible } from './business-fit.js?v=business-fit-1';
 
 export const defaultFilters = {
@@ -33,6 +33,12 @@ export function getAvailabilityStatus(listing) {
   if (listing.availabilityStatus) return listing.availabilityStatus;
   if (normalizeText(listing.status).toLowerCase() === 'lead') return 'lead';
   return 'unknown';
+}
+
+function isPriceOnRequest(listing) {
+  const evidence = `${listing.rawSourceData?.rentEvidence || ''} ${listing.rawSourceData?.sourcePriceText || ''} ${listing.verifiedSummary || ''}`;
+  const sourceHigh = listing.sourceQuality === 'high' || listing.rawSourceData?.sourceQuality === 'high';
+  return sourceHigh && /preis\s+auf\s+anfrage|miete\s*:\s*auf\s+anfrage|mietpreis\s+(?:ab\s+)?auf\s+anfrage/i.test(evidence);
 }
 
 export function isVisibleListing(listing, projectConfig = defaultProjectConfig) {
@@ -96,8 +102,8 @@ export function isFreshVerifiedListing(listing, maxAgeHours = 48) {
 }
 
 function hasUsableDirectData(listing) {
-  return listing.rent != null
-    && listing.unitArea != null
+  return listing.unitArea != null
+    && (listing.rent != null || isPriceOnRequest(listing))
     && Boolean(listing.verifiedSummary || listing.gastroEvidence);
 }
 
@@ -119,9 +125,11 @@ function getListingSortScore(listing, projectConfig) {
     && unitArea >= projectConfig.targetArea.preferredMin
     && unitArea <= projectConfig.targetArea.preferredMax;
   const acceptableRent = rent != null && rent <= projectConfig.targetRent.preferredMax;
+  const priceOnRequest = rent == null && isPriceOnRequest(listing);
 
   if (isDirect && isFreshActive && preferredArea && acceptableRent) return 300;
-  if (isDirect && isFreshActive) return 250;
+  if (isDirect && isFreshActive && rent != null) return 250;
+  if (isDirect && isFreshActive && priceOnRequest) return 225;
   if (availabilityStatus === 'lead') {
     const facts = Array.isArray(listing.keyFacts) ? listing.keyFacts.length : 0;
     return 150 + Math.min(40, facts * 8);
