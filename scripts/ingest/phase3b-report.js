@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// Phase 3B diagnostics postprocessor; final review reruns this after parser hardening.
+// Phase 3B diagnostics postprocessor; final review reruns this after parser and rent-unit hardening.
 const fs = require('fs');
 const path = require('path');
 const { extractListingFacts } = require('./extract-listing-facts');
@@ -73,7 +73,6 @@ for (const listing of report.listings || []) {
   inc(diagnostics, `provision${facts.provision.status === 'free' ? 'Free' : facts.provision.status === 'known_relative' ? 'Relative' : facts.provision.status === 'known_numeric' ? 'Numeric' : facts.provision.status === 'mentioned' ? 'Mentioned' : 'Unknown'}`);
   inc(diagnostics, `abloese${['known_numeric', 'negotiable_numeric'].includes(facts.abloese.status) ? 'Numeric' : facts.abloese.status === 'mentioned' ? 'Mentioned' : facts.abloese.status === 'negotiable' ? 'Negotiable' : 'Unknown'}`);
   inc(diagnostics, `nebenkosten${facts.nebenkosten.status === 'known' ? 'Numeric' : facts.nebenkosten.status === 'included' ? 'Included' : facts.nebenkosten.status === 'mentioned' ? 'Mentioned' : 'Unknown'}`);
-
   inc(diagnostics, `gastro${facts.gastro.status[0].toUpperCase()}${facts.gastro.status.slice(1)}`);
   inc(diagnostics, `abluft${facts.operations.abluft.status === 'confirmed' ? 'Confirmed' : facts.operations.abluft.status === 'no' ? 'No' : 'Unknown'}`);
   inc(diagnostics, `terrace${facts.operations.terrace.status === 'confirmed' ? 'Confirmed' : 'Unknown'}`);
