@@ -1,0 +1,124 @@
+name: Phase 3B Fixbot
+
+on:
+  push:
+    branches: [codex/phase3b-extraction-intelligence]
+    paths:
+      - '.github/workflows/phase3b-fixbot.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/phase3b-extraction-intelligence
+
+      - name: Apply targeted fixes
+        shell: python
+        run: |
+          from pathlib import Path
+
+          # 1) Rent: a correctly labelled Kaltmiete must not be rejected merely
+          # because NK/Kaution/Provision is mentioned immediately afterwards.
+          p = Path('scripts/ingest/extract-listing-facts.js')
+          s = p.read_text(encoding='utf-8')
+          old = """  const patterns = [
+    /(?:kaltmiete|nettokaltmiete|nettomiete|monatsmiete|mietpreis|miete|pacht)\\s*:?[\\s-]*([0-9][0-9.\\s]*(?:,[0-9]{1,2})?)\\s*(?:€|EUR)/ig,
+    /([0-9][0-9.\\s]*(?:,[0-9]{1,2})?)\\s*(?:€|EUR)\\s*(?:\\/\\s*monat|monatlich|pro\\s+monat)/ig
+  ];
+  for (const pattern of patterns) {
+    for (const match of source.matchAll(pattern)) {
+      const context = source.slice(Math.max(0, match.index - 50), Math.min(source.length, match.index + match[0].length + 50));
+      if (blocked.test(context)) continue;
+      const amount = parseNumberFromText(match[1].replace(/\\s/g, ''));
+      if (Number.isFinite(amount) && amount >= 100 && amount <= 30000) {
+        return { amount, status: 'known', type: 'monthly', evidence: ev(match[0]) };
+      }
+    }
+  }
+"""
+          new = """  const patterns = [
+    { regex: /(?:kaltmiete|nettokaltmiete|nettomiete|monatsmiete|mietpreis|miete|pacht)\\s*:?[\\s-]*([0-9][0-9.\\s]*(?:,[0-9]{1,2})?)\\s*(?:€|EUR)/ig, labelled: true },
+    { regex: /([0-9][0-9.\\s]*(?:,[0-9]{1,2})?)\\s*(?:€|EUR)\\s*(?:\\/\\s*monat|monatlich|pro\\s+monat)/ig, labelled: false }
+  ];
+  for (const { regex, labelled } of patterns) {
+    for (const match of source.matchAll(regex)) {
+      const prefix = source.slice(Math.max(0, match.index - 60), match.index);
+      if (!labelled && blocked.test(prefix)) continue;
+      const amount = parseNumberFromText(match[1].replace(/\\s/g, ''));
+      if (Number.isFinite(amount) && amount >= 100 && amount <= 30000) {
+        return { amount, status: 'known', type: 'monthly', evidence: ev(match[0]) };
+      }
+    }
+  }
+"""
+          if old not in s:
+              raise SystemExit('rent replacement target not found')
+          p.write_text(s.replace(old, new), encoding='utf-8')
+
+          # 2) Legacy compatibility helper: in
+          # "100 qm total: 85 qm Verkaufs-/Ladenfläche 15 qm extra"
+          # prefer the number immediately BEFORE the sales-area label.
+          p = Path('scripts/ingest/enrich-listing.js')
+          s = p.read_text(encoding='utf-8')
+          old = "add(new RegExp(`(?<value>[0-9][0-9.,]*)\\\\s*(?:m²|qm|m2)\\\\s*${high}`, 'ig'), 'sales_area', 105);"
+          new = "add(new RegExp(`(?<value>[0-9][0-9.,]*)\\\\s*(?:m²|qm|m2)\\\\s*${high}`, 'ig'), 'sales_area', 120);"
+          if old not in s:
+              raise SystemExit('area priority replacement target not found')
+          p.write_text(s.replace(old, new), encoding='utf-8')
+
+          # 3) Keep all structured JSONB semantics (status/months/basis/vat/evidence),
+          # both in normalization and future Supabase writes.
+          for path in ['scripts/ingest/normalize-listing.js', 'scripts/ingest/supabase-upsert.js']:
+              p = Path(path)
+              s = p.read_text(encoding='utf-8')
+              old = """  if (value && typeof value === 'object') {
+    return {
+      known: Boolean(value.known),
+      value: value.value ?? null,
+      amount: value.amount ?? null
+    };
+  }
+"""
+              new = """  if (value && typeof value === 'object') {
+    return {
+      ...value,
+      known: value.known != null ? Boolean(value.known) : value.status !== 'unknown',
+      value: value.value ?? value.evidence?.raw ?? null,
+      amount: value.amount ?? null
+    };
+  }
+"""
+              if old not in s:
+                  raise SystemExit(f'condition replacement target not found: {path}')
+              p.write_text(s.replace(old, new), encoding='utf-8')
+
+          p = Path('scripts/ingest/supabase-upsert.js')
+          s = p.read_text(encoding='utf-8')
+          old = "    nebenkosten: listing.nk ?? listing.nebenkosten?.value ?? null,"
+          new = "    nebenkosten: listing.nk ?? listing.nebenkosten?.amount ?? (typeof listing.nebenkosten === 'number' ? listing.nebenkosten : null),"
+          if old not in s:
+              raise SystemExit('nebenkosten row replacement target not found')
+          p.write_text(s.replace(old, new), encoding='utf-8')
+
+      - name: Run targeted tests
+        run: |
+          node --check scripts/ingest/extract-listing-facts.js
+          node --check scripts/ingest/enrich-listing.js
+          node --check scripts/ingest/normalize-listing.js
+          node --check scripts/ingest/supabase-upsert.js
+          node scripts/ingest/tests/ingestion.test.js
+          node scripts/ingest/tests/phase3b-extraction.test.js
+
+      - name: Commit fixes and remove fixbot
+        run: |
+          git config user.name 'phase3b-fixbot'
+          git config user.email 'actions@users.noreply.github.com'
+          git rm .github/workflows/phase3b-fixbot.yml
+          git add scripts/ingest/extract-listing-facts.js scripts/ingest/enrich-listing.js scripts/ingest/normalize-listing.js scripts/ingest/supabase-upsert.js
+          git commit -m 'fix: harden Phase 3B extraction semantics'
+          git push origin HEAD:codex/phase3b-extraction-intelligence
