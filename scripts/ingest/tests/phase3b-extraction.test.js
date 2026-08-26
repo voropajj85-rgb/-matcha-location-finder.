@@ -11,6 +11,7 @@ const {
   extractOperations,
   extractExistingBusiness
 } = require('../extract-listing-facts');
+const { candidateFromBrokerPage } = require('../sources/brokers');
 
 function run() {
   assert.deepStrictEqual(extractKaution('Kaution: 3 Monatsmieten').status, 'known_relative');
@@ -43,6 +44,7 @@ function run() {
   assert.strictEqual(area.projectTotalArea, 800);
   assert.strictEqual(extractArea('Verkaufsfläche 57 m²').unitArea, 57);
   assert.strictEqual(extractArea('Ladenfläche ca. 62 m²').unitArea, 62);
+  assert.strictEqual(extractArea('Gesamtfläche ca. 100 qm: 85 qm Verkaufs-/Ladenfläche 15 qm zusätzlicher Raum').unitArea, 85);
 
   assert.strictEqual(extractGastro('Gastronomie ausgeschlossen').status, 'no');
   assert.strictEqual(extractGastro('geeignet für Café').status, 'confirmed');
@@ -67,6 +69,27 @@ function run() {
   assert.strictEqual(facts.operations.abluft.status, 'confirmed');
   assert.ok(facts.verifiedSummary.includes('55 m²'));
   assert.ok(facts.financialEvidence.kaution.raw.includes('Kaution'));
+
+  const colliersPerSqm = candidateFromBrokerPage(
+    { name: 'Colliers', sourceName: 'Colliers', sourceFamily: 'broker', sourceQuality: 'high' },
+    'https://www.colliers.de/gewerbeimmobilien/objekt/test/',
+    '<h1>Test Laden</h1><p>Ladenfläche 60 m². Miete: 23,00 €/m².</p>',
+    '2026-08-26T09:00:00.000Z'
+  );
+  assert.strictEqual(colliersPerSqm.rent, null);
+  assert.strictEqual(colliersPerSqm.rentPerSqm, 23);
+  assert.strictEqual(colliersPerSqm.rentType, 'per_sqm');
+  assert.strictEqual(colliersPerSqm.priceStatus, 'unit_price');
+
+  const engelPerSqm = candidateFromBrokerPage(
+    { name: 'Engel & Völkers', sourceName: 'Engel & Völkers', sourceFamily: 'broker', sourceQuality: 'high' },
+    'https://www.engelvoelkers.com/de/de/exposes/test',
+    '<h1>Test Laden</h1><p>Ladenfläche 55 m². Nettokaltmiete/m² 24 €.</p>',
+    '2026-08-26T09:00:00.000Z'
+  );
+  assert.strictEqual(engelPerSqm.rent, null);
+  assert.strictEqual(engelPerSqm.rentPerSqm, 24);
+  assert.strictEqual(engelPerSqm.rentType, 'per_sqm');
 
   console.log('Phase 3B extraction tests passed.');
 }
