@@ -1,0 +1,70 @@
+name: Phase 3B Kleinanzeigen Format Fix
+
+on:
+  push:
+    branches: [codex/phase3b-extraction-intelligence]
+    paths:
+      - '.github/workflows/phase3b-klein-format-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/phase3b-extraction-intelligence
+
+      - name: Patch extractor and regression test
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('scripts/ingest/extract-listing-facts.js')
+          s = p.read_text(encoding='utf-8')
+
+          old = r"/(?:kaltmiete|nettokaltmiete|nettomiete|monatsmiete|mietpreis|miete|pacht)\s*:?[\s-]*([0-9][0-9.\s]*(?:,[0-9]{1,2})?)\s*(?:€|EUR)/ig,"
+          new = r"/(?:kaltmiete|nettokaltmiete|nettomiete|monatsmiete|mietpreis|miete|pacht)\s*(?:für\s+(?:die\s+)?(?:gesamt)?fl[aä]che)?\s*:?[\s-]*([0-9][0-9.\s]*(?:,[0-9]{1,2})?)\s*(?:€|EUR)/ig,"
+          if old not in s:
+              raise SystemExit('rent target not found')
+          s = s.replace(old, new, 1)
+
+          anchor = "  add(new RegExp(`${MEDIUM}\\s*:?[\\s-]*(?:ca\\.?|circa|ungef[aä]hr)?\\s*(?<value>[0-9][0-9.,]*)\\s*(?:m²|qm|m2)`, 'ig'), 'usable_area', 80, 'usable-area');"
+          insertion = anchor + "\n  add(/(?:^|\\s)fl[aä]che\\s*:?\\s*(?:ca\\.?|circa|ungef[aä]hr)?\\s*(?<value>[0-9][0-9.,]*)\\s*(?:m²|qm|m2)/ig, 'listed_area', 90, 'listed-area-field');"
+          if anchor not in s:
+              raise SystemExit('area anchor not found')
+          s = s.replace(anchor, insertion, 1)
+          p.write_text(s, encoding='utf-8')
+
+          p = Path('scripts/ingest/tests/phase3b-extraction.test.js')
+          s = p.read_text(encoding='utf-8')
+          marker = "  const takeover = extractExistingBusiness('Laufender Betrieb, Nachfolger gesucht, Inventarübernahme erforderlich.');"
+          regression = """  const kleinStructured = extractListingFacts('Art Mieten Fläche 100 m² Objektart Einzelhandel & Kioske Verfügbar ab August 2026 Monatsmiete für Gesamtfläche 2.770 € Kaution 8.310 € Provision Provisionsfrei');
+  assert.strictEqual(kleinStructured.area.unitArea, 100);
+  assert.strictEqual(kleinStructured.rent.amount, 2770);
+  assert.strictEqual(kleinStructured.kaution.amount, 8310);
+  assert.strictEqual(kleinStructured.provision.status, 'free');
+
+"""
+          if marker not in s:
+              raise SystemExit('test marker not found')
+          s = s.replace(marker, regression + marker, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Run tests
+        run: |
+          node --check scripts/ingest/extract-listing-facts.js
+          node scripts/ingest/tests/ingestion.test.js
+          node scripts/ingest/tests/phase3b-extraction.test.js
+
+      - name: Commit fix and remove temporary workflow
+        run: |
+          git config user.name 'phase3b-klein-fixbot'
+          git config user.email 'actions@users.noreply.github.com'
+          git rm .github/workflows/phase3b-klein-format-fix.yml
+          git add scripts/ingest/extract-listing-facts.js scripts/ingest/tests/phase3b-extraction.test.js
+          git commit -m 'fix: parse Kleinanzeigen structured rent and area fields'
+          git push origin HEAD:codex/phase3b-extraction-intelligence
