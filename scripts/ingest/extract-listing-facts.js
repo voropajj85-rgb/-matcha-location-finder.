@@ -39,7 +39,7 @@ function extractRent(text) {
 
   const blocked = /(kaufpreis|kaution|provision|courtage|abl[oö]se|abstand|inventar|nebenkosten|betriebskosten)/i;
   const patterns = [
-    /(?:kaltmiete|nettokaltmiete|nettomiete|monatsmiete|mietpreis|miete|pacht)\s*:?[\s-]*([0-9][0-9.\s]*(?:,[0-9]{1,2})?)\s*(?:€|EUR)/ig,
+    /(?:kaltmiete|nettokaltmiete|nettomiete|monatsmiete|mietpreis|miete|pacht)\s*(?:für\s+(?:die\s+)?(?:gesamt)?fl[aä]che)?\s*:?[\s-]*([0-9][0-9.\s]*(?:,[0-9]{1,2})?)\s*(?:€|EUR)/ig,
     /([0-9][0-9.\s]*(?:,[0-9]{1,2})?)\s*(?:€|EUR)\s*(?:\/\s*monat|monatlich|pro\s+monat)/ig
   ];
   for (const pattern of patterns) {
@@ -133,6 +133,7 @@ function extractArea(text) {
   add(new RegExp(`(?<value>[0-9][0-9.,]*)\\s*(?:m²|qm|m2)\\s*${LABEL}`, 'ig'), 'sales_area', 105, 'area-before-label');
   add(/(?:teilbar\s+ab|teilfl[aä]che\s+ab)\s*:?[\s-]*(?:ca\.?\s*)?(?<value>[0-9][0-9.,]*)\s*(?:m²|qm|m2)/ig, 'divisible_minimum', 100, 'divisible-area');
   add(new RegExp(`${MEDIUM}\\s*:?[\\s-]*(?:ca\\.?|circa|ungef[aä]hr)?\\s*(?<value>[0-9][0-9.,]*)\\s*(?:m²|qm|m2)`, 'ig'), 'usable_area', 80, 'usable-area');
+  add(/(?:^|\s)fl[aä]che\s*:?\s*(?:ca\.?|circa|ungef[aä]hr)?\s*(?<value>[0-9][0-9.,]*)\s*(?:m²|qm|m2)/ig, 'listed_area', 90, 'listed-area-field');
   add(/gesamtfl[aä]che\s*:?[\s-]*(?:ca\.?|circa|ungef[aä]hr)?\s*(?<value>[0-9][0-9.,]*)\s*(?:m²|qm|m2)/ig, 'total_area', 30, 'total-area');
 
   const unique = [];

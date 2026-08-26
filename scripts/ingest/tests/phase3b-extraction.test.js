@@ -55,6 +55,12 @@ function run() {
   assert.strictEqual(extractOperations('Außengastronomie möglich').terrace.status, 'confirmed');
   assert.strictEqual(extractOperations('nur Tagesgastronomie').openingHours.status, 'restricted');
 
+  const kleinStructured = extractListingFacts('Art Mieten Fläche 100 m² Objektart Einzelhandel & Kioske Verfügbar ab August 2026 Monatsmiete für Gesamtfläche 2.770 € Kaution 8.310 € Provision Provisionsfrei');
+  assert.strictEqual(kleinStructured.area.unitArea, 100);
+  assert.strictEqual(kleinStructured.rent.amount, 2770);
+  assert.strictEqual(kleinStructured.kaution.amount, 8310);
+  assert.strictEqual(kleinStructured.provision.status, 'free');
+
   const takeover = extractExistingBusiness('Laufender Betrieb, Nachfolger gesucht, Inventarübernahme erforderlich.');
   assert.strictEqual(takeover.existingBusiness, 'confirmed');
   assert.strictEqual(takeover.takeoverRequired, true);
