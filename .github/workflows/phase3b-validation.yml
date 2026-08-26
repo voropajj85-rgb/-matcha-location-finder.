@@ -1,0 +1,47 @@
+name: Phase 3B Validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/ingest/**'
+      - '.github/workflows/phase3b-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Syntax checks
+        run: |
+          node --check scripts/ingest/extract-listing-facts.js
+          node --check scripts/ingest/enrich-listing.js
+          node --check scripts/ingest/normalize-listing.js
+          node --check scripts/ingest/run-ingestion.js
+
+      - name: Existing ingestion tests
+        run: node scripts/ingest/tests/ingestion.test.js
+
+      - name: Phase 3B extraction tests
+        run: node scripts/ingest/tests/phase3b-extraction.test.js
+
+      - name: Full dry-run validation
+        run: node scripts/ingest/run-ingestion.js --dry-run --validation-report
+
+      - name: Upload validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase3b-validation-report
+          path: scripts/ingest/reports/latest-validation.json
+          if-no-files-found: warn
