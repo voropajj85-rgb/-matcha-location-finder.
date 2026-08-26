@@ -54,6 +54,12 @@ jobs:
           )
 
           replace_once(
+              'scripts/ingest/enrich-listing.js',
+              "  const patterns = [\n    /kaution[^.;|]{0,100}/gi,",
+              "  const patterns = [\n    /abl[oö]se\\s+\\d{1,3}(?:\\.\\d{3})*(?:,\\d+)?\\s*(?:€|eur)/gi,\n    /kaution[^.;|]{0,100}/gi,"
+          )
+
+          replace_once(
               'scripts/ingest/supabase-upsert.js',
               "    return {\n      known: Boolean(value.known),\n      value: value.value ?? null,\n      amount: value.amount ?? null\n    };",
               "    return {\n      ...value,\n      known: value.known != null ? Boolean(value.known) : value.status !== 'unknown',\n      value: value.value ?? value.evidence?.raw ?? null,\n      amount: value.amount ?? null\n    };"
