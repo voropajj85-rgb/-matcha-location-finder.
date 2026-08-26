@@ -60,11 +60,13 @@ for (const listing of report.listings || []) {
   listing.financialEvidenceStructured = facts.financialEvidence;
   listing.operationalEvidence = facts.operationalEvidence;
 
-  if (facts.rent.status === 'known') diagnostics.rentParsed += 1;
-  else if (facts.rent.status === 'request') diagnostics.rentPriceOnRequest += 1;
+  const effectiveMonthlyRent = listing.rent != null && listing.rentType !== 'per_sqm';
+  const effectiveRequest = listing.priceStatus === 'request' || facts.rent.status === 'request';
+  if (effectiveMonthlyRent || facts.rent.status === 'known') diagnostics.rentParsed += 1;
+  else if (effectiveRequest) diagnostics.rentPriceOnRequest += 1;
   else diagnostics.rentMissing += 1;
 
-  if (facts.area.unitArea != null) diagnostics.areaParsed += 1;
+  if (listing.unitArea != null || facts.area.unitArea != null) diagnostics.areaParsed += 1;
   else diagnostics.areaMissing += 1;
 
   inc(diagnostics, `kaution${facts.kaution.status === 'known_numeric' ? 'Numeric' : facts.kaution.status === 'known_relative' ? 'Relative' : facts.kaution.status === 'mentioned' ? 'Mentioned' : 'Unknown'}`);
@@ -77,7 +79,7 @@ for (const listing of report.listings || []) {
   inc(diagnostics, `terrace${facts.operations.terrace.status === 'confirmed' ? 'Confirmed' : 'Unknown'}`);
   if (facts.existing.existingBusiness === 'confirmed') diagnostics.existingBusinessConfirmed += 1;
   if (facts.existing.takeoverRequired === true) diagnostics.takeoverRequired += 1;
-  if (listing.rent == null && facts.rent.status === 'known') diagnostics.descriptionBackedRent += 1;
+  if (listing.rent == null && listing.priceStatus !== 'request' && facts.rent.status === 'known') diagnostics.descriptionBackedRent += 1;
   if (listing.unitArea == null && facts.area.unitArea != null) diagnostics.descriptionBackedArea += 1;
 }
 
