@@ -1,0 +1,45 @@
+name: Phase 3B Report Commit
+
+on:
+  push:
+    branches: [codex/phase3b-extraction-intelligence]
+    paths: ['.github/workflows/phase3b-report-commit.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/phase3b-extraction-intelligence
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate current Phase 3B code
+        run: |
+          node --check scripts/ingest/extract-listing-facts.js
+          node --check scripts/ingest/enrich-listing.js
+          node --check scripts/ingest/sources/brokers.js
+          node --check scripts/ingest/supabase-upsert.js
+          node scripts/ingest/tests/ingestion.test.js
+          node scripts/ingest/tests/phase3b-extraction.test.js
+
+      - name: Generate fresh market report
+        run: |
+          node scripts/ingest/run-ingestion.js --dry-run --validation-report
+          node scripts/ingest/phase3b-report.js scripts/ingest/reports/latest-validation.json
+
+      - name: Commit report and self-remove
+        run: |
+          git config user.name 'phase3b-report-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git rm .github/workflows/phase3b-report-commit.yml
+          git add scripts/ingest/reports/latest-validation.json
+          git commit -m 'chore: record final Phase 3B validation report'
+          git push origin HEAD:codex/phase3b-extraction-intelligence
