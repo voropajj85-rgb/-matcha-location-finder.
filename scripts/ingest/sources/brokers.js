@@ -143,30 +143,42 @@ function extractColliersArea(text) {
 
 function extractColliersRent(text) {
   if (/preis\s+auf\s+anfrage|miete\s*:\s*auf\s+anfrage|mietpreis\s+(?:ab\s+)?auf\s+anfrage/i.test(text)) {
-    return { rent: null, rentEvidence: 'Preis auf Anfrage', rentConfidence: 'low', priceStatus: 'request' };
+    return { rent: null, rentPerSqm: null, rentType: 'request', rentEvidence: 'Preis auf Anfrage', rentConfidence: 'low', priceStatus: 'request' };
   }
+
+  const perSqm = matchEvidence(text, [
+    /(?:miete|mietpreis|nettomiete|nettokaltmiete)[^\d]{0,80}([0-9][0-9.,]*)\s*(?:€|eur)\s*(?:\/|pro)?\s*(?:m\s*2|m²|m2|qm)/i,
+    /(?:zur\s+miete|miete)\s*:\s*([0-9][0-9.,]*)\s*(?:€|eur)\s*(?:\/|pro)?\s*(?:m\s*2|m²|m2|qm)/i
+  ]);
+  if (perSqm.value) return { rent: null, rentPerSqm: perSqm.value, rentType: 'per_sqm', rentEvidence: perSqm.evidence, rentConfidence: 'high', priceStatus: 'unit_price' };
 
   const monthly = matchEvidence(text, [
     /(?:miete|mietpreis|nettomiete|pacht)[^\d]{0,80}([0-9][0-9.,]*)\s*(?:€|eur)[^.;]{0,40}(?:monat|monatl)/i,
     /(?:miete|mietpreis|nettomiete|pacht)[^\d]{0,80}([0-9][0-9.,]*)\s*(?:€|eur)/i
   ]);
 
-  if (!monthly.value) return { rent: null, rentEvidence: null, rentConfidence: 'low', priceStatus: null };
-  return { rent: monthly.value, rentEvidence: monthly.evidence, rentConfidence: 'high', priceStatus: 'confirmed' };
+  if (!monthly.value) return { rent: null, rentPerSqm: null, rentType: null, rentEvidence: null, rentConfidence: 'low', priceStatus: null };
+  return { rent: monthly.value, rentPerSqm: null, rentType: 'monthly', rentEvidence: monthly.evidence, rentConfidence: 'high', priceStatus: 'confirmed' };
 }
 
 function extractGenericRent(text) {
   if (/preis\s+auf\s+anfrage|miete\s*:\s*auf\s+anfrage|mietpreis\s+(?:ab\s+)?auf\s+anfrage/i.test(text)) {
-    return { rent: null, rentEvidence: 'Preis auf Anfrage', rentConfidence: 'low', priceStatus: 'request' };
+    return { rent: null, rentPerSqm: null, rentType: 'request', rentEvidence: 'Preis auf Anfrage', rentConfidence: 'low', priceStatus: 'request' };
   }
+
+  const perSqm = matchEvidence(text, [
+    /(?:gesamtmiete|nettokaltmiete|nettomiete|monatsmiete|miete|pacht)[^\d]{0,80}([0-9][0-9.,]*)\s*(?:€|eur)\s*(?:\/|pro)?\s*(?:m\s*2|m²|m2|qm)/i,
+    /(?:nettokaltmiete|miete)\s*\/\s*(?:m\s*2|m²|m2|qm)[^\d]{0,30}([0-9][0-9.,]*)\s*(?:€|eur)/i
+  ]);
+  if (perSqm.value) return { rent: null, rentPerSqm: perSqm.value, rentType: 'per_sqm', rentEvidence: perSqm.evidence, rentConfidence: 'high', priceStatus: 'unit_price' };
 
   const monthly = matchEvidence(text, [
     /(?:gesamtmiete|nettokaltmiete|nettomiete|monatsmiete|miete|pacht)[^\d]{0,80}([0-9][0-9.,]*)\s*(?:€|eur)/i,
     /([0-9][0-9.,]*)\s*(?:€|eur)[^.;]{0,80}(?:gesamtmiete|nettokaltmiete|nettomiete|monatsmiete|miete|pacht)/i
   ]);
 
-  if (!monthly.value) return { rent: null, rentEvidence: null, rentConfidence: 'low', priceStatus: null };
-  return { rent: monthly.value, rentEvidence: monthly.evidence, rentConfidence: 'medium', priceStatus: 'confirmed' };
+  if (!monthly.value) return { rent: null, rentPerSqm: null, rentType: null, rentEvidence: null, rentConfidence: 'low', priceStatus: null };
+  return { rent: monthly.value, rentPerSqm: null, rentType: 'monthly', rentEvidence: monthly.evidence, rentConfidence: 'medium', priceStatus: 'confirmed' };
 }
 
 function extractAvailability(text) {
@@ -213,6 +225,8 @@ function candidateFromBrokerPage(adapter, sourceUrl, html, now) {
     unitArea: area.unitArea,
     projectTotalArea: area.projectTotalArea,
     rent: rent.rent,
+    rentPerSqm: rent.rentPerSqm ?? null,
+    rentType: rent.rentType || (rent.rent != null ? 'monthly' : null),
     priceStatus: rent.priceStatus,
     provision: text.match(/provision[^.;]{0,120}/i)?.[0] || null,
     gastroSuitability: retailSignal ? 'possible' : 'unknown',

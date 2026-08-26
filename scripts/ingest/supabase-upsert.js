@@ -14,8 +14,9 @@ function readFrontendPublishableKey() {
 function condition(value) {
   if (value && typeof value === 'object') {
     return {
-      known: Boolean(value.known),
-      value: value.value ?? null,
+      ...value,
+      known: value.known != null ? Boolean(value.known) : value.status !== 'unknown',
+      value: value.value ?? value.evidence?.raw ?? null,
       amount: value.amount ?? null
     };
   }
@@ -46,7 +47,7 @@ function rowForListing(listing) {
     unit_area: listing.unitArea ?? listing.area ?? null,
     project_total_area: listing.projectTotalArea ?? null,
     rent: listing.rent ?? null,
-    nebenkosten: listing.nk ?? listing.nebenkosten?.value ?? null,
+    nebenkosten: listing.nk ?? listing.nebenkosten?.amount ?? (typeof listing.nebenkosten === 'number' ? listing.nebenkosten : null),
     provision: condition(listing.provision),
     abloese: condition(listing.abloese),
     kaution: condition(listing.kaution),

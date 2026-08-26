@@ -1,0 +1,60 @@
+name: Phase 3B Validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/ingest/**'
+      - '.github/workflows/phase3b-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Syntax checks
+        run: |
+          node --check scripts/ingest/extract-listing-facts.js
+          node --check scripts/ingest/enrich-listing.js
+          node --check scripts/ingest/normalize-listing.js
+          node --check scripts/ingest/phase3b-report.js
+          node --check scripts/ingest/run-ingestion.js
+
+      - name: Existing ingestion tests
+        run: |
+          node scripts/ingest/tests/ingestion.test.js 2>&1 | tee legacy-test.log
+
+      - name: Phase 3B extraction tests
+        run: |
+          node scripts/ingest/tests/phase3b-extraction.test.js 2>&1 | tee phase3b-test.log
+
+      - name: Full dry-run validation
+        run: |
+          node scripts/ingest/run-ingestion.js --dry-run --validation-report 2>&1 | tee dry-run.log
+
+      - name: Add Phase 3B diagnostics
+        run: |
+          node scripts/ingest/phase3b-report.js scripts/ingest/reports/latest-validation.json 2>&1 | tee phase3b-report.log
+
+      - name: Upload validation artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase3b-validation-artifacts
+          path: |
+            legacy-test.log
+            phase3b-test.log
+            dry-run.log
+            phase3b-report.log
+            scripts/ingest/reports/latest-validation.json
+          if-no-files-found: warn
