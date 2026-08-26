@@ -54,6 +54,8 @@ const NON_OFFER_URL_PATTERNS = [
   /zu-verkaufen|zu-verkauf|verkauf-voll|gewerbeinvestment/i
 ];
 
+const NEARBY_EXCLUDED_LOCATION_PATTERN = /(penzberg|ottobrunn|dachau|freising|unterhaching|karlsfeld|gauting|fürstenfeldbruck|furstenfeldbruck|grünwald|gruenwald|haar|aschheim|asheim|germering)/i;
+
 function canonicalizeListingUrl(input) {
   if (!input) return null;
   try {
@@ -118,7 +120,11 @@ function isMunichKleinanzeigenUrl(input) {
 function isMunichTargetText(value) {
   const text = String(value || '').toLowerCase();
   if (!/(münchen|muenchen|munich|\b80\d{3}\b|\b81\d{3}\b)/i.test(text)) return false;
-  return !/(penzberg|ottobrunn|dachau|freising|unterhaching|karlsfeld|gauting|emmering|fürstenfeldbruck|furstenfeldbruck|grünwald|gruenwald|haar|asheim|germering)/i.test(text);
+  return !NEARBY_EXCLUDED_LOCATION_PATTERN.test(text);
+}
+
+function isNearbyExcludedLocation(value) {
+  return NEARBY_EXCLUDED_LOCATION_PATTERN.test(String(value || '').toLowerCase());
 }
 
 function extractExternalId(sourceName, sourceUrl) {
@@ -194,6 +200,7 @@ module.exports = {
   isDirectListingUrl,
   isMunichTargetText,
   isMunichKleinanzeigenUrl,
+  isNearbyExcludedLocation,
   isPotentialMatchaListingUrl,
   isSearchPageUrl,
   parseNumberFromText,

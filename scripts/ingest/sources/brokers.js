@@ -10,6 +10,7 @@ const ADAPTERS = [
     directPattern: /colliers\.de\/gewerbeimmobilien\/objekt\//i,
     sourceFamily: 'broker',
     sourceName: 'Colliers',
+    sourceQuality: 'high',
     pageLimit: 3
   },
   {
@@ -17,7 +18,8 @@ const ADAPTERS = [
     catalogUrls: ['https://gewerbeimmobilien.jll.de/einzelhandel/ladenflaechen-mieten-muenchen'],
     directPattern: /gewerbeimmobilien\.jll\.de\/einzelhandel\/(?!ladenflaechen-mieten-muenchen)([^/?#]+)/i,
     sourceFamily: 'broker',
-    sourceName: 'JLL'
+    sourceName: 'JLL',
+    sourceQuality: 'medium'
   },
   {
     name: 'Engel & Völkers',
@@ -28,6 +30,7 @@ const ADAPTERS = [
     directPattern: /engelvoelkers\.com\/de\/de\/exposes\//i,
     sourceFamily: 'broker',
     sourceName: 'Engel & Völkers',
+    sourceQuality: 'high',
     pageLimit: 2
   },
   {
@@ -39,6 +42,7 @@ const ADAPTERS = [
     directPattern: /immobilie1\.de\/(?:\d{5}-)?[^/]+-\d{6,}/i,
     sourceFamily: 'broker',
     sourceName: 'immobilie1',
+    sourceQuality: 'medium',
     pageLimit: 2
   },
   {
@@ -46,21 +50,24 @@ const ADAPTERS = [
     catalogUrls: ['https://aigner-immobilien.de/immobilie/buero-praxis-ausstellungsraeume-80469-muenchen-glockenbachviertel-44299/'],
     directPattern: /aigner-immobilien\.de\/immobilie\//i,
     sourceFamily: 'broker',
-    sourceName: 'Aigner Immobilien'
+    sourceName: 'Aigner Immobilien',
+    sourceQuality: 'medium'
   },
   {
     name: 'Rohrer Immobilien',
     catalogUrls: ['https://www.rohrer-immobilien.de/gewerbeimmobilien/'],
     directPattern: /rohrer-immobilien\.de\/.*(?:gewerbe|immobilie)/i,
     sourceFamily: 'broker',
-    sourceName: 'Rohrer Immobilien'
+    sourceName: 'Rohrer Immobilien',
+    sourceQuality: 'medium'
   },
   {
     name: 'BNP Paribas Real Estate',
     catalogUrls: ['https://www.bnppre.de/immobilien-mieten/gewerbe/muenchen/'],
     directPattern: /bnppre\.de\/.*(?:mieten|immobilie|gewerbe)/i,
     sourceFamily: 'broker',
-    sourceName: 'BNP Paribas Real Estate'
+    sourceName: 'BNP Paribas Real Estate',
+    sourceQuality: 'medium'
   }
 ];
 
@@ -233,7 +240,8 @@ function candidateFromBrokerPage(adapter, sourceUrl, html, now) {
       rentConfidence: rent.rentConfidence,
       availability,
       usageType,
-      sourceQuality: adapterName === 'Colliers' ? 'high' : 'medium'
+      locationEvidence: location,
+      sourceQuality: adapter.sourceQuality || 'medium'
     }
   };
 }
@@ -281,7 +289,7 @@ async function discoverAdapter(adapter, { fetchPage, now }) {
               ...(candidate.rawSourceData || {}),
               catalogUrl,
               catalogPageUrl: pageUrl,
-              outsideMunich: !isMunichTargetText(`${candidate.title || ''} ${candidate.address || ''} ${candidate.rawSourceData?.rawDescription || ''}`)
+              outsideMunich: !isMunichTargetText(`${candidate.title || ''} ${candidate.address || ''} ${candidate.rawSourceData?.locationEvidence || ''}`)
             };
             candidates.push(candidate);
           } catch (error) {
@@ -306,7 +314,7 @@ async function discover({ fetchPage, now } = {}) {
     unitArea: null,
     rent: null,
     discoveryMethod: 'broker-curated-lead',
-    rawSourceData: { detectedAt: now, sourceTitle: lead.title }
+    rawSourceData: { detectedAt: now, sourceTitle: lead.title, sourceQuality: 'high' }
   }));
   const errors = [];
   const meta = {

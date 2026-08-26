@@ -66,7 +66,8 @@ function candidateFromPage(sourceUrl, html, now) {
       detectedAt: now,
       sourceTitle: title,
       sourceAreaText: area == null ? null : String(area),
-      sourcePriceText: rent == null ? null : String(rent)
+      sourcePriceText: rent == null ? null : String(rent),
+      sourceQuality: 'high'
     }
   };
 }
@@ -96,7 +97,7 @@ async function discover({ fetchPage, now } = {}) {
       unitArea: null,
       rent: null,
       discoveryMethod: 'municipal-curated-lead',
-      rawSourceData: { detectedAt: now, sourceTitle: seed.title }
+      rawSourceData: { detectedAt: now, sourceTitle: seed.title, sourceQuality: 'high' }
     });
   }
 

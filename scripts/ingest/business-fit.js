@@ -157,10 +157,16 @@ function isBusinessFitVisible(listing) {
 }
 
 function sourceQuality(listing) {
+  if (['high', 'medium', 'low'].includes(listing.rawSourceData?.sourceQuality)) {
+    return listing.rawSourceData.sourceQuality;
+  }
+
   const source = `${listing.sourceName || listing.source || ''} ${listing.sourceFamily || ''}`.toLowerCase();
   if (listing.rawSourceData?.enrichmentStatus === 'failed') return 'low';
   if (listing.availabilityStatus === 'unknown') return 'low';
-  if (/stadt|municipal|cbre|colliers|broker/.test(source)) return 'high';
+  if (/stadt|municipal|cbre|colliers/.test(source)) return 'high';
+  if (/engel/.test(source)) return 'high';
+  if (/broker/.test(source)) return 'medium';
   if (/kleinanzeigen/.test(source) && listing.listingType === 'direct_listing') return 'medium';
   if (listing.listingType === 'direct_listing') return 'medium';
   return 'low';

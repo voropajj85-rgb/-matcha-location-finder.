@@ -138,7 +138,8 @@ function emptySourceOutcome() {
     blocked: 0,
     errors: 0,
     visibleDirectCandidates: 0,
-    leads: 0
+    leads: 0,
+    hiddenReasons: {}
   };
 }
 
@@ -198,6 +199,8 @@ function summarizeSourceOutcomes(sourceResults, listings) {
     if (listing.availabilityStatus === 'active') outcome.verifiedActive += 1;
     if (isVisibleCandidate(listing)) outcome.visibleDirectCandidates += 1;
     if (isVisibleLead(listing)) outcome.leads += 1;
+    const hiddenReason = hiddenReasonForListing(listing);
+    if (hiddenReason) outcome.hiddenReasons[hiddenReason] = (outcome.hiddenReasons[hiddenReason] || 0) + 1;
 
     const relevance = calculateProjectRelevance(listing);
     const businessFit = calculateBusinessFit(listing);
@@ -273,6 +276,127 @@ function printValidationReport(listings) {
   }
 }
 
+function hiddenReasonForListing(listing) {
+  if (listing.listingType !== 'direct_listing' || isVisibleCandidate(listing)) return null;
+  const relevance = calculateProjectRelevance(listing);
+  const businessFit = calculateBusinessFit(listing);
+  const link = validateSourceLink(listing);
+  const issues = validationIssues(listing);
+  const area = listing.unitArea ?? listing.area ?? null;
+  const rent = listing.rent ?? null;
+
+  if (listing.availabilityStatus !== 'active' || !link.sourceLinkValid) return 'verification insufficient';
+  if (relevance.reasons.some((reason) => /outside Munich target area/i.test(reason))) return 'outside Munich';
+  if (area == null) return 'missing area';
+  if (area > 100) return 'area too large';
+  if (area < 20) return 'area too small';
+  if (rent != null && rent > 3500) return 'rent too high';
+  if (rent == null && issues.some((issue) => /missing confirmed rent/i.test(issue))) return 'rent missing';
+  if (businessFit.level === 'exclude') return 'businessFit exclude';
+  return 'other';
+}
+
+function hiddenReasonDetails(listing) {
+  if (listing.listingType !== 'direct_listing' || isVisibleCandidate(listing)) return [];
+  const relevance = calculateProjectRelevance(listing);
+  const businessFit = calculateBusinessFit(listing);
+  return [
+    ...validationIssues(listing),
+    ...relevance.reasons,
+    ...businessFit.reasons
+  ].filter(Boolean);
+}
+
+function summarizeHiddenBreakdown(listings, skipped) {
+  const breakdown = {
+    missingArea: 0,
+    areaTooLarge: 0,
+    areaTooSmall: 0,
+    rentTooHigh: 0,
+    rentMissing: 0,
+    outsideMunich: 0,
+    businessFitExclude: 0,
+    duplicate: skipped.length,
+    verificationInsufficient: 0,
+    other: 0
+  };
+
+  const keyByReason = {
+    'missing area': 'missingArea',
+    'area too large': 'areaTooLarge',
+    'area too small': 'areaTooSmall',
+    'rent too high': 'rentTooHigh',
+    'rent missing': 'rentMissing',
+    'outside Munich': 'outsideMunich',
+    'businessFit exclude': 'businessFitExclude',
+    'verification insufficient': 'verificationInsufficient',
+    other: 'other'
+  };
+
+  for (const listing of listings) {
+    const reason = hiddenReasonForListing(listing);
+    if (!reason) continue;
+    breakdown[keyByReason[reason] || 'other'] += 1;
+  }
+
+  return breakdown;
+}
+
+function sourceDiagnostics(sourceResults, listings, sourceName, limit = null) {
+  const normalizedSource = sourceName.toLowerCase();
+  const listingByUrl = new Map(listings
+    .filter((listing) => String(listing.sourceName || listing.source || '').toLowerCase() === normalizedSource)
+    .map((listing) => [listing.sourceUrl || listing.url, listing]));
+  const candidates = sourceResults
+    .flatMap((result) => result.candidates || [])
+    .filter((candidate) => (
+      candidate.listingType === 'direct_listing'
+      && String(candidate.sourceName || candidate.source || '').toLowerCase() === normalizedSource
+    ));
+
+  return (limit ? candidates.slice(0, limit) : candidates).map((candidate) => {
+    const listing = listingByUrl.get(candidate.sourceUrl || candidate.url);
+    if (!listing) {
+      return {
+        externalId: candidate.externalId || null,
+        url: candidate.sourceUrl || candidate.url || null,
+        title: candidate.title || null,
+        location: candidate.address || candidate.district || null,
+        area: candidate.unitArea ?? candidate.area ?? null,
+        rent: candidate.rent ?? null,
+        priceStatus: candidate.priceStatus || null,
+        rentEvidence: candidate.rawSourceData?.rentEvidence || null,
+        availability: 'not-normalized',
+        sourceQuality: candidate.sourceQuality || candidate.rawSourceData?.sourceQuality || null,
+        projectRelevance: null,
+        businessFit: null,
+        visibleCandidate: false,
+        hiddenReason: 'verification insufficient',
+        hiddenReasonDetails: ['candidate did not normalize into a verified direct listing, usually because URL/location failed strict direct-listing gates']
+      };
+    }
+    const relevance = calculateProjectRelevance(listing);
+    const businessFit = calculateBusinessFit(listing);
+    return {
+      externalId: listing.externalId || listing.id,
+      url: listing.sourceUrl || listing.url || null,
+      title: listing.title || null,
+      location: listing.address || listing.district || null,
+      area: listing.unitArea ?? listing.area ?? null,
+      rent: listing.rent ?? null,
+      priceStatus: listing.priceStatus || null,
+      rentEvidence: listing.rawSourceData?.rentEvidence || null,
+      availability: listing.availabilityStatus || null,
+      sourceQuality: listing.sourceQuality || listing.rawSourceData?.sourceQuality || null,
+      projectRelevance: relevance.level,
+      businessFit: businessFit.level,
+      visibleCandidate: isVisibleCandidate(listing),
+      hiddenReason: hiddenReasonForListing(listing),
+      hiddenReasonDetails: hiddenReasonDetails(listing).slice(0, 8)
+    };
+  });
+}
+
 function validationRecord(listing) {
   const link = validateSourceLink(listing);
   const issues = validationIssues(listing);
@@ -313,6 +437,8 @@ function validationRecord(listing) {
     lastVerifiedAt: listing.lastVerifiedAt || null,
     safeForProduction: isSafeForProduction(listing),
     visibleCandidate: isVisibleCandidate(listing),
+    hiddenReason: hiddenReasonForListing(listing),
+    hiddenReasonDetails: hiddenReasonDetails(listing),
     listingType: listing.listingType,
     rent: listing.rent ?? null,
     unitArea: listing.unitArea ?? null,
@@ -340,6 +466,7 @@ function existingCleanupActions(existingRows) {
 }
 
 async function writeValidationReport({ sourceResults, listings, cleanupActions, counts, qualityCounts, validationCounts, relevanceCounts, businessFitCounts, areaCounts, sourceOutcomes, skipped, discoveredCount, now }) {
+  const hiddenBreakdown = summarizeHiddenBreakdown(listings, skipped);
   const report = {
     generatedAt: now,
     dryRunSafe: true,
@@ -376,6 +503,11 @@ async function writeValidationReport({ sourceResults, listings, cleanupActions, 
       message: error.message
     }))),
     sourceOutcomes,
+    hiddenBreakdown,
+    sourceDiagnostics: {
+      'Engel & Völkers': sourceDiagnostics(sourceResults, listings, 'Engel & Völkers', 10),
+      immobilie1: sourceDiagnostics(sourceResults, listings, 'immobilie1')
+    },
     sourceResults: sourceResults.map((result) => ({
       source: result.source,
       found: result.candidates.length,

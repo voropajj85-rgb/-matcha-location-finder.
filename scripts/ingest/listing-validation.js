@@ -5,7 +5,7 @@ const {
 } = require('./utils');
 const { calculateDataCompleteness } = require('./data-completeness');
 const { calculateBusinessFit, isBusinessFitVisible } = require('./business-fit');
-const { calculateProjectRelevance, isPriceOnRequest } = require('./project-relevance');
+const { calculateProjectRelevance, isPriceOnRequest, isTrustedPriceOnRequestSource } = require('./project-relevance');
 
 function getSourceUrl(listing) {
   return listing.sourceUrl || listing.url || listing.canonicalUrl || null;
@@ -16,7 +16,7 @@ function isDirectListing(listing) {
 }
 
 function allowsPriceOnRequest(listing) {
-  return listing.rent == null && isPriceOnRequest(listing);
+  return listing.rent == null && isPriceOnRequest(listing) && isTrustedPriceOnRequestSource(listing);
 }
 
 function getValidExternalUrl(listing) {

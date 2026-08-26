@@ -30,6 +30,12 @@ function rawDescriptionFromText(plainText, title, maxLength = 9000) {
 
 function financialEvidenceFromText(text) {
   const patterns = [
+    /kaution\s+\d+(?:[,.]\d+)?\s*monatsmieten/gi,
+    /provision\s+\d+(?:[,.]\d+)?\s*MM/gi,
+    /abl[oö]se\s+\d{1,3}(?:\.\d{3})*(?:,\d+)?\s*(?:€|eur)/gi,
+    /nebenkosten\s+\d{1,3}(?:\.\d{3})*(?:,\d+)?\s*(?:€|eur)/gi,
+    /zzgl\.\s*NK/gi,
+    /inventar\s+gegen\s+abl[oö]se/gi,
     /kaution[^.;|]{0,100}/gi,
     /provision[^.;|]{0,100}/gi,
     /provisionsfrei[^.;|]{0,80}/gi,
