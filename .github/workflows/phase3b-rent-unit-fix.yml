@@ -1,0 +1,91 @@
+name: Phase 3B Rent Unit Fix
+
+on:
+  push:
+    branches: [codex/phase3b-extraction-intelligence]
+    paths: ['.github/workflows/phase3b-rent-unit-fix.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/phase3b-extraction-intelligence
+
+      - name: Patch rent-unit semantics and diagnostics
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p=Path(path); s=p.read_text(encoding='utf-8')
+              if old not in s: raise SystemExit(f'target not found in {path}: {old[:120]}')
+              p.write_text(s.replace(old,new,1),encoding='utf-8')
+
+          p='scripts/ingest/sources/brokers.js'
+          replace_once(p,
+          "function extractColliersRent(text) {\n  if (/preis\\s+auf\\s+anfrage|miete\\s*:\\s*auf\\s+anfrage|mietpreis\\s+(?:ab\\s+)?auf\\s+anfrage/i.test(text)) {\n    return { rent: null, rentEvidence: 'Preis auf Anfrage', rentConfidence: 'low', priceStatus: 'request' };\n  }\n\n  const monthly = matchEvidence(text, [",
+          "function extractColliersRent(text) {\n  if (/preis\\s+auf\\s+anfrage|miete\\s*:\\s*auf\\s+anfrage|mietpreis\\s+(?:ab\\s+)?auf\\s+anfrage/i.test(text)) {\n    return { rent: null, rentPerSqm: null, rentType: 'request', rentEvidence: 'Preis auf Anfrage', rentConfidence: 'low', priceStatus: 'request' };\n  }\n\n  const perSqm = matchEvidence(text, [\n    /(?:miete|mietpreis|nettomiete|nettokaltmiete)[^\\d]{0,80}([0-9][0-9.,]*)\\s*(?:€|eur)\\s*(?:\\/|pro)?\\s*(?:m\\s*2|m²|m2|qm)/i,\n    /(?:zur\\s+miete|miete)\\s*:\\s*([0-9][0-9.,]*)\\s*(?:€|eur)\\s*(?:\\/|pro)?\\s*(?:m\\s*2|m²|m2|qm)/i\n  ]);\n  if (perSqm.value) return { rent: null, rentPerSqm: perSqm.value, rentType: 'per_sqm', rentEvidence: perSqm.evidence, rentConfidence: 'high', priceStatus: 'unit_price' };\n\n  const monthly = matchEvidence(text, [")
+
+          replace_once(p,
+          "  if (!monthly.value) return { rent: null, rentEvidence: null, rentConfidence: 'low', priceStatus: null };\n  return { rent: monthly.value, rentEvidence: monthly.evidence, rentConfidence: 'high', priceStatus: 'confirmed' };\n}\n\nfunction extractGenericRent(text) {",
+          "  if (!monthly.value) return { rent: null, rentPerSqm: null, rentType: null, rentEvidence: null, rentConfidence: 'low', priceStatus: null };\n  return { rent: monthly.value, rentPerSqm: null, rentType: 'monthly', rentEvidence: monthly.evidence, rentConfidence: 'high', priceStatus: 'confirmed' };\n}\n\nfunction extractGenericRent(text) {")
+
+          replace_once(p,
+          "function extractGenericRent(text) {\n  if (/preis\\s+auf\\s+anfrage|miete\\s*:\\s*auf\\s+anfrage|mietpreis\\s+(?:ab\\s+)?auf\\s+anfrage/i.test(text)) {\n    return { rent: null, rentEvidence: 'Preis auf Anfrage', rentConfidence: 'low', priceStatus: 'request' };\n  }\n\n  const monthly = matchEvidence(text, [",
+          "function extractGenericRent(text) {\n  if (/preis\\s+auf\\s+anfrage|miete\\s*:\\s*auf\\s+anfrage|mietpreis\\s+(?:ab\\s+)?auf\\s+anfrage/i.test(text)) {\n    return { rent: null, rentPerSqm: null, rentType: 'request', rentEvidence: 'Preis auf Anfrage', rentConfidence: 'low', priceStatus: 'request' };\n  }\n\n  const perSqm = matchEvidence(text, [\n    /(?:gesamtmiete|nettokaltmiete|nettomiete|monatsmiete|miete|pacht)[^\\d]{0,80}([0-9][0-9.,]*)\\s*(?:€|eur)\\s*(?:\\/|pro)?\\s*(?:m\\s*2|m²|m2|qm)/i,\n    /(?:nettokaltmiete|miete)\\s*\\/\\s*(?:m\\s*2|m²|m2|qm)[^\\d]{0,30}([0-9][0-9.,]*)\\s*(?:€|eur)/i\n  ]);\n  if (perSqm.value) return { rent: null, rentPerSqm: perSqm.value, rentType: 'per_sqm', rentEvidence: perSqm.evidence, rentConfidence: 'high', priceStatus: 'unit_price' };\n\n  const monthly = matchEvidence(text, [")
+
+          replace_once(p,
+          "  if (!monthly.value) return { rent: null, rentEvidence: null, rentConfidence: 'low', priceStatus: null };\n  return { rent: monthly.value, rentEvidence: monthly.evidence, rentConfidence: 'medium', priceStatus: 'confirmed' };\n}\n\nfunction extractAvailability(text) {",
+          "  if (!monthly.value) return { rent: null, rentPerSqm: null, rentType: null, rentEvidence: null, rentConfidence: 'low', priceStatus: null };\n  return { rent: monthly.value, rentPerSqm: null, rentType: 'monthly', rentEvidence: monthly.evidence, rentConfidence: 'medium', priceStatus: 'confirmed' };\n}\n\nfunction extractAvailability(text) {")
+
+          replace_once(p,
+          "    rent: rent.rent,\n    priceStatus: rent.priceStatus,",
+          "    rent: rent.rent,\n    rentPerSqm: rent.rentPerSqm ?? null,\n    rentType: rent.rentType || (rent.rent != null ? 'monthly' : null),\n    priceStatus: rent.priceStatus,")
+
+          # Enrichment must not resurrect a per-sqm price as monthly rent.
+          p='scripts/ingest/enrich-listing.js'
+          replace_once(p,
+          "      rent: facts.rent.amount ?? listing.rent ?? null,\n      rentType: facts.rent.type || listing.rentType || null,",
+          "      rent: facts.rent.amount ?? (listing.rentType === 'per_sqm' ? null : (listing.rent ?? null)),\n      rentPerSqm: listing.rentPerSqm ?? null,\n      rentType: facts.rent.status === 'known' ? (facts.rent.type || 'monthly') : (listing.rentType || null),")
+
+          # Diagnostics: count effective normalized facts, while keeping description recovery separate.
+          p='scripts/ingest/phase3b-report.js'
+          replace_once(p,
+          "  if (facts.rent.status === 'known') diagnostics.rentParsed += 1;\n  else if (facts.rent.status === 'request') diagnostics.rentPriceOnRequest += 1;\n  else diagnostics.rentMissing += 1;\n\n  if (facts.area.unitArea != null) diagnostics.areaParsed += 1;\n  else diagnostics.areaMissing += 1;",
+          "  const effectiveMonthlyRent = listing.rent != null && listing.rentType !== 'per_sqm';\n  const effectiveRequest = listing.priceStatus === 'request' || facts.rent.status === 'request';\n  if (effectiveMonthlyRent || facts.rent.status === 'known') diagnostics.rentParsed += 1;\n  else if (effectiveRequest) diagnostics.rentPriceOnRequest += 1;\n  else diagnostics.rentMissing += 1;\n\n  if (listing.unitArea != null || facts.area.unitArea != null) diagnostics.areaParsed += 1;\n  else diagnostics.areaMissing += 1;")
+
+          replace_once(p,
+          "  if (listing.rent == null && facts.rent.status === 'known') diagnostics.descriptionBackedRent += 1;\n  if (listing.unitArea == null && facts.area.unitArea != null) diagnostics.descriptionBackedArea += 1;",
+          "  if (listing.rent == null && listing.priceStatus !== 'request' && facts.rent.status === 'known') diagnostics.descriptionBackedRent += 1;\n  if (listing.unitArea == null && facts.area.unitArea != null) diagnostics.descriptionBackedArea += 1;")
+          PY
+
+      - name: Add regression tests
+        run: |
+          cat >> scripts/ingest/tests/phase3b-extraction.test.js.tmp <<'EOF'
+          EOF
+          node --check scripts/ingest/sources/brokers.js
+          node --check scripts/ingest/enrich-listing.js
+          node --check scripts/ingest/phase3b-report.js
+          node scripts/ingest/tests/ingestion.test.js
+          node scripts/ingest/tests/phase3b-extraction.test.js
+          node - <<'NODE'
+          const { candidateFromBrokerPage } = require('./scripts/ingest/sources/brokers');
+          const c = candidateFromBrokerPage({name:'Colliers',sourceName:'Colliers',sourceFamily:'broker',sourceQuality:'high'}, 'https://www.colliers.de/gewerbeimmobilien/objekt/test/', '<h1>Test Laden</h1><p>Ladenfläche 60 m². Miete: 23,00 €/m².</p>', new Date().toISOString());
+          if (c.rent !== null || c.rentPerSqm !== 23 || c.rentType !== 'per_sqm') throw new Error(JSON.stringify(c));
+          const e = candidateFromBrokerPage({name:'Engel & Völkers',sourceName:'Engel & Völkers',sourceFamily:'broker',sourceQuality:'high'}, 'https://www.engelvoelkers.com/de/de/exposes/test', '<h1>Test Laden</h1><p>Ladenfläche 55 m². Nettokaltmiete/m² 24 €.</p>', new Date().toISOString());
+          if (e.rent !== null || e.rentPerSqm !== 24 || e.rentType !== 'per_sqm') throw new Error(JSON.stringify(e));
+          NODE
+
+      - name: Commit and self-remove
+        run: |
+          git config user.name 'phase3b-fixbot'
+          git config user.email 'actions@users.noreply.github.com'
+          git rm .github/workflows/phase3b-rent-unit-fix.yml
+          git add scripts/ingest/sources/brokers.js scripts/ingest/enrich-listing.js scripts/ingest/phase3b-report.js
+          git commit -m 'fix: distinguish monthly and per-sqm broker rent'
+          git push origin HEAD:codex/phase3b-extraction-intelligence
