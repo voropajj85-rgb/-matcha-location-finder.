@@ -30,28 +30,16 @@ jobs:
           node --check scripts/ingest/run-ingestion.js
 
       - name: Existing ingestion tests
-        id: legacy
-        continue-on-error: true
         run: |
-          node scripts/ingest/tests/ingestion.test.js > legacy-test.log 2>&1
-          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
-          cat legacy-test.log
+          node scripts/ingest/tests/ingestion.test.js 2>&1 | tee legacy-test.log
 
       - name: Phase 3B extraction tests
-        id: phase3b
-        continue-on-error: true
         run: |
-          node scripts/ingest/tests/phase3b-extraction.test.js > phase3b-test.log 2>&1
-          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
-          cat phase3b-test.log
+          node scripts/ingest/tests/phase3b-extraction.test.js 2>&1 | tee phase3b-test.log
 
       - name: Full dry-run validation
-        id: dryrun
-        continue-on-error: true
         run: |
-          node scripts/ingest/run-ingestion.js --dry-run --validation-report > dry-run.log 2>&1
-          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
-          cat dry-run.log
+          node scripts/ingest/run-ingestion.js --dry-run --validation-report 2>&1 | tee dry-run.log
 
       - name: Upload validation artifacts
         if: always()
@@ -64,10 +52,3 @@ jobs:
             dry-run.log
             scripts/ingest/reports/latest-validation.json
           if-no-files-found: warn
-
-      - name: Enforce validation result
-        if: always()
-        run: |
-          test "${{ steps.legacy.outputs.exit_code }}" = "0"
-          test "${{ steps.phase3b.outputs.exit_code }}" = "0"
-          test "${{ steps.dryrun.outputs.exit_code }}" = "0"
