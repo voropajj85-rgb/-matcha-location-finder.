@@ -26,22 +26,25 @@ jobs:
               p = Path(path)
               s = p.read_text(encoding='utf-8')
               if old not in s:
-                  raise SystemExit(f'target not found in {path}: {old[:80]}')
+                  raise SystemExit(f'target not found in {path}: {old[:100]}')
               p.write_text(s.replace(old, new, 1), encoding='utf-8')
 
-          # Labelled rent remains valid even if NK/Kaution/Provision follows later.
           replace_once(
               'scripts/ingest/extract-listing-facts.js',
               "      const context = source.slice(Math.max(0, match.index - 50), Math.min(source.length, match.index + match[0].length + 50));\n      if (blocked.test(context)) continue;",
               "      const prefix = source.slice(Math.max(0, match.index - 60), match.index);\n      const labelled = /^(?:kaltmiete|nettokaltmiete|nettomiete|monatsmiete|mietpreis|miete|pacht)/i.test(match[0]);\n      if (!labelled && blocked.test(prefix)) continue;"
           )
 
-          # Compound '85 qm Verkaufs-/Ladenfläche' is a strong area signal,
-          # but plain 'Gesamtfläche 75 qm Verkaufsfläche 60 qm' must still resolve to 60.
           replace_once(
               'scripts/ingest/enrich-listing.js',
               "  add(new RegExp(`(?<value>[0-9][0-9.,]*)\\\\s*(?:m²|qm|m2)\\\\s*${high}`, 'ig'), 'sales_area', 105);",
               "  add(new RegExp(`(?<value>[0-9][0-9.,]*)\\\\s*(?:m²|qm|m2)\\\\s*verkaufs[\\\\s\\\\/-]+ladenfl[aä]che`, 'ig'), 'sales_area', 125);\n  add(new RegExp(`(?<value>[0-9][0-9.,]*)\\\\s*(?:m²|qm|m2)\\\\s*${high}`, 'ig'), 'sales_area', 105);"
+          )
+
+          replace_once(
+              'scripts/ingest/enrich-listing.js',
+              "  const seen = new Set();\n  return candidates.sort((a, b) => b.priority - a.priority).filter((candidate) => {",
+              "  const seen = new Set();\n  const hasCompound = candidates.some((candidate) => candidate.priority >= 125 && candidate.areaType === 'sales_area');\n  const filtered = hasCompound ? candidates.filter((candidate) => candidate.priority >= 125 || candidate.areaType !== 'sales_area') : candidates;\n  return filtered.sort((a, b) => b.priority - a.priority).filter((candidate) => {"
           )
 
           replace_once(
@@ -50,7 +53,6 @@ jobs:
               "  add(new RegExp(`(?<value>[0-9][0-9.,]*)\\\\s*(?:m²|qm|m2)\\\\s*verkaufs[\\\\s\\\\/-]+ladenfl[aä]che`, 'ig'), 'sales_area', 125, 'compound-area-before-label');\n  add(new RegExp(`(?<value>[0-9][0-9.,]*)\\\\s*(?:m²|qm|m2)\\\\s*${LABEL}`, 'ig'), 'sales_area', 105, 'area-before-label');"
           )
 
-          # Preserve structured JSONB semantics for future production writes.
           replace_once(
               'scripts/ingest/supabase-upsert.js',
               "    return {\n      known: Boolean(value.known),\n      value: value.value ?? null,\n      amount: value.amount ?? null\n    };",
