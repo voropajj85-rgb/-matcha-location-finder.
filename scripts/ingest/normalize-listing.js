@@ -8,13 +8,14 @@ const {
 function condition(value) {
   if (value && typeof value === 'object') {
     return {
-      known: Boolean(value.known),
-      value: value.value ?? null,
+      ...value,
+      known: value.known != null ? Boolean(value.known) : !['unknown', null, undefined].includes(value.status),
+      value: value.value ?? value.evidence?.raw ?? null,
       amount: value.amount ?? null
     };
   }
 
-  return { known: value != null, value: value ?? null, amount: null };
+  return { known: value != null, value: value ?? null, amount: null, status: value != null ? 'known' : 'unknown' };
 }
 
 function normalizeListing(candidate, detectedAt = new Date().toISOString()) {
@@ -47,16 +48,29 @@ function normalizeListing(candidate, detectedAt = new Date().toISOString()) {
     district: candidate.district || null,
     unitArea: candidate.unitArea ?? candidate.area ?? null,
     area: candidate.unitArea ?? candidate.area ?? null,
+    areaType: candidate.areaType ?? candidate.rawSourceData?.areaType ?? null,
     projectTotalArea: candidate.projectTotalArea ?? null,
     rent: candidate.rent ?? null,
+    rentType: candidate.rentType ?? null,
     priceStatus: candidate.priceStatus || (candidate.rent == null && /preis\s+auf\s+anfrage|auf\s+anfrage/i.test(`${candidate.rawSourceData?.rentEvidence || ''} ${candidate.rawSourceData?.sourcePriceText || ''}`) ? 'request' : null),
-    nk: candidate.nebenkosten ?? candidate.nk ?? null,
+    nk: candidate.nebenkosten?.amount ?? candidate.nebenkosten ?? candidate.nk ?? null,
     nebenkosten: condition(candidate.nebenkosten ?? candidate.nk ?? null),
     provision: condition(candidate.provision ?? null),
     abloese: condition(candidate.abloese ?? null),
     kaution: condition(candidate.kaution ?? null),
+    usageType: candidate.usageType || null,
     gastroSuitability: candidate.gastroSuitability || 'unknown',
     gastroEvidence: candidate.gastroEvidence || null,
+    abluft: candidate.abluft || { status: 'unknown', evidence: null },
+    terrace: candidate.terrace || { status: 'unknown', evidence: null },
+    outdoorSeating: candidate.outdoorSeating ?? null,
+    openingHoursRestrictions: candidate.openingHoursRestrictions || null,
+    wc: candidate.wc || { status: 'unknown', evidence: null },
+    waterConnection: candidate.waterConnection || { status: 'unknown', evidence: null },
+    availableFrom: candidate.availableFrom || null,
+    existingBusiness: candidate.existingBusiness || 'none',
+    inventoryIncluded: candidate.inventoryIncluded ?? 'unknown',
+    takeoverRequired: candidate.takeoverRequired ?? 'unknown',
     availabilityStatus,
     lastVerifiedAt: null,
     verificationMethod: 'not-verified',
