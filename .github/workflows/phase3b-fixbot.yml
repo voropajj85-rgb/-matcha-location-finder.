@@ -22,89 +22,42 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          p = Path('scripts/ingest/extract-listing-facts.js')
-          s = p.read_text(encoding='utf-8')
-          old = """  const patterns = [
-            /(?:kaltmiete|nettokaltmiete|nettomiete|monatsmiete|mietpreis|miete|pacht)\\s*:?[\\s-]*([0-9][0-9.\\s]*(?:,[0-9]{1,2})?)\\s*(?:€|EUR)/ig,
-            /([0-9][0-9.\\s]*(?:,[0-9]{1,2})?)\\s*(?:€|EUR)\\s*(?:\\/\\s*monat|monatlich|pro\\s+monat)/ig
-          ];
-          for (const pattern of patterns) {
-            for (const match of source.matchAll(pattern)) {
-              const context = source.slice(Math.max(0, match.index - 50), Math.min(source.length, match.index + match[0].length + 50));
-              if (blocked.test(context)) continue;
-              const amount = parseNumberFromText(match[1].replace(/\\s/g, ''));
-              if (Number.isFinite(amount) && amount >= 100 && amount <= 30000) {
-                return { amount, status: 'known', type: 'monthly', evidence: ev(match[0]) };
-              }
-            }
-          }
-          """.replace('          ', '', 1)
-          new = """  const patterns = [
-            { regex: /(?:kaltmiete|nettokaltmiete|nettomiete|monatsmiete|mietpreis|miete|pacht)\\s*:?[\\s-]*([0-9][0-9.\\s]*(?:,[0-9]{1,2})?)\\s*(?:€|EUR)/ig, labelled: true },
-            { regex: /([0-9][0-9.\\s]*(?:,[0-9]{1,2})?)\\s*(?:€|EUR)\\s*(?:\\/\\s*monat|monatlich|pro\\s+monat)/ig, labelled: false }
-          ];
-          for (const { regex, labelled } of patterns) {
-            for (const match of source.matchAll(regex)) {
-              const prefix = source.slice(Math.max(0, match.index - 60), match.index);
-              if (!labelled && blocked.test(prefix)) continue;
-              const amount = parseNumberFromText(match[1].replace(/\\s/g, ''));
-              if (Number.isFinite(amount) && amount >= 100 && amount <= 30000) {
-                return { amount, status: 'known', type: 'monthly', evidence: ev(match[0]) };
-              }
-            }
-          }
-          """.replace('          ', '', 1)
-          if old not in s:
-              raise SystemExit('rent replacement target not found')
-          p.write_text(s.replace(old, new), encoding='utf-8')
-
-          p = Path('scripts/ingest/enrich-listing.js')
-          s = p.read_text(encoding='utf-8')
-          old = "add(new RegExp(`(?<value>[0-9][0-9.,]*)\\\\s*(?:m²|qm|m2)\\\\s*${high}`, 'ig'), 'sales_area', 105);"
-          new = "add(new RegExp(`(?<value>[0-9][0-9.,]*)\\\\s*(?:m²|qm|m2)\\\\s*${high}`, 'ig'), 'sales_area', 120);"
-          if old not in s:
-              raise SystemExit('legacy area priority replacement target not found')
-          p.write_text(s.replace(old, new), encoding='utf-8')
-
-          p = Path('scripts/ingest/extract-listing-facts.js')
-          s = p.read_text(encoding='utf-8')
-          old = "add(new RegExp(`(?<value>[0-9][0-9.,]*)\\\\s*(?:m²|qm|m2)\\\\s*${LABEL}`, 'ig'), 'sales_area', 105, 'area-before-label');"
-          new = "add(new RegExp(`(?<value>[0-9][0-9.,]*)\\\\s*(?:m²|qm|m2)\\\\s*${LABEL}`, 'ig'), 'sales_area', 120, 'area-before-label');"
-          if old not in s:
-              raise SystemExit('modern area priority replacement target not found')
-          p.write_text(s.replace(old, new), encoding='utf-8')
-
-          for path in ['scripts/ingest/normalize-listing.js', 'scripts/ingest/supabase-upsert.js']:
+          def replace_once(path, old, new):
               p = Path(path)
               s = p.read_text(encoding='utf-8')
-              old = """  if (value && typeof value === 'object') {
-            return {
-              known: Boolean(value.known),
-              value: value.value ?? null,
-              amount: value.amount ?? null
-            };
-          }
-          """.replace('          ', '', 1)
-              new = """  if (value && typeof value === 'object') {
-            return {
-              ...value,
-              known: value.known != null ? Boolean(value.known) : value.status !== 'unknown',
-              value: value.value ?? value.evidence?.raw ?? null,
-              amount: value.amount ?? null
-            };
-          }
-          """.replace('          ', '', 1)
               if old not in s:
-                  raise SystemExit(f'condition replacement target not found: {path}')
-              p.write_text(s.replace(old, new), encoding='utf-8')
+                  raise SystemExit(f'target not found in {path}: {old[:80]}')
+              p.write_text(s.replace(old, new, 1), encoding='utf-8')
 
-          p = Path('scripts/ingest/supabase-upsert.js')
-          s = p.read_text(encoding='utf-8')
-          old = "    nebenkosten: listing.nk ?? listing.nebenkosten?.value ?? null,"
-          new = "    nebenkosten: listing.nk ?? listing.nebenkosten?.amount ?? (typeof listing.nebenkosten === 'number' ? listing.nebenkosten : null),"
-          if old not in s:
-              raise SystemExit('nebenkosten row replacement target not found')
-          p.write_text(s.replace(old, new), encoding='utf-8')
+          replace_once(
+              'scripts/ingest/extract-listing-facts.js',
+              "      const context = source.slice(Math.max(0, match.index - 50), Math.min(source.length, match.index + match[0].length + 50));\n      if (blocked.test(context)) continue;",
+              "      const prefix = source.slice(Math.max(0, match.index - 60), match.index);\n      const labelled = /^(?:kaltmiete|nettokaltmiete|nettomiete|monatsmiete|mietpreis|miete|pacht)/i.test(match[0]);\n      if (!labelled && blocked.test(prefix)) continue;"
+          )
+
+          replace_once(
+              'scripts/ingest/enrich-listing.js',
+              "add(new RegExp(`(?<value>[0-9][0-9.,]*)\\\\s*(?:m²|qm|m2)\\\\s*${high}`, 'ig'), 'sales_area', 105);",
+              "add(new RegExp(`(?<value>[0-9][0-9.,]*)\\\\s*(?:m²|qm|m2)\\\\s*${high}`, 'ig'), 'sales_area', 120);"
+          )
+
+          replace_once(
+              'scripts/ingest/extract-listing-facts.js',
+              "add(new RegExp(`(?<value>[0-9][0-9.,]*)\\\\s*(?:m²|qm|m2)\\\\s*${LABEL}`, 'ig'), 'sales_area', 105, 'area-before-label');",
+              "add(new RegExp(`(?<value>[0-9][0-9.,]*)\\\\s*(?:m²|qm|m2)\\\\s*${LABEL}`, 'ig'), 'sales_area', 120, 'area-before-label');"
+          )
+
+          replace_once(
+              'scripts/ingest/supabase-upsert.js',
+              "    return {\n      known: Boolean(value.known),\n      value: value.value ?? null,\n      amount: value.amount ?? null\n    };",
+              "    return {\n      ...value,\n      known: value.known != null ? Boolean(value.known) : value.status !== 'unknown',\n      value: value.value ?? value.evidence?.raw ?? null,\n      amount: value.amount ?? null\n    };"
+          )
+
+          replace_once(
+              'scripts/ingest/supabase-upsert.js',
+              "    nebenkosten: listing.nk ?? listing.nebenkosten?.value ?? null,",
+              "    nebenkosten: listing.nk ?? listing.nebenkosten?.amount ?? (typeof listing.nebenkosten === 'number' ? listing.nebenkosten : null),"
+          )
           PY
 
       - name: Run targeted tests
@@ -121,6 +74,6 @@ jobs:
           git config user.name 'phase3b-fixbot'
           git config user.email 'actions@users.noreply.github.com'
           git rm .github/workflows/phase3b-fixbot.yml
-          git add scripts/ingest/extract-listing-facts.js scripts/ingest/enrich-listing.js scripts/ingest/normalize-listing.js scripts/ingest/supabase-upsert.js
+          git add scripts/ingest/extract-listing-facts.js scripts/ingest/enrich-listing.js scripts/ingest/supabase-upsert.js
           git commit -m 'fix: harden Phase 3B extraction semantics'
           git push origin HEAD:codex/phase3b-extraction-intelligence
