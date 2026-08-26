@@ -27,6 +27,7 @@ jobs:
           node --check scripts/ingest/extract-listing-facts.js
           node --check scripts/ingest/enrich-listing.js
           node --check scripts/ingest/normalize-listing.js
+          node --check scripts/ingest/phase3b-report.js
           node --check scripts/ingest/run-ingestion.js
 
       - name: Existing ingestion tests
@@ -41,6 +42,10 @@ jobs:
         run: |
           node scripts/ingest/run-ingestion.js --dry-run --validation-report 2>&1 | tee dry-run.log
 
+      - name: Add Phase 3B diagnostics
+        run: |
+          node scripts/ingest/phase3b-report.js scripts/ingest/reports/latest-validation.json 2>&1 | tee phase3b-report.log
+
       - name: Upload validation artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -50,5 +55,6 @@ jobs:
             legacy-test.log
             phase3b-test.log
             dry-run.log
+            phase3b-report.log
             scripts/ingest/reports/latest-validation.json
           if-no-files-found: warn
