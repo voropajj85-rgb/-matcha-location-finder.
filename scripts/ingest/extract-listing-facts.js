@@ -44,8 +44,9 @@ function extractRent(text) {
   ];
   for (const pattern of patterns) {
     for (const match of source.matchAll(pattern)) {
-      const context = source.slice(Math.max(0, match.index - 50), Math.min(source.length, match.index + match[0].length + 50));
-      if (blocked.test(context)) continue;
+      const prefix = source.slice(Math.max(0, match.index - 60), match.index);
+      const labelled = /^(?:kaltmiete|nettokaltmiete|nettomiete|monatsmiete|mietpreis|miete|pacht)/i.test(match[0]);
+      if (!labelled && blocked.test(prefix)) continue;
       const amount = parseNumberFromText(match[1].replace(/\s/g, ''));
       if (Number.isFinite(amount) && amount >= 100 && amount <= 30000) {
         return { amount, status: 'known', type: 'monthly', evidence: ev(match[0]) };
@@ -128,6 +129,7 @@ function extractArea(text) {
   };
 
   add(new RegExp(`${LABEL}\\s*(?::|mit)?\\s*(?:ca\\.?|circa|ungef[aä]hr)?\\s*(?<value>[0-9][0-9.,]*)\\s*(?:m²|qm|m2)`, 'ig'), 'sales_area', 110, 'label-before-area');
+  add(new RegExp(`(?<value>[0-9][0-9.,]*)\\s*(?:m²|qm|m2)\\s*verkaufs[\\s\\/-]+ladenfl[aä]che`, 'ig'), 'sales_area', 125, 'compound-area-before-label');
   add(new RegExp(`(?<value>[0-9][0-9.,]*)\\s*(?:m²|qm|m2)\\s*${LABEL}`, 'ig'), 'sales_area', 105, 'area-before-label');
   add(/(?:teilbar\s+ab|teilfl[aä]che\s+ab)\s*:?[\s-]*(?:ca\.?\s*)?(?<value>[0-9][0-9.,]*)\s*(?:m²|qm|m2)/ig, 'divisible_minimum', 100, 'divisible-area');
   add(new RegExp(`${MEDIUM}\\s*:?[\\s-]*(?:ca\\.?|circa|ungef[aä]hr)?\\s*(?<value>[0-9][0-9.,]*)\\s*(?:m²|qm|m2)`, 'ig'), 'usable_area', 80, 'usable-area');

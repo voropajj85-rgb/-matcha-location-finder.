@@ -87,6 +87,7 @@ function jsonLdFacts(html) {
 
 function collectRawFinancialEvidence(text) {
   const patterns = [
+    /abl[oö]se\s+\d{1,3}(?:\.\d{3})*(?:,\d+)?\s*(?:€|eur)/gi,
     /kaution[^.;|]{0,100}/gi,
     /provision[^.;|]{0,100}/gi,
     /provisionsfrei[^.;|]{0,80}/gi,
@@ -152,10 +153,13 @@ function collectAreaCandidates(text) {
     }
   };
   add(new RegExp(`${high}\\s*(?::|mit)?\\s*(?:ca\\.?|circa|ungef[aä]hr)?\\s*(?<value>[0-9][0-9.,]*)\\s*(?:m²|qm|m2)`, 'ig'), 'sales_area', 110);
+  add(new RegExp(`(?<value>[0-9][0-9.,]*)\\s*(?:m²|qm|m2)\\s*verkaufs[\\s\\/-]+ladenfl[aä]che`, 'ig'), 'sales_area', 125);
   add(new RegExp(`(?<value>[0-9][0-9.,]*)\\s*(?:m²|qm|m2)\\s*${high}`, 'ig'), 'sales_area', 105);
   add(new RegExp(`${medium}\\s*:?[\\s-]*(?:ca\\.?|circa|ungef[aä]hr)?\\s*(?<value>[0-9][0-9.,]*)\\s*(?:m²|qm|m2)`, 'ig'), 'main_unit_area', 60);
   const seen = new Set();
-  return candidates.sort((a, b) => b.priority - a.priority).filter((candidate) => {
+  const hasCompound = candidates.some((candidate) => candidate.priority >= 125 && candidate.areaType === 'sales_area');
+  const filtered = hasCompound ? candidates.filter((candidate) => candidate.priority >= 125 || candidate.areaType !== 'sales_area') : candidates;
+  return filtered.sort((a, b) => b.priority - a.priority).filter((candidate) => {
     const key = `${candidate.value}:${candidate.areaType}`;
     if (seen.has(key)) return false;
     seen.add(key);
