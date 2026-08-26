@@ -25,6 +25,7 @@ const { checkListing, classifyHtml } = require('../../check-listings');
 const { calculateBusinessFit } = require('../business-fit');
 const { candidateFromPage: stadtCandidateFromPage } = require('../sources/stadt-muenchen');
 const { candidateFromBrokerPage } = require('../sources/brokers');
+const kleinanzeigenSource = require('../sources/kleinanzeigen');
 const { calculateProjectRelevance } = require('../project-relevance');
 
 async function run() {
@@ -46,6 +47,8 @@ async function run() {
   );
   assert.strictEqual(isDirectListingUrl('https://www.colliers.de/gewerbeimmobilien/objekt/laden-muenchen-m-p4485-g1-e1/'), true);
   assert.strictEqual(isDirectListingUrl('https://www.colliers.de/gewerbeimmobilien/muenchen/einzelhandel/'), false);
+  assert.strictEqual(isDirectListingUrl('https://www.engelvoelkers.com/de/de/exposes/11111111-2222-3333-4444-555555555555'), true);
+  assert.strictEqual(isDirectListingUrl('https://www.immobilie1.de/80799-munchen-ladeneinzelhandel-premium-ladenflache-32834399'), true);
 
   assert.strictEqual(isSearchPageUrl('https://www.kleinanzeigen.de/s-muenchen/kiosk-mieten/k0l6411'), true);
   assert.strictEqual(isPotentialMatchaListingUrl('https://www.kleinanzeigen.de/s-anzeige/bueroraum-in-muenchen/111-277-6411'), false);
@@ -315,6 +318,33 @@ async function run() {
     rent: 2800,
     gastroSuitability: 'possible'
   }).level, 'acceptable');
+  assert.strictEqual(calculateProjectRelevance({
+    listingType: 'direct_listing',
+    sourceName: 'Colliers',
+    sourceFamily: 'broker',
+    unitArea: 47,
+    rent: null,
+    priceStatus: 'request',
+    gastroSuitability: 'possible',
+    rawSourceData: { sourceQuality: 'high' }
+  }).level, 'acceptable');
+  assert.strictEqual(calculateProjectRelevance({
+    listingType: 'direct_listing',
+    sourceName: 'Kleinanzeigen',
+    sourceFamily: 'portal',
+    unitArea: 47,
+    rent: null,
+    priceStatus: 'request',
+    gastroSuitability: 'possible',
+    rawSourceData: { sourceQuality: 'medium' }
+  }).level, 'reject');
+  assert.strictEqual(calculateProjectRelevance({
+    listingType: 'direct_listing',
+    unitArea: 47,
+    rent: 1900,
+    gastroSuitability: 'possible',
+    rawSourceData: { outsideMunich: true }
+  }).level, 'reject');
   assert.ok(['strong', 'acceptable'].includes(calculateProjectRelevance({
     listingType: 'direct_listing',
     unitArea: 60,
@@ -339,7 +369,7 @@ async function run() {
     fetchPage: async () => ({
       status: 200,
       finalUrl: 'https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411',
-      body: '<title>Cafe Laden München | Kleinanzeigen.de</title><meta name="description" content="Cafe Laden mit Ladenfläche 45 m², Kaltmiete 1600 €, Kaution nach Absprache">'
+      body: '<title>Cafe Laden München | Kleinanzeigen.de</title><main>Cafe Laden mit Ladenfläche 45 m², Kaltmiete 1600 €, Kaution 3 Monatsmieten, Provision 3,57 MM, provisionsfrei, Ablöse 25.000 €, Nebenkosten 450 €, zzgl. NK, Inventar gegen Ablöse</main>'
     })
   });
 
@@ -348,6 +378,49 @@ async function run() {
   assert.strictEqual(enriched.unitArea, 45);
   assert.strictEqual(enriched.rawSourceData.rentConfidence, 'high');
   assert.strictEqual(enriched.gastroSuitability, 'possible');
+  assert.ok(enriched.rawSourceData.rawDescription.includes('Cafe Laden'));
+  assert.ok(enriched.rawSourceData.financialEvidence.some((evidence) => /Kaution/i.test(evidence)));
+  assert.ok(enriched.rawSourceData.financialEvidence.some((evidence) => /Provision 3,57 MM/i.test(evidence)));
+  assert.ok(enriched.rawSourceData.financialEvidence.some((evidence) => /provisionsfrei/i.test(evidence)));
+  assert.ok(enriched.rawSourceData.financialEvidence.some((evidence) => /Ablöse 25\.000 €/i.test(evidence)));
+  assert.ok(enriched.rawSourceData.financialEvidence.some((evidence) => /Nebenkosten 450 €/i.test(evidence)));
+  assert.ok(enriched.rawSourceData.financialEvidence.some((evidence) => /zzgl\. NK/i.test(evidence)));
+  assert.ok(enriched.rawSourceData.financialEvidence.some((evidence) => /Inventar gegen Ablöse/i.test(evidence)));
+
+  const brokerEvidence = candidateFromBrokerPage({
+    sourceName: 'Engel & Völkers',
+    sourceFamily: 'broker',
+    sourceQuality: 'high'
+  }, 'https://www.engelvoelkers.com/de/de/exposes/11111111-2222-3333-4444-555555555555', '<h1>Café Laden München</h1><p>Ladenfläche 48 m². Preis auf Anfrage. Kaution 3 Monatsmieten. Provision nach Vereinbarung. Ablöse 25000 €. Nebenkosten 450 €. Einzelhandel München.</p>', '2026-08-23T10:00:00.000Z');
+  assert.strictEqual(brokerEvidence.priceStatus, 'request');
+  assert.strictEqual(brokerEvidence.rent, null);
+  assert.ok(brokerEvidence.rawSourceData.rawDescription.includes('Kaution 3 Monatsmieten'));
+  assert.strictEqual(brokerEvidence.rawSourceData.sourceQuality, 'high');
+
+  assert.strictEqual(
+    kleinanzeigenSource.paginatedUrl('https://www.kleinanzeigen.de/s-muenchen/kiosk-mieten/k0l6411', 2),
+    'https://www.kleinanzeigen.de/s-muenchen/kiosk-mieten/seite:2/k0l6411'
+  );
+
+  const seenPages = [];
+  const kleinDiscovery = await kleinanzeigenSource.discover({
+    now: '2026-08-23T10:00:00.000Z',
+    rateLimitMs: 0,
+    pageLimit: 2,
+    fetchPage: async (url) => {
+      seenPages.push(url);
+      if (url.includes('seite:2')) return { finalUrl: url, body: '' };
+      return {
+        finalUrl: url,
+        body: '<a href="https://www.kleinanzeigen.de/s-anzeige/cafe-laden-muenchen/123-277-6411">Cafe</a>'
+      };
+    }
+  });
+  assert.strictEqual(kleinDiscovery.candidates.length, 1);
+  assert.ok(kleinDiscovery.meta.queries >= 10);
+  assert.ok(kleinDiscovery.meta.pagesScanned >= 2);
+  assert.ok(kleinDiscovery.meta.duplicateLinks > 0);
+  assert.ok(seenPages.some((url) => url.includes('seite:2')));
 
   assert.strictEqual(getValidExternalUrl({ listingType: 'direct_listing', url: null }), null);
   assert.strictEqual(getValidExternalUrl({ listingType: 'direct_listing', url: '' }), null);
@@ -395,6 +468,20 @@ async function run() {
     title: 'Cafe',
     verifiedSummary: 'Verified direct listing'
   }), true);
+  assert.strictEqual(isUsableCandidate({
+    listingType: 'direct_listing',
+    availabilityStatus: 'active',
+    sourceName: 'Kleinanzeigen',
+    sourceFamily: 'portal',
+    url: 'https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411',
+    dataCompleteness: 100,
+    rent: null,
+    priceStatus: 'request',
+    unitArea: 45,
+    title: 'Cafe',
+    verifiedSummary: 'Verified direct listing',
+    rawSourceData: { sourceQuality: 'medium', rentEvidence: 'Preis auf Anfrage' }
+  }), false);
   assert.strictEqual(isSafeForProduction({
     listingType: 'direct_listing',
     availabilityStatus: 'active',
@@ -653,6 +740,18 @@ async function run() {
     status: 200
   }, '<html><h1>Laden München</h1><p>Dieses Objekt ist nicht mehr verfügbar.</p></html>', 'https://www.colliers.de/gewerbeimmobilien/objekt/laden-muenchen-archiviert/', '2026-08-23T10:00:00.000Z');
   assert.strictEqual(colliersArchived.availabilityStatus, 'dead');
+
+  const engelActive = classifyHtml({
+    id: 'engel-active',
+    source: 'Engel & Völkers',
+    listingType: 'direct_listing',
+    url: 'https://www.engelvoelkers.com/de/de/exposes/11111111-2222-3333-4444-555555555555',
+    title: 'Café Laden München'
+  }, {
+    ok: true,
+    status: 200
+  }, '<html><h1>Café Laden München</h1><p>Exposé Einzelhandel Kontakt München Mietfläche 48 m²</p></html>', 'https://www.engelvoelkers.com/de/de/exposes/11111111-2222-3333-4444-555555555555', '2026-08-23T10:00:00.000Z');
+  assert.strictEqual(engelActive.availabilityStatus, 'active');
 
   const blocked = classifyHtml({
     id: 'blocked',

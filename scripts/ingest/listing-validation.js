@@ -5,7 +5,7 @@ const {
 } = require('./utils');
 const { calculateDataCompleteness } = require('./data-completeness');
 const { calculateBusinessFit, isBusinessFitVisible } = require('./business-fit');
-const { calculateProjectRelevance, isPriceOnRequest } = require('./project-relevance');
+const { calculateProjectRelevance, isPriceOnRequest, isTrustedPriceOnRequestSource } = require('./project-relevance');
 
 function getSourceUrl(listing) {
   return listing.sourceUrl || listing.url || listing.canonicalUrl || null;
@@ -15,12 +15,8 @@ function isDirectListing(listing) {
   return listing.listingType === 'direct_listing';
 }
 
-function hasHighSourceQuality(listing) {
-  return listing.sourceQuality === 'high' || listing.rawSourceData?.sourceQuality === 'high';
-}
-
 function allowsPriceOnRequest(listing) {
-  return listing.rent == null && isPriceOnRequest(listing) && hasHighSourceQuality(listing);
+  return listing.rent == null && isPriceOnRequest(listing) && isTrustedPriceOnRequestSource(listing);
 }
 
 function getValidExternalUrl(listing) {

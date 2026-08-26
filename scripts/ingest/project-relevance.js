@@ -1,3 +1,5 @@
+const { isNearbyExcludedLocation } = require('./utils');
+
 const defaultProjectConfig = {
   city: 'München',
   targetArea: {
@@ -36,11 +38,30 @@ function hasNegativeGastroSignal(listing) {
 
 function isPriceOnRequest(listing) {
   const evidence = `${listing.rawSourceData?.rentEvidence || ''} ${listing.rawSourceData?.sourcePriceText || ''} ${listing.verifiedSummary || ''}`;
-  return /preis\s+auf\s+anfrage|miete\s*:\s*auf\s+anfrage|mietpreis\s+(?:ab\s+)?auf\s+anfrage/i.test(evidence);
+  return listing.priceStatus === 'request'
+    || /preis\s+auf\s+anfrage|miete\s*:\s*auf\s+anfrage|mietpreis\s+(?:ab\s+)?auf\s+anfrage/i.test(evidence);
 }
 
-function hasHighSourceQuality(listing) {
-  return listing.sourceQuality === 'high' || listing.rawSourceData?.sourceQuality === 'high';
+function isTrustedPriceOnRequestSource(listing) {
+  const source = `${listing.sourceName || listing.source || ''} ${listing.sourceUrl || listing.url || ''}`.toLowerCase();
+  const quality = listing.sourceQuality || listing.rawSourceData?.sourceQuality || null;
+
+  if (/colliers/.test(source)) return true;
+  if (/engelvoelkers|engel\s*&\s*v[oö]lkers/.test(source)) return true;
+  if (/stadt\.muenchen\.de|stadt münchen|stadt muenchen/.test(source) && listing.listingType === 'direct_listing') return true;
+  return listing.sourceFamily === 'broker' && quality === 'high';
+}
+
+function isOutsideMunich(listing) {
+  if (listing.rawSourceData?.outsideMunich) return true;
+  const locationEvidence = [
+    listing.address,
+    listing.district,
+    listing.location,
+    listing.rawSourceData?.locationEvidence,
+    listing.rawSourceData?.addressEvidence
+  ].filter(Boolean).join(' ');
+  return isNearbyExcludedLocation(locationEvidence);
 }
 
 function calculateProjectRelevance(listing, projectConfig = defaultProjectConfig) {
@@ -56,11 +77,15 @@ function calculateProjectRelevance(listing, projectConfig = defaultProjectConfig
   };
   const area = unitArea(listing);
   const rent = listing.rent ?? null;
-  const priceOnRequest = rent == null && isPriceOnRequest(listing) && hasHighSourceQuality(listing);
+  const priceOnRequest = rent == null && isPriceOnRequest(listing) && isTrustedPriceOnRequestSource(listing);
   const reasons = [];
   const rejectReasons = [];
   let score = 0;
   let areaIsOutsideTarget = false;
+
+  if (isOutsideMunich(listing)) {
+    rejectReasons.push('outside Munich target area');
+  }
 
   if (area == null) {
     rejectReasons.push('unit area is not confirmed');
@@ -81,7 +106,7 @@ function calculateProjectRelevance(listing, projectConfig = defaultProjectConfig
 
   if (rent == null) {
     if (priceOnRequest) {
-      reasons.push('rent is explicitly price on request from high-quality broker source');
+      reasons.push('rent is explicitly price on request');
     } else {
       rejectReasons.push('rent is not confirmed');
     }
@@ -130,5 +155,6 @@ function calculateProjectRelevance(listing, projectConfig = defaultProjectConfig
 module.exports = {
   calculateProjectRelevance,
   hasNegativeGastroSignal,
-  isPriceOnRequest
+  isPriceOnRequest,
+  isTrustedPriceOnRequestSource
 };

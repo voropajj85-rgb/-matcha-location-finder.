@@ -49,6 +49,7 @@ function normalizeListing(candidate, detectedAt = new Date().toISOString()) {
     area: candidate.unitArea ?? candidate.area ?? null,
     projectTotalArea: candidate.projectTotalArea ?? null,
     rent: candidate.rent ?? null,
+    priceStatus: candidate.priceStatus || (candidate.rent == null && /preis\s+auf\s+anfrage|auf\s+anfrage/i.test(`${candidate.rawSourceData?.rentEvidence || ''} ${candidate.rawSourceData?.sourcePriceText || ''}`) ? 'request' : null),
     nk: candidate.nebenkosten ?? candidate.nk ?? null,
     nebenkosten: condition(candidate.nebenkosten ?? candidate.nk ?? null),
     provision: condition(candidate.provision ?? null),

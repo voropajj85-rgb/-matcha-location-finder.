@@ -1,19 +1,73 @@
-const { extractLinks, parseNumberFromText } = require('../utils');
+const { canonicalizeListingUrl, extractLinks, isMunichTargetText, parseNumberFromText } = require('../utils');
 
 const ADAPTERS = [
   {
     name: 'Colliers',
-    catalogUrl: 'https://www.colliers.de/gewerbeimmobilien/muenchen/einzelhandel/',
+    catalogUrls: [
+      'https://www.colliers.de/gewerbeimmobilien/muenchen/einzelhandel/',
+      'https://www.colliers.de/gewerbeimmobilien/muenchen/'
+    ],
     directPattern: /colliers\.de\/gewerbeimmobilien\/objekt\//i,
     sourceFamily: 'broker',
-    sourceName: 'Colliers'
+    sourceName: 'Colliers',
+    sourceQuality: 'high',
+    pageLimit: 3
   },
   {
     name: 'JLL',
-    catalogUrl: 'https://gewerbeimmobilien.jll.de/einzelhandel/ladenflaechen-mieten-muenchen',
+    catalogUrls: ['https://gewerbeimmobilien.jll.de/einzelhandel/ladenflaechen-mieten-muenchen'],
     directPattern: /gewerbeimmobilien\.jll\.de\/einzelhandel\/(?!ladenflaechen-mieten-muenchen)([^/?#]+)/i,
     sourceFamily: 'broker',
-    sourceName: 'JLL'
+    sourceName: 'JLL',
+    sourceQuality: 'medium'
+  },
+  {
+    name: 'Engel & Völkers',
+    catalogUrls: [
+      'https://www.engelvoelkers.com/de/de/immobilien/com/mieten/gewerbeimmobilien/bayern/muenchen',
+      'https://www.engelvoelkers.com/de/de/immobilien/com/mieten/laden/bayern'
+    ],
+    directPattern: /engelvoelkers\.com\/de\/de\/exposes\//i,
+    sourceFamily: 'broker',
+    sourceName: 'Engel & Völkers',
+    sourceQuality: 'high',
+    pageLimit: 2
+  },
+  {
+    name: 'immobilie1',
+    catalogUrls: [
+      'https://www.immobilie1.de/immobilien/bayern/muenchen/einzelhandel/mieten',
+      'https://www.immobilie1.de/immobilien/bayern/muenchen/gastgewerbe/mieten'
+    ],
+    directPattern: /immobilie1\.de\/(?:\d{5}-)?[^/]+-\d{6,}/i,
+    sourceFamily: 'broker',
+    sourceName: 'immobilie1',
+    sourceQuality: 'medium',
+    pageLimit: 2
+  },
+  {
+    name: 'Aigner Immobilien',
+    catalogUrls: ['https://aigner-immobilien.de/immobilie/buero-praxis-ausstellungsraeume-80469-muenchen-glockenbachviertel-44299/'],
+    directPattern: /aigner-immobilien\.de\/immobilie\//i,
+    sourceFamily: 'broker',
+    sourceName: 'Aigner Immobilien',
+    sourceQuality: 'medium'
+  },
+  {
+    name: 'Rohrer Immobilien',
+    catalogUrls: ['https://www.rohrer-immobilien.de/gewerbeimmobilien/'],
+    directPattern: /rohrer-immobilien\.de\/.*(?:gewerbe|immobilie)/i,
+    sourceFamily: 'broker',
+    sourceName: 'Rohrer Immobilien',
+    sourceQuality: 'medium'
+  },
+  {
+    name: 'BNP Paribas Real Estate',
+    catalogUrls: ['https://www.bnppre.de/immobilien-mieten/gewerbe/muenchen/'],
+    directPattern: /bnppre\.de\/.*(?:mieten|immobilie|gewerbe)/i,
+    sourceFamily: 'broker',
+    sourceName: 'BNP Paribas Real Estate',
+    sourceQuality: 'medium'
   }
 ];
 
@@ -33,6 +87,10 @@ const CURATED_LEADS = [
 
 function plain(html) {
   return String(html || '').replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function rawDescription(text) {
+  return String(text || '').slice(0, 9000).trim() || null;
 }
 
 function titleFromHtml(html) {
@@ -85,7 +143,7 @@ function extractColliersArea(text) {
 
 function extractColliersRent(text) {
   if (/preis\s+auf\s+anfrage|miete\s*:\s*auf\s+anfrage|mietpreis\s+(?:ab\s+)?auf\s+anfrage/i.test(text)) {
-    return { rent: null, rentEvidence: 'Preis auf Anfrage', rentConfidence: 'low' };
+    return { rent: null, rentEvidence: 'Preis auf Anfrage', rentConfidence: 'low', priceStatus: 'request' };
   }
 
   const monthly = matchEvidence(text, [
@@ -93,8 +151,22 @@ function extractColliersRent(text) {
     /(?:miete|mietpreis|nettomiete|pacht)[^\d]{0,80}([0-9][0-9.,]*)\s*(?:€|eur)/i
   ]);
 
-  if (!monthly.value) return { rent: null, rentEvidence: null, rentConfidence: 'low' };
-  return { rent: monthly.value, rentEvidence: monthly.evidence, rentConfidence: 'high' };
+  if (!monthly.value) return { rent: null, rentEvidence: null, rentConfidence: 'low', priceStatus: null };
+  return { rent: monthly.value, rentEvidence: monthly.evidence, rentConfidence: 'high', priceStatus: 'confirmed' };
+}
+
+function extractGenericRent(text) {
+  if (/preis\s+auf\s+anfrage|miete\s*:\s*auf\s+anfrage|mietpreis\s+(?:ab\s+)?auf\s+anfrage/i.test(text)) {
+    return { rent: null, rentEvidence: 'Preis auf Anfrage', rentConfidence: 'low', priceStatus: 'request' };
+  }
+
+  const monthly = matchEvidence(text, [
+    /(?:gesamtmiete|nettokaltmiete|nettomiete|monatsmiete|miete|pacht)[^\d]{0,80}([0-9][0-9.,]*)\s*(?:€|eur)/i,
+    /([0-9][0-9.,]*)\s*(?:€|eur)[^.;]{0,80}(?:gesamtmiete|nettokaltmiete|nettomiete|monatsmiete|miete|pacht)/i
+  ]);
+
+  if (!monthly.value) return { rent: null, rentEvidence: null, rentConfidence: 'low', priceStatus: null };
+  return { rent: monthly.value, rentEvidence: monthly.evidence, rentConfidence: 'medium', priceStatus: 'confirmed' };
 }
 
 function extractAvailability(text) {
@@ -124,11 +196,7 @@ function candidateFromBrokerPage(adapter, sourceUrl, html, now) {
     };
   const rent = adapterName === 'Colliers'
     ? extractColliersRent(text)
-    : {
-      rent: parseNumberFromText(text.match(/(?:miete|nettokaltmiete|pacht)[^\d]{0,60}([0-9][0-9.,]*)\s*(?:€|eur)/i)?.[1]),
-      rentEvidence: null,
-      rentConfidence: 'medium'
-    };
+    : extractGenericRent(text);
   const availability = extractAvailability(text);
   const location = extractLocation(text);
   const usageType = text.match(/(?:nutzung|nutzungsart|objektart)[^.;]{0,90}/i)?.[0] || null;
@@ -145,6 +213,7 @@ function candidateFromBrokerPage(adapter, sourceUrl, html, now) {
     unitArea: area.unitArea,
     projectTotalArea: area.projectTotalArea,
     rent: rent.rent,
+    priceStatus: rent.priceStatus,
     provision: text.match(/provision[^.;]{0,120}/i)?.[0] || null,
     gastroSuitability: retailSignal ? 'possible' : 'unknown',
     gastroEvidence: retailSignal ? `${adapter.sourceName} object page mentions retail/gastro-compatible use.` : null,
@@ -161,6 +230,7 @@ function candidateFromBrokerPage(adapter, sourceUrl, html, now) {
     rawSourceData: {
       detectedAt: now,
       sourceTitle: title,
+      rawDescription: rawDescription(text),
       sourceAreaText: area.areaEvidence,
       sourcePriceText: rent.rentEvidence,
       areaEvidence: area.areaEvidence,
@@ -170,35 +240,71 @@ function candidateFromBrokerPage(adapter, sourceUrl, html, now) {
       rentConfidence: rent.rentConfidence,
       availability,
       usageType,
-      sourceQuality: adapterName === 'Colliers' ? 'high' : 'medium'
+      locationEvidence: location,
+      sourceQuality: adapter.sourceQuality || 'medium'
     }
   };
+}
+
+function paginatedCatalogUrl(catalogUrl, page) {
+  if (page <= 1) return catalogUrl;
+  const url = canonicalizeListingUrl(catalogUrl);
+  if (!url) return catalogUrl;
+  if (/colliers\.de/i.test(url)) return url.replace(/\/$/, `/seite/${page}/`);
+  if (/engelvoelkers\.com/i.test(url)) return `${url}${url.includes('?') ? '&' : '?'}page=${page}`;
+  if (/immobilie1\.de/i.test(url)) return `${url}${url.includes('?') ? '&' : '?'}page=${page}`;
+  return url;
 }
 
 async function discoverAdapter(adapter, { fetchPage, now }) {
   const candidates = [];
   const errors = [];
+  const seen = new Set();
+  const meta = { pagesScanned: 0, duplicateLinks: 0, catalogs: (adapter.catalogUrls || [adapter.catalogUrl]).length };
 
-  try {
-    const response = await fetchPage(adapter.catalogUrl);
-    const objectUrls = extractLinks(response.body || '', response.finalUrl || adapter.catalogUrl, (url) => adapter.directPattern.test(url));
-    if (!objectUrls.length) {
-      errors.push({ sourceUrl: adapter.catalogUrl, message: `${adapter.name} catalog returned no individual object URLs` });
-    }
-
-    for (const sourceUrl of objectUrls.slice(0, 12)) {
+  for (const catalogUrl of adapter.catalogUrls || [adapter.catalogUrl]) {
+    for (let page = 1; page <= (adapter.pageLimit || 1); page += 1) {
+      const pageUrl = paginatedCatalogUrl(catalogUrl, page);
       try {
-        const page = await fetchPage(sourceUrl);
-        candidates.push(candidateFromBrokerPage(adapter, page.finalUrl || sourceUrl, page.body || '', now));
+        const response = await fetchPage(pageUrl);
+        meta.pagesScanned += 1;
+        const objectUrls = extractLinks(response.body || '', response.finalUrl || pageUrl, (url) => adapter.directPattern.test(url));
+        if (!objectUrls.length) {
+          if (page === 1) errors.push({ sourceUrl: pageUrl, message: `${adapter.name} catalog returned no individual object URLs` });
+          break;
+        }
+
+        let newLinks = 0;
+        for (const sourceUrl of objectUrls.slice(0, 24)) {
+          if (seen.has(sourceUrl)) {
+            meta.duplicateLinks += 1;
+            continue;
+          }
+          seen.add(sourceUrl);
+          newLinks += 1;
+          try {
+            const pageResponse = await fetchPage(sourceUrl);
+            const candidate = candidateFromBrokerPage(adapter, pageResponse.finalUrl || sourceUrl, pageResponse.body || '', now);
+            candidate.rawSourceData = {
+              ...(candidate.rawSourceData || {}),
+              catalogUrl,
+              catalogPageUrl: pageUrl,
+              outsideMunich: !isMunichTargetText(`${candidate.title || ''} ${candidate.address || ''} ${candidate.rawSourceData?.locationEvidence || ''}`)
+            };
+            candidates.push(candidate);
+          } catch (error) {
+            errors.push({ sourceUrl, message: error.message });
+          }
+        }
+        if (newLinks === 0) break;
       } catch (error) {
-        errors.push({ sourceUrl, message: error.message });
+        errors.push({ sourceUrl: pageUrl, message: error.message });
+        break;
       }
     }
-  } catch (error) {
-    errors.push({ sourceUrl: adapter.catalogUrl, message: error.message });
   }
 
-  return { candidates, errors };
+  return { candidates, errors, meta };
 }
 
 async function discover({ fetchPage, now } = {}) {
@@ -208,17 +314,24 @@ async function discover({ fetchPage, now } = {}) {
     unitArea: null,
     rent: null,
     discoveryMethod: 'broker-curated-lead',
-    rawSourceData: { detectedAt: now, sourceTitle: lead.title }
+    rawSourceData: { detectedAt: now, sourceTitle: lead.title, sourceQuality: 'high' }
   }));
   const errors = [];
+  const meta = {
+    adapters: ADAPTERS.length,
+    pagesScanned: 0,
+    sources: {}
+  };
 
   for (const adapter of ADAPTERS) {
     const result = await discoverAdapter(adapter, { fetchPage, now });
     candidates.push(...result.candidates);
     errors.push(...result.errors.map((error) => ({ ...error, source: adapter.name })));
+    meta.sources[adapter.name] = result.meta;
+    meta.pagesScanned += result.meta?.pagesScanned || 0;
   }
 
-  return { source: 'Brokers', candidates, errors };
+  return { source: 'Brokers', candidates, errors, meta };
 }
 
 module.exports = { ADAPTERS, candidateFromBrokerPage, discover };

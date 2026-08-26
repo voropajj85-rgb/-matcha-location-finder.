@@ -16,6 +16,8 @@ const DIRECT_URL_PATTERNS = [
   /immowelt\.de\/expose\//i,
   /immobilienscout24\.de\/expose\/\d+/i,
   /colliers\.de\/gewerbeimmobilien\/objekt\//i,
+  /engelvoelkers\.com\/de\/de\/exposes\//i,
+  /immobilie1\.de\/(?:\d{5}-)?[^/]*(?:muenchen|munchen|münchen)[^/]*-\d{6,}/i,
   /stadt\.muenchen\.de\/.*gewerbeflaechen-angebote/i,
   /stadt\.muenchen\.de\/service\/info\/stadtische-gewerbeflachen-verfugbare-objekte/i,
   /gewerbeimmobilien\.jll\.de\/einzelhandel\//i
@@ -25,7 +27,8 @@ const SEARCH_URL_PATTERNS = [
   /kleinanzeigen\.de\/s-[^/]+/i,
   /\/suche\//i,
   /search/i,
-  /gewerbeimmobilien.*mieten/i
+  /gewerbeimmobilien.*mieten/i,
+  /immobilien\/.*\/mieten$/i
 ];
 
 const MATCHA_RELEVANT_URL_PATTERNS = [
@@ -50,6 +53,8 @@ const NON_OFFER_URL_PATTERNS = [
   /gesucht|suche-|wir-sind-auf-der-suche|nachmieter-gesucht/i,
   /zu-verkaufen|zu-verkauf|verkauf-voll|gewerbeinvestment/i
 ];
+
+const NEARBY_EXCLUDED_LOCATION_PATTERN = /(penzberg|ottobrunn|dachau|freising|unterhaching|karlsfeld|gauting|fürstenfeldbruck|furstenfeldbruck|grünwald|gruenwald|haar|aschheim|asheim|germering)/i;
 
 function canonicalizeListingUrl(input) {
   if (!input) return null;
@@ -112,6 +117,16 @@ function isMunichKleinanzeigenUrl(input) {
   return /^64\d{2}$/.test(locationId) || /^163\d{2}$/.test(locationId);
 }
 
+function isMunichTargetText(value) {
+  const text = String(value || '').toLowerCase();
+  if (!/(münchen|muenchen|munich|\b80\d{3}\b|\b81\d{3}\b)/i.test(text)) return false;
+  return !NEARBY_EXCLUDED_LOCATION_PATTERN.test(text);
+}
+
+function isNearbyExcludedLocation(value) {
+  return NEARBY_EXCLUDED_LOCATION_PATTERN.test(String(value || '').toLowerCase());
+}
+
 function extractExternalId(sourceName, sourceUrl) {
   const canonicalUrl = canonicalizeListingUrl(sourceUrl);
   if (!canonicalUrl) return null;
@@ -127,6 +142,12 @@ function extractExternalId(sourceName, sourceUrl) {
 
   const colliers = canonicalUrl.match(/colliers\.de\/gewerbeimmobilien\/objekt\/([^/?#]+)/i);
   if (colliers) return `colliers-${colliers[1].toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+
+  const engel = canonicalUrl.match(/engelvoelkers\.com\/de\/de\/exposes\/([a-f0-9-]+)/i);
+  if (engel) return `engel-${engel[1].toLowerCase()}`;
+
+  const immobilie1 = canonicalUrl.match(/immobilie1\.de\/([^/?#]+-(\d{6,}))/i);
+  if (immobilie1) return `immobilie1-${immobilie1[2]}`;
 
   const jll = canonicalUrl.match(/gewerbeimmobilien\.jll\.de\/einzelhandel\/([^/?#]+)/i);
   if (jll) return `jll-${jll[1].toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
@@ -177,7 +198,9 @@ module.exports = {
   extractExternalId,
   extractLinks,
   isDirectListingUrl,
+  isMunichTargetText,
   isMunichKleinanzeigenUrl,
+  isNearbyExcludedLocation,
   isPotentialMatchaListingUrl,
   isSearchPageUrl,
   parseNumberFromText,

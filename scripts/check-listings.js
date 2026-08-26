@@ -12,6 +12,8 @@ const SOURCE_TYPES = {
   KLEINANZEIGEN: 'kleinanzeigen',
   COLLIERS: 'colliers',
   JLL: 'jll',
+  ENGEL: 'engel-voelkers',
+  IMMOBILIE1: 'immobilie1',
   STADT: 'stadt',
   LEAD: 'lead',
   UNKNOWN: 'unknown'
@@ -50,8 +52,7 @@ const DEAD_PATTERNS = {
 const SEARCH_PATTERNS = [
   /suchergebnisse/i,
   /search results/i,
-  /anzeigen suchen/i,
-  /gewerbeimmobilien mieten/i
+  /anzeigen suchen/i
 ];
 
 const LEAD_SOURCES = [/stadt münchen/i, /colliers/i, /cbre/i];
@@ -78,6 +79,8 @@ function getSourceType(listing) {
   if (source.includes('kleinanzeigen')) return SOURCE_TYPES.KLEINANZEIGEN;
   if (source.includes('colliers')) return SOURCE_TYPES.COLLIERS;
   if (source.includes('jll') || source.includes('gewerbeimmobilien.jll.de')) return SOURCE_TYPES.JLL;
+  if (source.includes('engelvoelkers') || source.includes('engel & völkers') || source.includes('engel & voelkers')) return SOURCE_TYPES.ENGEL;
+  if (source.includes('immobilie1')) return SOURCE_TYPES.IMMOBILIE1;
   if (source.includes('stadt münchen') || source.includes('stadt.muenchen.de')) return SOURCE_TYPES.STADT;
   if (isLead(listing)) return SOURCE_TYPES.LEAD;
   return SOURCE_TYPES.UNKNOWN;
@@ -136,6 +139,16 @@ function isJllListingUrl(url) {
   return Boolean(parsed?.hostname.includes('gewerbeimmobilien.jll.de') && parsed.pathname.includes('/einzelhandel/'));
 }
 
+function isEngelListingUrl(url) {
+  const parsed = parseUrl(url);
+  return Boolean(parsed?.hostname.includes('engelvoelkers.com') && parsed.pathname.includes('/de/de/exposes/'));
+}
+
+function isImmobilie1ListingUrl(url) {
+  const parsed = parseUrl(url);
+  return Boolean(parsed?.hostname.includes('immobilie1.de') && /-\d{6,}$/.test(parsed.pathname));
+}
+
 function isStadtListingUrl(url) {
   const parsed = parseUrl(url);
   return Boolean(parsed?.hostname.includes('stadt.muenchen.de') && /gewerbeflaechen|gewerbeflachen|stadtische-gewerbeflachen/i.test(parsed.pathname));
@@ -163,6 +176,8 @@ function isSameConcreteListing(sourceType, originalUrl, finalUrl) {
 
   if (sourceType === SOURCE_TYPES.COLLIERS) return isColliersListingUrl(finalUrl);
   if (sourceType === SOURCE_TYPES.JLL) return isJllListingUrl(finalUrl);
+  if (sourceType === SOURCE_TYPES.ENGEL) return isEngelListingUrl(finalUrl) && getLastPathSegment(originalUrl) === getLastPathSegment(finalUrl);
+  if (sourceType === SOURCE_TYPES.IMMOBILIE1) return isImmobilie1ListingUrl(finalUrl) && getLastPathSegment(originalUrl) === getLastPathSegment(finalUrl);
   if (sourceType === SOURCE_TYPES.STADT) return isStadtListingUrl(finalUrl);
 
   return false;
@@ -179,6 +194,7 @@ function hasDeadSignal(sourceType, html) {
 
 function isFallbackOrSearchPage(sourceType, html, finalUrl) {
   if (sourceType === SOURCE_TYPES.KLEINANZEIGEN && isKleinanzeigenSearchUrl(finalUrl)) return true;
+  if (![SOURCE_TYPES.KLEINANZEIGEN, SOURCE_TYPES.IMMOSCOUT, SOURCE_TYPES.IMMOWELT].includes(sourceType)) return false;
   return hasAnyPattern(html, SEARCH_PATTERNS);
 }
 
@@ -186,9 +202,10 @@ function hasStrongListingEvidence(sourceType, listing, html, finalUrl) {
   const expectedId = getLastPathSegment(listing.url || '');
   const normalizedDistrict = String(listing.district || '').split('·')[0].trim().toLowerCase();
   const lowerHtml = html.toLowerCase();
+  const sourceRequiresIdInHtml = [SOURCE_TYPES.KLEINANZEIGEN, SOURCE_TYPES.IMMOSCOUT, SOURCE_TYPES.IMMOWELT].includes(sourceType);
 
   if (!isSameConcreteListing(sourceType, listing.url, finalUrl)) return false;
-  if (expectedId && !lowerHtml.includes(expectedId.toLowerCase())) return false;
+  if (sourceRequiresIdInHtml && expectedId && !lowerHtml.includes(expectedId.toLowerCase())) return false;
 
   if (sourceType === SOURCE_TYPES.KLEINANZEIGEN) {
     const hasKleinanzeigenShell = /<title[^>]*>[^<]+\|\s*kleinanzeigen\.de/i.test(html)
@@ -210,7 +227,7 @@ function hasStrongListingEvidence(sourceType, listing, html, finalUrl) {
     return hasExposeShell && hasObjectShell;
   }
 
-  if ([SOURCE_TYPES.COLLIERS, SOURCE_TYPES.JLL, SOURCE_TYPES.STADT].includes(sourceType)) {
+  if ([SOURCE_TYPES.COLLIERS, SOURCE_TYPES.JLL, SOURCE_TYPES.ENGEL, SOURCE_TYPES.IMMOBILIE1, SOURCE_TYPES.STADT].includes(sourceType)) {
     const expectedTitle = String(listing.title || '').toLowerCase().slice(0, 30);
     const hasTitle = expectedTitle.length >= 8 && lowerHtml.includes(expectedTitle);
     const hasRealEstateText = /mietfl[aä]che|ladenfl[aä]che|verkaufsfl[aä]che|einzelhandel|gastronomie|kontakt|expos[eé]/i.test(html);

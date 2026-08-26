@@ -19,6 +19,47 @@ function descriptionFromHtml(html) {
     || textContent(html, /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i);
 }
 
+function plainTextFromHtml(html) {
+  return String(html || '').replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function rawDescriptionFromText(plainText, title, maxLength = 9000) {
+  const scoped = scopedListingText(plainText, title);
+  return scoped.slice(0, maxLength).trim() || plainText.slice(0, maxLength).trim() || null;
+}
+
+function financialEvidenceFromText(text) {
+  const patterns = [
+    /kaution\s+\d+(?:[,.]\d+)?\s*monatsmieten/gi,
+    /provision\s+\d+(?:[,.]\d+)?\s*MM/gi,
+    /abl[oö]se\s+\d{1,3}(?:\.\d{3})*(?:,\d+)?\s*(?:€|eur)/gi,
+    /nebenkosten\s+\d{1,3}(?:\.\d{3})*(?:,\d+)?\s*(?:€|eur)/gi,
+    /zzgl\.\s*NK/gi,
+    /inventar\s+gegen\s+abl[oö]se/gi,
+    /kaution[^.;|]{0,100}/gi,
+    /provision[^.;|]{0,100}/gi,
+    /provisionsfrei[^.;|]{0,80}/gi,
+    /abl[oö]se[^.;|]{0,100}/gi,
+    /nebenkosten[^.;|]{0,100}/gi,
+    /zzgl\.\s*NK[^.;|]{0,80}/gi,
+    /inventar[^.;|]{0,100}/gi
+  ];
+  const seen = new Set();
+  const evidence = [];
+  for (const pattern of patterns) {
+    for (const match of String(text || '').matchAll(pattern)) {
+      const value = match[0].replace(/\s+/g, ' ').trim();
+      const key = value.toLowerCase();
+      if (value.length >= 5 && !seen.has(key)) {
+        seen.add(key);
+        evidence.push(value);
+      }
+      if (evidence.length >= 12) return evidence;
+    }
+  }
+  return evidence;
+}
+
 function compactSummary(value, maxLength = 700) {
   const text = String(value || '')
     .replace(/\s+/g, ' ')
@@ -257,11 +298,12 @@ async function enrichListing(listing, { fetchPage } = {}) {
   try {
     const response = await fetchPage(listing.sourceUrl);
     const html = response.body || '';
-    const plainText = html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+    const plainText = plainTextFromHtml(html);
     const jsonLd = jsonLdFacts(html);
     const title = jsonLd.title || titleFromHtml(html);
     const description = compactSummary(jsonLd.verifiedSummary || descriptionFromHtml(html));
     const scopedText = scopedListingText(plainText, title);
+    const rawDescription = rawDescriptionFromText(plainText, title);
     const extractableText = `${title || ''} ${description || ''} ${scopedText}`;
     const rentResult = jsonLd.rent
       ? { rent: jsonLd.rent, rentEvidence: 'structured offer price', rentConfidence: 'medium' }
@@ -285,6 +327,8 @@ async function enrichListing(listing, { fetchPage } = {}) {
       rawSourceData: {
         ...(listing.rawSourceData || {}),
         sourceTitle: title || listing.rawSourceData?.sourceTitle || null,
+        rawDescription: rawDescription || listing.rawSourceData?.rawDescription || null,
+        financialEvidence: financialEvidenceFromText(rawDescription || plainText),
         sourcePriceText: rentResult.rent == null ? listing.rawSourceData?.sourcePriceText || null : String(rentResult.rent),
         sourceAreaText: areaResult.unitArea == null ? listing.rawSourceData?.sourceAreaText || null : String(areaResult.unitArea),
         rentEvidence: rentResult.rentEvidence || listing.rawSourceData?.rentEvidence || null,
