@@ -12,8 +12,7 @@ function meaningfulTitle(value) {
     .replace(/\s*-\s*Kleinanzeigen(?:\.de)?\s*$/i, '')
     .replace(/\s+/g, ' ')
     .trim();
-  if (!title || /^kleinanzeigen(?:\.de)?$/i.test(title)) return null;
-  return title;
+  return !title || /^kleinanzeigen(?:\.de)?$/i.test(title) ? null : title;
 }
 
 function titleFromHtml(html) {
@@ -71,31 +70,19 @@ function jsonLdFacts(html) {
   const facts = {};
   const blocks = String(html || '').match(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
   for (const block of blocks) {
-    const body = block.replace(/^<script[^>]*>/i, '').replace(/<\/script>$/i, '').trim();
     try {
-      const parsed = JSON.parse(body);
-      const items = Array.isArray(parsed) ? parsed : [parsed];
-      for (const item of items) {
+      const parsed = JSON.parse(block.replace(/^<script[^>]*>/i, '').replace(/<\/script>$/i, '').trim());
+      for (const item of (Array.isArray(parsed) ? parsed : [parsed])) {
         if (!facts.title && meaningfulTitle(item?.name)) facts.title = meaningfulTitle(item.name);
         if (!facts.description && item?.description) facts.description = String(item.description);
         if (!facts.address && typeof item?.address === 'string') facts.address = item.address;
         if (!facts.address && item?.address?.streetAddress) facts.address = item.address.streetAddress;
       }
     } catch {
-      // Ignore malformed third-party JSON-LD.
+      // Malformed JSON-LD is ignored safely.
     }
   }
   return facts;
-}
-
-function legacyCondition(fact) {
-  if (!fact || fact.status === 'unknown') return null;
-  return {
-    known: true,
-    value: fact.evidence?.raw || null,
-    amount: fact.amount ?? null,
-    ...fact
-  };
 }
 
 function collectRawFinancialEvidence(text) {
@@ -113,15 +100,18 @@ function collectRawFinancialEvidence(text) {
   for (const pattern of patterns) {
     for (const match of String(text || '').matchAll(pattern)) {
       const value = match[0].replace(/\s+/g, ' ').trim();
-      const key = value.toLowerCase();
-      if (value && !seen.has(key)) {
-        seen.add(key);
+      if (value && !seen.has(value.toLowerCase())) {
+        seen.add(value.toLowerCase());
         out.push(value);
       }
-      if (out.length >= 12) return out;
     }
   }
-  return out;
+  return out.slice(0, 12);
+}
+
+function legacyCondition(fact) {
+  if (!fact || fact.status === 'unknown') return null;
+  return { known: true, value: fact.evidence?.raw || null, amount: fact.amount ?? null, ...fact };
 }
 
 function rentFromText(text) {
@@ -134,41 +124,43 @@ function rentFromText(text) {
   };
 }
 
-const HIGH_AREA = /verkaufs[\s\/-]*ladenfl[aä]che|verkaufsfl[aä]che|ladenfl[aä]che|ladenzeile|verkaufsraum|gastrofl[aä]che|gastraumfl[aä]che|gastraum/i;
-const MEDIUM_AREA = /nutzfl[aä]che|gesamtfl[aä]che|gewerbefl[aä]che/i;
-const SECONDARY_AREA = /kellerfl[aä]che|lagerfl[aä]che|nebenfl[aä]che|nebenraum|zus[aä]tzlicher\s+raum|terrasse|au[sß]enfl[aä]che|grundst[uü]ck|projektfl[aä]che|geb[aä]udefl[aä]che/i;
+function conditionText(text, label) {
+  const match = String(text || '').match(new RegExp(`(${label}[^\\n|;]{0,120})`, 'i'));
+  if (!match) return null;
+  const value = match[1].trim();
+  const euro = value.match(/([0-9][0-9.,]*)\s*(?:€|EUR)/i);
+  const months = value.match(/([0-9][0-9.,]*)\s*(?:MM|monatsmieten?|nettokaltmieten?|kaltmieten?)/i);
+  let amount = null;
+  if (euro) {
+    const parsed = parseNumberFromText(euro[1]);
+    amount = parsed != null && parsed >= 50 ? parsed : null;
+  } else if (months) amount = parseNumberFromText(months[1]);
+  return { known: true, value, amount };
+}
 
+// Compatibility helpers used by the pre-Phase-3B test suite. Production enrichment below uses extractArea().
 function collectAreaCandidates(text) {
   const source = String(text || '').replace(/\s+/g, ' ').trim();
-  const matches = [...source.matchAll(/(?:ca\.?|circa|ungef[aä]hr)?\s*([0-9][0-9.,]*)\s*(?:m²|qm|m2)/gi)];
   const candidates = [];
-  for (const match of matches) {
-    const value = parseNumberFromText(match[1]);
-    if (!Number.isFinite(value) || value < 5 || value > 500) continue;
-    const before = source.slice(Math.max(0, match.index - 65), match.index);
-    const after = source.slice(match.index + match[0].length, Math.min(source.length, match.index + match[0].length + 65));
-    const context = `${before} ${match[0]} ${after}`;
-    const beforeSecondary = SECONDARY_AREA.test(before) && !/\b(?:und|oder|,|;)\s*$/i.test(before);
-    const afterSecondary = SECONDARY_AREA.test(after.split(/\b(?:und|oder|,|;)/i)[0]);
-    if (beforeSecondary || (afterSecondary && !HIGH_AREA.test(before))) continue;
-    let priority = 0;
-    let areaType = 'unknown_area';
-    if (HIGH_AREA.test(before) || HIGH_AREA.test(after)) {
-      priority = 100;
-      areaType = 'sales_area';
-    } else if (MEDIUM_AREA.test(before) || MEDIUM_AREA.test(after)) {
-      priority = 60;
-      areaType = 'main_unit_area';
+  const high = '(?:verkaufs[\\s\\/-]*ladenfl[aä]che|verkaufsfl[aä]che|ladenfl[aä]che|ladenzeile|verkaufsraum|gastrofl[aä]che|gastraumfl[aä]che|gastraum)';
+  const medium = '(?:nutzfl[aä]che|gesamtfl[aä]che|gewerbefl[aä]che)';
+  const add = (regex, areaType, priority) => {
+    for (const match of source.matchAll(regex)) {
+      const value = parseNumberFromText(match.groups?.value || match[1]);
+      if (!Number.isFinite(value) || value < 5 || value > 500) continue;
+      candidates.push({ value, evidence: match[0].trim(), areaType, priority });
     }
-    if (priority === 0) continue;
-    let evidence = match[0].trim();
-    const postLabel = after.match(/^\s*(verkaufs[\s\/-]*ladenfl[aä]che|verkaufsfl[aä]che|ladenfl[aä]che|ladenzeile|verkaufsraum|gastrofl[aä]che|gastraumfl[aä]che)/i);
-    const preLabel = before.match(/(verkaufs[\s\/-]*ladenfl[aä]che|verkaufsfl[aä]che|ladenfl[aä]che|ladenzeile|verkaufsraum|gastrofl[aä]che|gastraumfl[aä]che)(?:\s*:\s*|\s+mit\s+)?$/i);
-    if (postLabel) evidence = `${match[0].trim()} ${postLabel[1]}`;
-    else if (preLabel) evidence = `${preLabel[1]} ${match[0].trim()}`;
-    candidates.push({ value, evidence, areaType, priority });
-  }
-  return candidates.sort((a, b) => b.priority - a.priority);
+  };
+  add(new RegExp(`${high}\\s*(?::|mit)?\\s*(?:ca\\.?|circa|ungef[aä]hr)?\\s*(?<value>[0-9][0-9.,]*)\\s*(?:m²|qm|m2)`, 'ig'), 'sales_area', 110);
+  add(new RegExp(`(?<value>[0-9][0-9.,]*)\\s*(?:m²|qm|m2)\\s*${high}`, 'ig'), 'sales_area', 105);
+  add(new RegExp(`${medium}\\s*:?[\\s-]*(?:ca\\.?|circa|ungef[aä]hr)?\\s*(?<value>[0-9][0-9.,]*)\\s*(?:m²|qm|m2)`, 'ig'), 'main_unit_area', 60);
+  const seen = new Set();
+  return candidates.sort((a, b) => b.priority - a.priority).filter((candidate) => {
+    const key = `${candidate.value}:${candidate.areaType}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function areaFromText(text) {
@@ -185,25 +177,8 @@ function areaFromText(text) {
   };
 }
 
-function conditionText(text, label) {
-  const match = String(text || '').match(new RegExp(`(${label}[^\\n|;]{0,120})`, 'i'));
-  if (!match) return null;
-  const value = match[1].trim();
-  const euro = value.match(/([0-9][0-9.,]*)\s*(?:€|EUR)/i);
-  const months = value.match(/([0-9][0-9.,]*)\s*(?:MM|monatsmieten?|nettokaltmieten?|kaltmieten?)/i);
-  let amount = null;
-  if (euro) {
-    const parsed = parseNumberFromText(euro[1]);
-    amount = parsed != null && parsed >= 50 ? parsed : null;
-  } else if (months) {
-    amount = parseNumberFromText(months[1]);
-  }
-  return { known: true, value, amount };
-}
-
 async function enrichListing(listing, { fetchPage } = {}) {
   if (listing.listingType !== 'direct_listing' || !listing.sourceUrl || !fetchPage) return listing;
-
   try {
     const response = await fetchPage(listing.sourceUrl);
     const html = response.body || '';
@@ -218,23 +193,19 @@ async function enrichListing(listing, { fetchPage } = {}) {
       address: jsonLd.address || listing.address,
       district: listing.district
     });
-    const legacyArea = areaFromText(extractionText);
 
-    const rent = facts.rent.amount ?? listing.rent ?? null;
-    const unitArea = facts.area.unitArea ?? legacyArea.unitArea ?? listing.unitArea ?? listing.area ?? null;
-    const projectTotalArea = facts.area.projectTotalArea ?? listing.projectTotalArea ?? null;
-
+    const unitArea = facts.area.unitArea ?? listing.unitArea ?? listing.area ?? null;
     return {
       ...listing,
       title,
       address: jsonLd.address || listing.address,
-      rent,
+      rent: facts.rent.amount ?? listing.rent ?? null,
       rentType: facts.rent.type || listing.rentType || null,
       priceStatus: facts.rent.status === 'request' ? 'request' : (listing.priceStatus || null),
       unitArea,
       area: unitArea,
-      areaType: facts.area.areaType || legacyArea.areaType || listing.areaType || listing.rawSourceData?.areaType || null,
-      projectTotalArea,
+      areaType: facts.area.areaType || listing.areaType || listing.rawSourceData?.areaType || null,
+      projectTotalArea: facts.area.projectTotalArea ?? listing.projectTotalArea ?? null,
       nebenkosten: legacyCondition(facts.nebenkosten) || listing.nebenkosten,
       provision: legacyCondition(facts.provision) || listing.provision,
       abloese: legacyCondition(facts.abloese) || listing.abloese,
@@ -262,12 +233,12 @@ async function enrichListing(listing, { fetchPage } = {}) {
         operationalEvidence: facts.operationalEvidence,
         phase3bFacts: facts,
         sourcePriceText: facts.rent.evidence?.raw || listing.rawSourceData?.sourcePriceText || null,
-        sourceAreaText: facts.area.evidence?.raw || legacyArea.areaEvidence || listing.rawSourceData?.sourceAreaText || null,
+        sourceAreaText: facts.area.evidence?.raw || listing.rawSourceData?.sourceAreaText || null,
         rentEvidence: facts.rent.evidence?.raw || listing.rawSourceData?.rentEvidence || null,
         rentConfidence: facts.rent.evidence?.confidence || listing.rawSourceData?.rentConfidence || null,
-        areaEvidence: facts.area.evidence?.raw || legacyArea.areaEvidence || listing.rawSourceData?.areaEvidence || null,
-        areaType: facts.area.areaType || legacyArea.areaType || listing.rawSourceData?.areaType || null,
-        areaCandidates: facts.area.candidates?.length ? facts.area.candidates : legacyArea.areaCandidates,
+        areaEvidence: facts.area.evidence?.raw || listing.rawSourceData?.areaEvidence || null,
+        areaType: facts.area.areaType || listing.rawSourceData?.areaType || null,
+        areaCandidates: facts.area.candidates,
         extractionVersion: 'phase3b-v1',
         enrichmentStatus: 'success',
         httpStatus: response.status,
@@ -275,14 +246,7 @@ async function enrichListing(listing, { fetchPage } = {}) {
       }
     };
   } catch (error) {
-    return {
-      ...listing,
-      rawSourceData: {
-        ...(listing.rawSourceData || {}),
-        enrichmentStatus: 'failed',
-        enrichmentError: error.message
-      }
-    };
+    return { ...listing, rawSourceData: { ...(listing.rawSourceData || {}), enrichmentStatus: 'failed', enrichmentError: error.message } };
   }
 }
 
