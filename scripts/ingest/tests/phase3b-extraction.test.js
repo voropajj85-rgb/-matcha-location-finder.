@@ -12,6 +12,7 @@ const {
   extractExistingBusiness
 } = require('../extract-listing-facts');
 const { candidateFromBrokerPage } = require('../sources/brokers');
+const { rowForListing } = require('../supabase-upsert');
 
 function run() {
   assert.deepStrictEqual(extractKaution('Kaution: 3 Monatsmieten').status, 'known_relative');
@@ -98,6 +99,16 @@ function run() {
   assert.strictEqual(engelPerSqm.rentPerSqm, 24);
   assert.strictEqual(engelPerSqm.rentType, 'per_sqm');
 
+  const engelLowRentGuard = candidateFromBrokerPage(
+    { name: 'Engel & Völkers', sourceName: 'Engel & Völkers', sourceFamily: 'broker', sourceQuality: 'high' },
+    'https://www.engelvoelkers.com/de/de/exposes/test-low-rent',
+    '<h1>M-Yard München</h1><p>Fläche 17000 m². Kaltmiete zzgl. Nebenkosten 25 €.</p>',
+    '2026-08-28T10:00:00.000Z'
+  );
+  assert.strictEqual(engelLowRentGuard.rent, null);
+  assert.strictEqual(engelLowRentGuard.rentPerSqm, 25);
+  assert.strictEqual(engelLowRentGuard.rentType, 'per_sqm');
+
   const penzberg = candidateFromBrokerPage(
     { name: 'Colliers', sourceName: 'Colliers', sourceFamily: 'broker', sourceQuality: 'high' },
     'https://www.colliers.de/gewerbeimmobilien/objekt/test-penzberg/',
@@ -106,6 +117,29 @@ function run() {
   );
   assert.strictEqual(penzberg.address, 'Penzberg');
   assert.strictEqual(penzberg.district, 'Penzberg');
+
+  const eching = candidateFromBrokerPage(
+    { name: 'Colliers', sourceName: 'Colliers', sourceFamily: 'broker', sourceQuality: 'high' },
+    'https://www.colliers.de/gewerbeimmobilien/objekt/test-eching/',
+    '<h1>Stark frequentierte Einzelhandelsfläche in Eching</h1><p>München Nürnberg Stuttgart Colliers weltweit Objektsuche. Fläche 2932 m².</p>',
+    '2026-08-28T10:00:00.000Z'
+  );
+  assert.strictEqual(eching.address, 'Eching');
+  assert.strictEqual(eching.district, 'Eching');
+
+  const supabaseRow = rowForListing({
+    id: 'edge-case',
+    sourceName: 'Engel & Völkers',
+    rent: 25,
+    nebenkosten: { amount: null, evidence: { raw: 'Nebenkosten 250 €' } }
+  });
+  assert.strictEqual(supabaseRow.rent, null);
+  assert.strictEqual(supabaseRow.rent_per_sqm, 25);
+  assert.strictEqual(supabaseRow.rent_type, 'per_sqm');
+  assert.strictEqual(supabaseRow.nebenkosten, null);
+
+  const numericNkRow = rowForListing({ id: 'nk-case', nk: 'Nebenkosten 250 €' });
+  assert.strictEqual(numericNkRow.nebenkosten, 250);
 
   console.log('Phase 3B extraction tests passed.');
 }
