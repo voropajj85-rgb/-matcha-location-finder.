@@ -52,6 +52,8 @@ function mapExistingRow(row) {
     area: row.unit_area ?? row.area,
     projectTotalArea: row.project_total_area,
     rent: row.rent ?? row.price,
+    rentType: row.rent_type ?? null,
+    rentPerSqm: row.rent_per_sqm ?? null,
     nk: row.nebenkosten,
     nebenkosten: { value: row.nebenkosten, known: row.nebenkosten != null },
     provision: row.provision,
@@ -92,7 +94,11 @@ function mergeExistingListing(existingRow, discovered) {
     unitArea: preferUseful(existing.unitArea, discovered.unitArea ?? discovered.area),
     area: preferUseful(existing.area, discovered.unitArea ?? discovered.area),
     projectTotalArea: preferUseful(existing.projectTotalArea, discovered.projectTotalArea),
-    rent: preferUseful(existing.rent, discovered.rent),
+    rent: (discovered.rentType === 'per_sqm' || discovered.priceStatus === 'request')
+      ? null
+      : preferUseful(existing.rent, discovered.rent),
+    rentType: preferUseful(existing.rentType, discovered.rentType),
+    rentPerSqm: preferUseful(existing.rentPerSqm, discovered.rentPerSqm),
     nk: preferUseful(existing.nk, discovered.nk ?? discovered.nebenkosten?.value),
     nebenkosten: preferUseful(existing.nebenkosten, discovered.nebenkosten),
     provision: preferUseful(existing.provision, discovered.provision),

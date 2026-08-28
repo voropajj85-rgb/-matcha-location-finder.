@@ -90,8 +90,11 @@ function extractProvision(text) {
     /[0-9]+(?:[,.][0-9]+)?\s*(?:MM|monatsmieten?)\s*(?:zzgl\.?|inkl\.?)?\s*(?:MwSt\.?|USt\.?)?\s*(?:provision|courtage)?/i
   ]);
   if (relative) {
-    const vat = /zzgl\.?\s*(?:MwSt|USt)/i.test(relative) ? 'plus_vat' : (/inkl\.?\s*(?:MwSt|USt)/i.test(relative) ? 'incl_vat' : null);
-    return { amount: null, months: num(relative), status: 'known_relative', vat, evidence: ev(relative) };
+    const months = num(relative);
+    if (Number.isFinite(months) && months > 0 && months <= 12) {
+      const vat = /zzgl\.?\s*(?:MwSt|USt)/i.test(relative) ? 'plus_vat' : (/inkl\.?\s*(?:MwSt|USt)/i.test(relative) ? 'incl_vat' : null);
+      return { amount: null, months, status: 'known_relative', vat, evidence: ev(relative) };
+    }
   }
   const numeric = first(source, [/(?:provision|mieterprovision|maklercourtage|courtage)\s*:?[\s-]*[0-9][0-9.\s]*(?:,[0-9]{1,2})?\s*(?:€|EUR)/i]);
   if (numeric) return { amount: euro(numeric), months: null, status: 'known_numeric', vat: null, evidence: ev(numeric) };

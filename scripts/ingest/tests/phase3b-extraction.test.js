@@ -23,6 +23,7 @@ function run() {
   assert.strictEqual(provision.months, 3.57);
   assert.strictEqual(provision.vat, 'plus_vat');
   assert.strictEqual(extractProvision('provisionsfrei').status, 'free');
+  assert.strictEqual(extractProvision('Verfügbar ab August 2026 Monatsmiete für Gesamtfläche 1.200 €').status, 'unknown');
 
   assert.strictEqual(extractAbloese('Ablöse 25.000 €').amount, 25000);
   assert.strictEqual(extractAbloese('Inventar gegen Ablöse').status, 'mentioned');
@@ -96,6 +97,15 @@ function run() {
   assert.strictEqual(engelPerSqm.rent, null);
   assert.strictEqual(engelPerSqm.rentPerSqm, 24);
   assert.strictEqual(engelPerSqm.rentType, 'per_sqm');
+
+  const penzberg = candidateFromBrokerPage(
+    { name: 'Colliers', sourceName: 'Colliers', sourceFamily: 'broker', sourceQuality: 'high' },
+    'https://www.colliers.de/gewerbeimmobilien/objekt/test-penzberg/',
+    '<h1>Schöne Einzelhandelsfläche in Bestlage von Penzberg</h1><p>Zurück Penzberg Fläche 60 m². Mietpreis ab auf Anfrage.</p>',
+    '2026-08-28T10:00:00.000Z'
+  );
+  assert.strictEqual(penzberg.address, 'Penzberg');
+  assert.strictEqual(penzberg.district, 'Penzberg');
 
   console.log('Phase 3B extraction tests passed.');
 }

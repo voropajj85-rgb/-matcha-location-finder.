@@ -47,6 +47,8 @@ function rowForListing(listing) {
     unit_area: listing.unitArea ?? listing.area ?? null,
     project_total_area: listing.projectTotalArea ?? null,
     rent: listing.rent ?? null,
+    rent_type: listing.rentType ?? null,
+    rent_per_sqm: listing.rentPerSqm ?? null,
     nebenkosten: listing.nk ?? listing.nebenkosten?.amount ?? (typeof listing.nebenkosten === 'number' ? listing.nebenkosten : null),
     provision: condition(listing.provision),
     abloese: condition(listing.abloese),
@@ -76,7 +78,7 @@ async function fetchExistingRows() {
 
   if (!url || !key) return [];
 
-  const endpoint = `${url.replace(/\/$/, '')}/rest/v1/listings?select=external_id,title,address,district,price,area,source,source_family,source_name,source_url,status,notes,listing_type,availability_status,last_verified_at,verification_method,verification_override,unit_area,project_total_area,rent,nebenkosten,provision,abloese,kaution,gastro_suitability,gastro_evidence,verified_summary,key_facts,unknowns,next_action,latitude,longitude,discovered_at,last_seen_at,discovery_method,canonical_url,raw_source_data`;
+  const endpoint = `${url.replace(/\/$/, '')}/rest/v1/listings?select=external_id,title,address,district,price,area,source,source_family,source_name,source_url,status,notes,listing_type,availability_status,last_verified_at,verification_method,verification_override,unit_area,project_total_area,rent,rent_type,rent_per_sqm,nebenkosten,provision,abloese,kaution,gastro_suitability,gastro_evidence,verified_summary,key_facts,unknowns,next_action,latitude,longitude,discovered_at,last_seen_at,discovery_method,canonical_url,raw_source_data`;
   const response = await fetch(endpoint, {
     headers: {
       apikey: key,
