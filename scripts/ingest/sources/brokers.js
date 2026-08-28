@@ -168,7 +168,8 @@ function extractGenericRent(text) {
 
   const perSqm = matchEvidence(text, [
     /(?:gesamtmiete|monatsnettokaltmiete|nettokaltmiete|nettomiete|monatsmiete|miete|pacht)[^\d]{0,80}([0-9][0-9.,]*)\s*(?:€|eur)\s*(?:\/|pro)?\s*(?:m\s*2|m²|m2|qm)/i,
-    /(?:monatsnettokaltmiete|nettokaltmiete|miete)\s*\/\s*(?:m\s*2|m²|m2|qm)[^\d]{0,30}([0-9][0-9.,]*)\s*(?:€|eur)/i
+    /(?:monatsnettokaltmiete|nettokaltmiete|miete)\s*\/\s*(?:m\s*2|m²|m2|qm)[^\d]{0,30}([0-9][0-9.,]*)\s*(?:€|eur)/i,
+    /(?:monatsnettokaltmiete|nettokaltmiete|kaltmiete)[^.;]{0,30}(?:je|pro)\s*(?:m\s*2|m²|m2|qm)[^\d]{0,20}([0-9][0-9.,]*)\s*(?:€|eur)/i
   ]);
   if (perSqm.value) return { rent: null, rentPerSqm: perSqm.value, rentType: 'per_sqm', rentEvidence: perSqm.evidence, rentConfidence: 'high', priceStatus: 'unit_price' };
 
@@ -185,14 +186,22 @@ function extractAvailability(text) {
   return text.match(/verf[uü]gbar(?:\s+ab)?[^.;]{0,80}/i)?.[0] || null;
 }
 
-function extractLocation(text) {
+function extractLocation(text, title = '', adapterName = '') {
   const navLocation = text.match(/\bZurück\s+(München|Penzberg)\b/i)?.[1];
   if (navLocation) return navLocation;
+
+  if (adapterName === 'Colliers') {
+    const titlePlace = String(title || '').match(/\b(?:in|am|bei)\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]+(?:\s+am\s+[A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]+(?:\s+See)?)?)(?:\b|$)/i)?.[1];
+    if (titlePlace && !/^M[uü]nchen$/i.test(titlePlace)) return titlePlace.trim();
+  }
+
   const address = text.match(/(?:adresse|anschrift|lage)[^\w]{0,20}([^.;]{0,120}M[uü]nchen[^.;]{0,80})/i)?.[1]
     || text.match(/([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.\-\s]+,\s*\d{5}\s*M[uü]nchen)/)?.[1]
     || text.match(/(M[uü]nchen[^.;,]{0,80})/i)?.[1]
     || 'München';
-  return address.replace(/\s+/g, ' ').trim();
+  const cleaned = address.replace(/\s+/g, ' ').trim();
+  if (/M[uü]nchen\s+(?:Nürnberg|Stuttgart|Immobilienmakler|Colliers\s+weltweit)/i.test(cleaned)) return 'München';
+  return cleaned.length > 90 && /^M[uü]nchen\b/i.test(cleaned) ? 'München' : cleaned;
 }
 
 function candidateFromBrokerPage(adapter, sourceUrl, html, now) {
@@ -208,11 +217,14 @@ function candidateFromBrokerPage(adapter, sourceUrl, html, now) {
       projectAreaEvidence: null,
       areaType: null
     };
-  const rent = adapterName === 'Colliers'
+  const parsedRent = adapterName === 'Colliers'
     ? extractColliersRent(text)
     : extractGenericRent(text);
+  const rent = adapterName === 'Engel & Völkers' && parsedRent.rent != null && parsedRent.rent > 0 && parsedRent.rent < 100
+    ? { ...parsedRent, rent: null, rentPerSqm: parsedRent.rentPerSqm ?? parsedRent.rent, rentType: 'per_sqm', priceStatus: 'unit_price' }
+    : parsedRent;
   const availability = extractAvailability(text);
-  const location = extractLocation(text);
+  const location = extractLocation(text, title, adapterName);
   const usageType = text.match(/(?:nutzung|nutzungsart|objektart)[^.;]{0,90}/i)?.[0] || null;
   const retailSignal = /gastronomie|cafe|caf[eé]|laden|einzelhandel|retail|verkaufsfl[aä]che/i.test(text);
 
