@@ -1,8 +1,9 @@
 function hasUsefulValue(value) {
   if (value == null) return false;
-  if (typeof value === 'string') return value.trim().length > 0;
+  if (typeof value === 'string') return value.trim().length > 0 && value.trim().toLowerCase() !== 'unknown';
   if (Array.isArray(value)) return value.length > 0;
   if (typeof value === 'object') {
+    if (value.status === 'unknown' && value.amount == null && value.value == null && value.evidence == null) return false;
     if ('value' in value || 'known' in value || 'amount' in value) {
       return Boolean(value.known) || value.value != null || value.amount != null;
     }
@@ -30,6 +31,24 @@ function coordinates(existing, discovered) {
   return existing || null;
 }
 
+function mergeRawSourceData(existingValue, discoveredValue) {
+  if (!hasUsefulValue(existingValue)) return hasUsefulValue(discoveredValue) ? discoveredValue : existingValue;
+  if (!hasUsefulValue(discoveredValue)) return existingValue;
+
+  return {
+    ...existingValue,
+    ...discoveredValue,
+    financialEvidenceStructured: {
+      ...(existingValue.financialEvidenceStructured || {}),
+      ...(discoveredValue.financialEvidenceStructured || {})
+    },
+    operationalEvidence: {
+      ...(existingValue.operationalEvidence || {}),
+      ...(discoveredValue.operationalEvidence || {})
+    }
+  };
+}
+
 function mapExistingRow(row) {
   return {
     externalId: row.external_id,
@@ -52,6 +71,10 @@ function mapExistingRow(row) {
     area: row.unit_area ?? row.area,
     projectTotalArea: row.project_total_area,
     rent: row.rent ?? row.price,
+    rentType: row.raw_source_data?.rentType || null,
+    rentPerSqm: row.raw_source_data?.rentPerSqm ?? null,
+    priceStatus: row.raw_source_data?.priceStatus || null,
+    areaType: row.raw_source_data?.areaType || null,
     nk: row.nebenkosten,
     nebenkosten: { value: row.nebenkosten, known: row.nebenkosten != null },
     provision: row.provision,
@@ -59,6 +82,16 @@ function mapExistingRow(row) {
     kaution: row.kaution,
     gastroSuitability: row.gastro_suitability,
     gastroEvidence: row.gastro_evidence,
+    abluft: row.raw_source_data?.operations?.abluft || row.raw_source_data?.abluft || { status: 'unknown', evidence: null },
+    terrace: row.raw_source_data?.operations?.terrace || row.raw_source_data?.terrace || { status: 'unknown', evidence: null },
+    outdoorSeating: row.raw_source_data?.outdoorSeating || { status: 'unknown', evidence: null },
+    openingHoursRestrictions: row.raw_source_data?.openingHoursRestrictions || null,
+    wc: row.raw_source_data?.operations?.wc || row.raw_source_data?.wc || { status: 'unknown', evidence: null },
+    waterConnection: row.raw_source_data?.operations?.waterConnection || row.raw_source_data?.waterConnection || { status: 'unknown', evidence: null },
+    availableFrom: row.raw_source_data?.availableFrom || null,
+    existingBusiness: row.raw_source_data?.existingBusiness || row.raw_source_data?.existing?.existingBusiness || 'none',
+    inventoryIncluded: row.raw_source_data?.inventoryIncluded || row.raw_source_data?.existing?.inventoryIncluded || 'unknown',
+    takeoverRequired: row.raw_source_data?.takeoverRequired ?? row.raw_source_data?.existing?.takeoverRequired ?? 'unknown',
     verifiedSummary: row.verified_summary || row.notes,
     keyFacts: Array.isArray(row.key_facts) ? row.key_facts : [],
     unknowns: Array.isArray(row.unknowns) ? row.unknowns : [],
@@ -93,6 +126,10 @@ function mergeExistingListing(existingRow, discovered) {
     area: preferUseful(existing.area, discovered.unitArea ?? discovered.area),
     projectTotalArea: preferUseful(existing.projectTotalArea, discovered.projectTotalArea),
     rent: preferUseful(existing.rent, discovered.rent),
+    rentType: preferUseful(existing.rentType, discovered.rentType),
+    rentPerSqm: preferUseful(existing.rentPerSqm, discovered.rentPerSqm),
+    priceStatus: preferUseful(existing.priceStatus, discovered.priceStatus),
+    areaType: preferUseful(existing.areaType, discovered.areaType),
     nk: preferUseful(existing.nk, discovered.nk ?? discovered.nebenkosten?.value),
     nebenkosten: preferUseful(existing.nebenkosten, discovered.nebenkosten),
     provision: preferUseful(existing.provision, discovered.provision),
@@ -100,6 +137,16 @@ function mergeExistingListing(existingRow, discovered) {
     kaution: preferUseful(existing.kaution, discovered.kaution),
     gastroSuitability: preferGastroSuitability(existing.gastroSuitability, discovered.gastroSuitability),
     gastroEvidence: preferUseful(existing.gastroEvidence, discovered.gastroEvidence),
+    abluft: preferUseful(existing.abluft, discovered.abluft),
+    terrace: preferUseful(existing.terrace, discovered.terrace),
+    outdoorSeating: preferUseful(existing.outdoorSeating, discovered.outdoorSeating),
+    openingHoursRestrictions: preferUseful(existing.openingHoursRestrictions, discovered.openingHoursRestrictions),
+    wc: preferUseful(existing.wc, discovered.wc),
+    waterConnection: preferUseful(existing.waterConnection, discovered.waterConnection),
+    availableFrom: preferUseful(existing.availableFrom, discovered.availableFrom),
+    existingBusiness: preferUseful(existing.existingBusiness, discovered.existingBusiness),
+    inventoryIncluded: preferUseful(existing.inventoryIncluded, discovered.inventoryIncluded),
+    takeoverRequired: preferUseful(existing.takeoverRequired, discovered.takeoverRequired),
     verifiedSummary: preferUseful(existing.verifiedSummary, discovered.verifiedSummary),
     keyFacts: preferUseful(existing.keyFacts, discovered.keyFacts),
     unknowns: preferUseful(existing.unknowns, discovered.unknowns),
@@ -108,7 +155,7 @@ function mergeExistingListing(existingRow, discovered) {
     discoveredAt: existing.discoveredAt || discovered.discoveredAt,
     lastSeenAt: discovered.lastSeenAt || existing.lastSeenAt,
     discoveryMethod: preferUseful(existing.discoveryMethod, discovered.discoveryMethod),
-    rawSourceData: preferUseful(existing.rawSourceData, discovered.rawSourceData),
+    rawSourceData: mergeRawSourceData(existing.rawSourceData, discovered.rawSourceData),
     availabilityStatus: override?.status || preferAvailability(existing.availabilityStatus, discovered.availabilityStatus),
     previousAvailabilityStatus: existing.availabilityStatus || null,
     lastVerifiedAt: override?.verifiedAt || discovered.lastVerifiedAt || existing.lastVerifiedAt,
