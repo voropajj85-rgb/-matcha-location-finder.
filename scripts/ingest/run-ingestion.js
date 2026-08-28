@@ -99,6 +99,14 @@ function summarizeAreaExtraction(listings) {
   };
 }
 
+function isProductionPersistable(listing) {
+  if (isSafeForProduction(listing)) return true;
+  if (listing.listingType !== 'direct_listing') return false;
+  if (!['updated', 'cleanup'].includes(listing.dedupeAction)) return false;
+  if (!listing.previousAvailabilityStatus) return false;
+  return ['dead', 'search_only', 'unknown'].includes(listing.availabilityStatus);
+}
+
 function printSourceSummary(results) {
   console.log('sources');
   for (const result of results) {
@@ -584,7 +592,7 @@ async function run(argv = process.argv.slice(2)) {
   const businessFitCounts = summarizeBusinessFit(verified);
   const areaCounts = summarizeAreaExtraction(verified);
   const sourceOutcomes = summarizeSourceOutcomes(sourceResults, verified);
-  const productionReady = [...verified.filter(isSafeForProduction), ...cleanupActions];
+  const productionReady = [...verified.filter(isProductionPersistable), ...cleanupActions];
 
   printSourceSummary(sourceResults);
   printSourceOutcomes(sourceOutcomes);
@@ -667,6 +675,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  isProductionPersistable,
   parseArgs,
   run,
   summarize

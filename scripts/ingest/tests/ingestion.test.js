@@ -27,6 +27,7 @@ const { candidateFromPage: stadtCandidateFromPage } = require('../sources/stadt-
 const { candidateFromBrokerPage } = require('../sources/brokers');
 const kleinanzeigenSource = require('../sources/kleinanzeigen');
 const { calculateProjectRelevance } = require('../project-relevance');
+const { isProductionPersistable } = require('../run-ingestion');
 
 async function run() {
   assert.strictEqual(
@@ -196,6 +197,54 @@ async function run() {
   });
   assert.strictEqual(updatedRent.rent, 1600);
   assert.deepStrictEqual(updatedRent.keyFacts, ['new fact']);
+
+  const phase3bMerge = mergeExistingListing({
+    ...existingFull,
+    raw_source_data: {
+      financialEvidenceStructured: {
+        kaution: { raw: 'Kaution 3 Monatsmieten', confidence: 'high' }
+      },
+      operationalEvidence: {
+        abluft: { raw: 'Küchenabluft vorhanden', confidence: 'high' }
+      }
+    },
+    provision: { status: 'free', amount: null },
+    kaution: { status: 'known_relative', amount: null, months: 3 }
+  }, {
+    externalId: 'klein-westend-66',
+    rawSourceData: {
+      detectedAt: '2026-08-24T10:00:00.000Z',
+      financialEvidenceStructured: {
+        rent: { raw: 'Kaltmiete 1.600 €', confidence: 'high' }
+      }
+    },
+    provision: { status: 'unknown', amount: null, evidence: null },
+    kaution: { status: 'unknown', amount: null, evidence: null }
+  });
+
+  assert.strictEqual(phase3bMerge.rawSourceData.financialEvidenceStructured.kaution.raw, 'Kaution 3 Monatsmieten');
+  assert.strictEqual(phase3bMerge.rawSourceData.financialEvidenceStructured.rent.raw, 'Kaltmiete 1.600 €');
+  assert.strictEqual(phase3bMerge.rawSourceData.operationalEvidence.abluft.raw, 'Küchenabluft vorhanden');
+  assert.strictEqual(phase3bMerge.provision.status, 'free');
+  assert.strictEqual(phase3bMerge.kaution.months, 3);
+
+  assert.strictEqual(isProductionPersistable({
+    listingType: 'direct_listing',
+    dedupeAction: 'updated',
+    previousAvailabilityStatus: 'active',
+    availabilityStatus: 'dead'
+  }), true);
+  assert.strictEqual(isProductionPersistable({
+    listingType: 'direct_listing',
+    dedupeAction: 'updated',
+    previousAvailabilityStatus: 'active',
+    availabilityStatus: 'unknown'
+  }), true);
+  assert.strictEqual(isProductionPersistable({
+    listingType: 'direct_listing',
+    dedupeAction: 'new',
+    availabilityStatus: 'unknown'
+  }), false);
 
   const overrideMerge = mergeExistingListing({
     ...existingFull,
