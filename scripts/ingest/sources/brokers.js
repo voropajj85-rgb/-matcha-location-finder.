@@ -186,6 +186,8 @@ function extractAvailability(text) {
 }
 
 function extractLocation(text) {
+  const navLocation = text.match(/\bZurück\s+(München|Penzberg)\b/i)?.[1];
+  if (navLocation) return navLocation;
   const address = text.match(/(?:adresse|anschrift|lage)[^\w]{0,20}([^.;]{0,120}M[uü]nchen[^.;]{0,80})/i)?.[1]
     || text.match(/([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.\-\s]+,\s*\d{5}\s*M[uü]nchen)/)?.[1]
     || text.match(/(M[uü]nchen[^.;,]{0,80})/i)?.[1]
@@ -221,7 +223,7 @@ function candidateFromBrokerPage(adapter, sourceUrl, html, now) {
     listingType: 'direct_listing',
     title,
     address: location,
-    district: 'München',
+    district: location,
     unitArea: area.unitArea,
     projectTotalArea: area.projectTotalArea,
     rent: rent.rent,
