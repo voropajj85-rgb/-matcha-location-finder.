@@ -167,14 +167,14 @@ function extractGenericRent(text) {
   }
 
   const perSqm = matchEvidence(text, [
-    /(?:gesamtmiete|nettokaltmiete|nettomiete|monatsmiete|miete|pacht)[^\d]{0,80}([0-9][0-9.,]*)\s*(?:€|eur)\s*(?:\/|pro)?\s*(?:m\s*2|m²|m2|qm)/i,
-    /(?:nettokaltmiete|miete)\s*\/\s*(?:m\s*2|m²|m2|qm)[^\d]{0,30}([0-9][0-9.,]*)\s*(?:€|eur)/i
+    /(?:gesamtmiete|monatsnettokaltmiete|nettokaltmiete|nettomiete|monatsmiete|miete|pacht)[^\d]{0,80}([0-9][0-9.,]*)\s*(?:€|eur)\s*(?:\/|pro)?\s*(?:m\s*2|m²|m2|qm)/i,
+    /(?:monatsnettokaltmiete|nettokaltmiete|miete)\s*\/\s*(?:m\s*2|m²|m2|qm)[^\d]{0,30}([0-9][0-9.,]*)\s*(?:€|eur)/i
   ]);
   if (perSqm.value) return { rent: null, rentPerSqm: perSqm.value, rentType: 'per_sqm', rentEvidence: perSqm.evidence, rentConfidence: 'high', priceStatus: 'unit_price' };
 
   const monthly = matchEvidence(text, [
-    /(?:gesamtmiete|nettokaltmiete|nettomiete|monatsmiete|miete|pacht)[^\d]{0,80}([0-9][0-9.,]*)\s*(?:€|eur)/i,
-    /([0-9][0-9.,]*)\s*(?:€|eur)[^.;]{0,80}(?:gesamtmiete|nettokaltmiete|nettomiete|monatsmiete|miete|pacht)/i
+    /(?:gesamtmiete|monatsnettokaltmiete|nettokaltmiete|nettomiete|monatsmiete|miete|pacht)[^\d]{0,80}([0-9][0-9.,]*)\s*(?:€|eur)/i,
+    /([0-9][0-9.,]*)\s*(?:€|eur)[^.;]{0,80}(?:gesamtmiete|monatsnettokaltmiete|nettokaltmiete|nettomiete|monatsmiete|miete|pacht)/i
   ]);
 
   if (!monthly.value) return { rent: null, rentPerSqm: null, rentType: null, rentEvidence: null, rentConfidence: 'low', priceStatus: null };
