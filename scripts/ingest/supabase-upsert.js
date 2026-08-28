@@ -24,14 +24,52 @@ function condition(value) {
   return { known: value != null, value: value ?? null, amount: null };
 }
 
+function numericAmount(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (value && typeof value === 'object') return numericAmount(value.amount);
+  if (typeof value !== 'string') return null;
+
+  const match = value.match(/([0-9][0-9.\s]*(?:,[0-9]{1,2})?)/);
+  if (!match) return null;
+  const normalized = match[1].replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function serializedRent(listing) {
+  const sourceName = listing.sourceName || listing.source || '';
+  const rawRent = numericAmount(listing.rent);
+  const rawPerSqm = numericAmount(listing.rentPerSqm);
+  const explicitPerSqm = listing.rentType === 'per_sqm' || rawPerSqm != null;
+  const suspiciousEngelUnitPrice = /Engel\s*&\s*V[oö]lkers/i.test(sourceName)
+    && rawRent != null
+    && rawRent > 0
+    && rawRent < 100;
+
+  if (explicitPerSqm || suspiciousEngelUnitPrice) {
+    return {
+      rent: null,
+      rentType: 'per_sqm',
+      rentPerSqm: rawPerSqm ?? rawRent
+    };
+  }
+
+  return {
+    rent: rawRent,
+    rentType: listing.rentType ?? (rawRent != null ? 'monthly' : null),
+    rentPerSqm: rawPerSqm
+  };
+}
+
 function rowForListing(listing) {
   const coords = listing.coordinates || {};
+  const rent = serializedRent(listing);
   return {
     external_id: listing.externalId || listing.id,
     title: listing.title || listing.district || listing.address || listing.externalId || listing.id,
     address: listing.address || null,
     district: listing.district || null,
-    price: listing.rent ?? null,
+    price: rent.rent,
     area: listing.unitArea ?? listing.area ?? null,
     source: listing.source || listing.sourceName || null,
     source_url: listing.sourceUrl || listing.url || null,
@@ -46,10 +84,10 @@ function rowForListing(listing) {
     verification_override: listing.verificationOverride || null,
     unit_area: listing.unitArea ?? listing.area ?? null,
     project_total_area: listing.projectTotalArea ?? null,
-    rent: listing.rent ?? null,
-    rent_type: listing.rentType ?? null,
-    rent_per_sqm: listing.rentPerSqm ?? null,
-    nebenkosten: listing.nk ?? listing.nebenkosten?.amount ?? (typeof listing.nebenkosten === 'number' ? listing.nebenkosten : null),
+    rent: rent.rent,
+    rent_type: rent.rentType,
+    rent_per_sqm: rent.rentPerSqm,
+    nebenkosten: numericAmount(listing.nk ?? listing.nebenkosten),
     provision: condition(listing.provision),
     abloese: condition(listing.abloese),
     kaution: condition(listing.kaution),
