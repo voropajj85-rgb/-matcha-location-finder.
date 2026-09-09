@@ -27,6 +27,7 @@ const { candidateFromPage: stadtCandidateFromPage } = require('../sources/stadt-
 const { candidateFromBrokerPage } = require('../sources/brokers');
 const kleinanzeigenSource = require('../sources/kleinanzeigen');
 const { calculateProjectRelevance } = require('../project-relevance');
+const { existingCleanupActions } = require('../run-ingestion');
 
 async function run() {
   assert.strictEqual(
@@ -214,6 +215,62 @@ async function run() {
 
   assert.strictEqual(overrideMerge.availabilityStatus, 'dead');
   assert.strictEqual(overrideMerge.verificationMethod, 'manual-override');
+
+  const staleCleanupExisting = [
+    {
+      external_id: 'klein-stale',
+      source_name: 'Kleinanzeigen',
+      source_url: 'https://www.kleinanzeigen.de/s-anzeige/stale/100-277-6411',
+      listing_type: 'direct_listing',
+      availability_status: 'active',
+      last_seen_at: '2026-08-30T10:00:00.000Z',
+      last_verified_at: '2026-08-30T10:00:00.000Z'
+    },
+    {
+      external_id: 'klein-recent',
+      source_name: 'Kleinanzeigen',
+      source_url: 'https://www.kleinanzeigen.de/s-anzeige/recent/101-277-6411',
+      listing_type: 'direct_listing',
+      availability_status: 'active',
+      last_seen_at: '2026-09-08T10:00:00.000Z',
+      last_verified_at: '2026-09-08T10:00:00.000Z'
+    },
+    {
+      external_id: 'colliers-stale',
+      source_name: 'Colliers',
+      source_url: 'https://www.colliers.de/gewerbeimmobilien/objekt/laden-muenchen-stale/',
+      listing_type: 'direct_listing',
+      availability_status: 'active',
+      last_seen_at: '2026-08-30T10:00:00.000Z',
+      last_verified_at: '2026-08-30T10:00:00.000Z'
+    }
+  ];
+
+  const staleCleanup = existingCleanupActions(staleCleanupExisting, [
+    {
+      externalId: 'klein-fresh-other',
+      sourceName: 'Kleinanzeigen',
+      listingType: 'direct_listing',
+      sourceUrl: 'https://www.kleinanzeigen.de/s-anzeige/fresh/102-277-6411'
+    }
+  ], '2026-09-09T12:00:00.000Z');
+
+  assert.deepStrictEqual(staleCleanup.map((listing) => listing.externalId), ['klein-stale']);
+  assert.strictEqual(staleCleanup[0].availabilityStatus, 'unknown');
+  assert.strictEqual(staleCleanup[0].verificationMethod, 'production-cleanup-stale-unseen');
+
+  const sourceOutageCleanup = existingCleanupActions(staleCleanupExisting, [], '2026-09-09T12:00:00.000Z');
+  assert.strictEqual(sourceOutageCleanup.length, 0);
+
+  const rediscoveredCleanup = existingCleanupActions(staleCleanupExisting, [
+    {
+      externalId: 'klein-stale',
+      sourceName: 'Kleinanzeigen',
+      listingType: 'direct_listing',
+      sourceUrl: 'https://www.kleinanzeigen.de/s-anzeige/stale/100-277-6411'
+    }
+  ], '2026-09-09T12:00:00.000Z');
+  assert.strictEqual(rediscoveredCleanup.length, 0);
 
   const minimalCompleteness = calculateDataCompleteness({
     title: null,
