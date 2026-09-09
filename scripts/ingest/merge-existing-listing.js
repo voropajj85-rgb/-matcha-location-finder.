@@ -15,6 +15,30 @@ function preferUseful(existingValue, discoveredValue) {
   return hasUsefulValue(discoveredValue) ? discoveredValue : existingValue;
 }
 
+function isImplausibleRelativeCondition(value) {
+  if (!value || typeof value !== 'object') return false;
+  const months = Number(value.months);
+  return Number.isFinite(months) && (months <= 0 || months > 24);
+}
+
+function preferFinancialCondition(existingValue, discoveredValue) {
+  const safeExisting = isImplausibleRelativeCondition(existingValue) ? null : existingValue;
+  const safeDiscovered = isImplausibleRelativeCondition(discoveredValue) ? null : discoveredValue;
+  return preferUseful(safeExisting, safeDiscovered);
+}
+function isImplausibleRelativeCondition(value) {
+  if (!value || typeof value !== 'object') return false;
+  const months = Number(value.months);
+  if (!Number.isFinite(months)) return false;
+  return months <= 0 || months > 24;
+}
+
+function preferFinancialCondition(existingValue, discoveredValue) {
+  const safeExisting = isImplausibleRelativeCondition(existingValue) ? null : existingValue;
+  const safeDiscovered = isImplausibleRelativeCondition(discoveredValue) ? null : discoveredValue;
+  return preferUseful(safeExisting, safeDiscovered);
+}
+
 function preferGastroSuitability(existingValue, discoveredValue) {
   if (!hasUsefulValue(discoveredValue) || discoveredValue === 'unknown') return existingValue || discoveredValue;
   return discoveredValue;
@@ -101,9 +125,9 @@ function mergeExistingListing(existingRow, discovered) {
     rentPerSqm: preferUseful(existing.rentPerSqm, discovered.rentPerSqm),
     nk: preferUseful(existing.nk, discovered.nk ?? discovered.nebenkosten?.value),
     nebenkosten: preferUseful(existing.nebenkosten, discovered.nebenkosten),
-    provision: preferUseful(existing.provision, discovered.provision),
-    abloese: preferUseful(existing.abloese, discovered.abloese),
-    kaution: preferUseful(existing.kaution, discovered.kaution),
+    provision: preferFinancialCondition(existing.provision, discovered.provision),
+    abloese: preferFinancialCondition(existing.abloese, discovered.abloese),
+    kaution: preferFinancialCondition(existing.kaution, discovered.kaution),
     gastroSuitability: preferGastroSuitability(existing.gastroSuitability, discovered.gastroSuitability),
     gastroEvidence: preferUseful(existing.gastroEvidence, discovered.gastroEvidence),
     verifiedSummary: preferUseful(existing.verifiedSummary, discovered.verifiedSummary),
@@ -128,6 +152,7 @@ function mergeExistingListing(existingRow, discovered) {
 
 module.exports = {
   hasUsefulValue,
+  isImplausibleRelativeCondition,
   mapExistingRow,
   mergeExistingListing
 };

@@ -13,6 +13,11 @@ function readFrontendPublishableKey() {
 
 function condition(value) {
   if (value && typeof value === 'object') {
+    const months = Number(value.months);
+    if (Number.isFinite(months) && (months <= 0 || months > 24)) {
+      return { known: false, value: null, amount: null, months: null, status: 'unknown' };
+    }
+
     return {
       ...value,
       known: value.known != null ? Boolean(value.known) : value.status !== 'unknown',
