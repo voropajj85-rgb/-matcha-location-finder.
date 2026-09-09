@@ -3,6 +3,8 @@ import { calculateBusinessFit } from './business-fit.js?v=business-fit-1';
 import { calculateProjectRelevance } from './project-relevance.js?v=relevance-1';
 import { getValidExternalUrl } from './source-links.js?v=source-links-1';
 
+const MAX_RELATIVE_FINANCIAL_MONTHS = 24;
+
 export function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (character) => ({
     '&': '&amp;',
@@ -37,8 +39,10 @@ function formatFinancialCondition(condition, fallback = 'не опубликов
   if (condition.amount != null) return formatMoney(condition.amount);
   if (condition.value != null && condition.value !== '') return String(condition.value);
   if (condition.months != null) {
+    const months = Number(condition.months);
+    if (!Number.isFinite(months) || months <= 0 || months > MAX_RELATIVE_FINANCIAL_MONTHS) return fallback;
     const suffix = Number(condition.months) === 1 ? 'месяц' : 'месяца';
-    return `${Number(condition.months).toLocaleString('de-DE')} ${suffix} аренды`;
+    return `${months.toLocaleString('de-DE')} ${suffix} аренды`;
   }
   if (condition.known === true) return 'указано без суммы';
   return fallback;
@@ -48,7 +52,12 @@ function getRentLabel(listing) {
   const rentType = String(listing.rentType || listing.rawSourceData?.rentType || '').toLowerCase();
   const priceText = `${listing.rawSourceData?.sourcePriceText || ''} ${listing.rawSourceData?.rentEvidence || ''} ${listing.verifiedSummary || ''}`;
   if (listing.rent != null) return formatMoney(listing.rent);
-  if (rentType.includes('request') || /preis\s+auf\s+anfrage|miete\s+auf\s+anfrage/i.test(priceText)) return 'Preis auf Anfrage';
+  if (rentType === 'request'
+    || rentType.includes('price_on_request')
+    || rentType.includes('on_request')
+    || /preis\s+auf\s+anfrage|miete(?:preis)?(?:\s+ab)?\s*[:\s]\s*auf\s+anfrage|mietpreis\s+ab\s+auf\s+anfrage/i.test(priceText)) {
+    return 'Preis auf Anfrage';
+  }
   return 'Miete nicht angegeben';
 }
 

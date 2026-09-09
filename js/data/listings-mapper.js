@@ -32,6 +32,8 @@ export function mapDatabaseListing(row) {
     unitArea: row.unit_area ?? row.area,
     projectTotalArea: row.project_total_area,
     rent: row.rent ?? row.price,
+    rentType: row.rent_type,
+    rentPerSqm: row.rent_per_sqm,
     nk: row.nebenkosten,
     nebenkosten: { value: row.nebenkosten, known: row.nebenkosten != null },
     provision: toCondition(row.provision),

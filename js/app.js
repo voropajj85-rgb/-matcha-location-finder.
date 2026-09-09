@@ -258,9 +258,8 @@ function renderListings() {
   const shownLeads = state.showAllLeads ? leads : leads.slice(0, LEAD_PREVIEW_LIMIT);
   const hiddenLeadCount = Math.max(0, leads.length - shownLeads.length);
   renderSummary(listings, leads);
-  const visibleBaseListings = getVisibleBaseListings();
   const currentTabLabel = SOURCE_TABS[state.sourceTab]?.label || 'Best';
-  el('listMeta').textContent = `${currentTabLabel} · ${visibleBaseListings.length} проверенных помещений · Обновлено: ${formatVerificationDate(getLastVerifiedAt(state.baseListings))}`;
+  el('listMeta').textContent = `${currentTabLabel} · ${listings.length} проверенных помещений · Обновлено: ${formatVerificationDate(getLastVerifiedAt(state.baseListings))}`;
   el('leadMeta').textContent = hiddenLeadCount
     ? `${shownLeads.length} из ${leads.length} лидов · не подтверждённые помещения`
     : `${leads.length} лидов · не подтверждённые помещения`;
