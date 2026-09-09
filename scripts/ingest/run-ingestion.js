@@ -449,20 +449,62 @@ function validationRecord(listing) {
   };
 }
 
-function existingCleanupActions(existingRows) {
+const STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
+
+function sourceKey(listing) {
+  return String(listing.sourceName || listing.source || '').trim().toLowerCase();
+}
+
+function existingCleanupActions(existingRows, discoveredListings = [], now = new Date().toISOString()) {
+  const discoveredIds = new Set(
+    discoveredListings
+      .map((listing) => listing.externalId || listing.id)
+      .filter(Boolean)
+  );
+  const refreshedSources = new Set(
+    discoveredListings
+      .map(sourceKey)
+      .filter(Boolean)
+  );
+  const cutoff = Date.parse(now) - STALE_AFTER_MS;
+
   return existingRows
     .map(mapExistingRow)
     .filter((listing) => listing.listingType === 'direct_listing' && listing.availabilityStatus === 'active')
-    .filter((listing) => !validateSourceLink(listing).sourceLinkValid)
-    .map((listing) => ({
-      ...listing,
-      availabilityStatus: 'unknown',
-      previousAvailabilityStatus: listing.availabilityStatus,
-      verificationMethod: 'production-cleanup-invalid-source-url',
-      reason: 'active direct listing cannot remain active without a valid direct source URL',
-      lastVerifiedAt: null,
-      dedupeAction: 'cleanup'
-    }));
+    .flatMap((listing) => {
+      if (!validateSourceLink(listing).sourceLinkValid) {
+        return [{
+          ...listing,
+          availabilityStatus: 'unknown',
+          previousAvailabilityStatus: listing.availabilityStatus,
+          verificationMethod: 'production-cleanup-invalid-source-url',
+          reason: 'active direct listing cannot remain active without a valid direct source URL',
+          lastVerifiedAt: null,
+          dedupeAction: 'cleanup'
+        }];
+      }
+
+      const id = listing.externalId || listing.id;
+      const lastSeenAt = listing.lastSeenAt || listing.lastVerifiedAt || listing.discoveredAt;
+      const lastSeenMs = Date.parse(lastSeenAt || '');
+      const sourceWasRefreshed = refreshedSources.has(sourceKey(listing));
+      const seenThisRun = Boolean(id && discoveredIds.has(id));
+      const stale = Number.isFinite(lastSeenMs) && lastSeenMs < cutoff;
+
+      if (sourceWasRefreshed && !seenThisRun && stale) {
+        return [{
+          ...listing,
+          availabilityStatus: 'unknown',
+          previousAvailabilityStatus: listing.availabilityStatus,
+          verificationMethod: 'production-cleanup-stale-unseen',
+          reason: 'active direct listing was not rediscovered for 7 days while its source continued returning fresh listings',
+          lastVerifiedAt: listing.lastVerifiedAt || null,
+          dedupeAction: 'cleanup'
+        }];
+      }
+
+      return [];
+    });
 }
 
 async function writeValidationReport({ sourceResults, listings, cleanupActions, counts, qualityCounts, validationCounts, relevanceCounts, businessFitCounts, areaCounts, sourceOutcomes, skipped, discoveredCount, now }) {
@@ -568,7 +610,7 @@ async function run(argv = process.argv.slice(2)) {
   }
 
   const { listings: deduped, skipped } = deduplicateListings(enriched, existingRows);
-  const cleanupActions = existingCleanupActions(existingRows).map((listing) => ({
+  const cleanupActions = existingCleanupActions(existingRows, deduped, now).map((listing) => ({
     ...listing,
     ...calculateDataCompleteness(listing)
   }));
@@ -669,5 +711,6 @@ if (require.main === module) {
 module.exports = {
   parseArgs,
   run,
-  summarize
+  summarize,
+  existingCleanupActions
 };
