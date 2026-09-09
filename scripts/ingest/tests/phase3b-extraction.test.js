@@ -141,6 +141,13 @@ function run() {
   const numericNkRow = rowForListing({ id: 'nk-case', nk: 'Nebenkosten 250 €' });
   assert.strictEqual(numericNkRow.nebenkosten, 250);
 
+  const absurdProvisionRow = rowForListing({
+    id: 'absurd-provision',
+    provision: { known: true, value: '2026 Monatsmiete', months: 2026, status: 'known_relative' }
+  });
+  assert.strictEqual(absurdProvisionRow.provision.known, false);
+  assert.strictEqual(absurdProvisionRow.provision.status, 'unknown');
+
   console.log('Phase 3B extraction tests passed.');
 }
 
