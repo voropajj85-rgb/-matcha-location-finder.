@@ -4,12 +4,21 @@ import { fetchListings } from './data/listings-repository.js?v=business-fit-2';
 import { addUserListing, loadUserListings } from './storage.js?v=info-model-1';
 
 const LEAD_PREVIEW_LIMIT = 5;
+const SOURCE_TABS = {
+  best: { label: '⭐ Best' },
+  kleinanzeigen: { label: 'Kleinanzeigen', match: /kleinanzeigen/i },
+  colliers: { label: 'Colliers', match: /colliers/i },
+  engel: { label: 'Engel & Völkers', match: /engel|völkers|voelkers/i },
+  immobilie1: { label: 'immobilie1', match: /immobilie1/i },
+  stadt: { label: 'Stadt München', match: /stadt\s*münchen|stadt\s*muenchen|cbre/i }
+};
 
 const state = {
   baseListings: [],
   projectConfig: defaultProjectConfig,
   filters: resetFilters(),
   mode: 'list',
+  sourceTab: 'best',
   loading: true,
   loadError: null,
   showAllLeads: false
@@ -29,6 +38,22 @@ function getVisibleBaseListings() {
 
 function getVisibleLeads() {
   return rankLeads(allListings().filter(isVisibleLead));
+}
+
+function sourceText(listing) {
+  return [
+    listing.sourceName,
+    listing.source,
+    listing.sourceFamily,
+    listing.rawSourceData?.sourceName,
+    listing.rawSourceData?.source
+  ].filter(Boolean).join(' ');
+}
+
+function matchesSourceTab(listing, sourceTab = state.sourceTab) {
+  if (sourceTab === 'best') return true;
+  const tab = SOURCE_TABS[sourceTab];
+  return Boolean(tab?.match?.test(sourceText(listing)));
 }
 
 function formatVerificationDate(value) {
@@ -114,6 +139,26 @@ function renderSummary(listings, leads = []) {
   el('sCount').textContent = confirmed;
   el('sAvg').textContent = confirmed;
   el('sTop').textContent = leads.length;
+}
+
+function renderSourceTabs(listings, leads) {
+  document.querySelectorAll('[data-source-tab]').forEach((button) => {
+    const key = button.dataset.sourceTab;
+    const tab = SOURCE_TABS[key];
+    if (!tab) return;
+
+    const count = key === 'best'
+      ? listings.length
+      : listings.filter((listing) => matchesSourceTab(listing, key)).length;
+    const leadCount = key === 'best'
+      ? leads.length
+      : leads.filter((listing) => matchesSourceTab(listing, key)).length;
+    const suffix = leadCount ? `${count}+${leadCount}` : String(count);
+
+    button.textContent = `${tab.label} ${suffix}`;
+    button.classList.toggle('active', key === state.sourceTab);
+    button.setAttribute('aria-selected', String(key === state.sourceTab));
+  });
 }
 
 function renderStateCard(type, message, action = '') {
@@ -204,13 +249,18 @@ function renderListings() {
     return;
   }
 
-  const listings = applyListingFilters(allListings(), state.filters, state.projectConfig, calculateMatchaScore);
-  const leads = getVisibleLeads();
+  const allFilteredListings = applyListingFilters(allListings(), state.filters, state.projectConfig, calculateMatchaScore);
+  const allLeads = getVisibleLeads();
+  renderSourceTabs(allFilteredListings, allLeads);
+
+  const listings = allFilteredListings.filter((listing) => matchesSourceTab(listing));
+  const leads = allLeads.filter((listing) => matchesSourceTab(listing));
   const shownLeads = state.showAllLeads ? leads : leads.slice(0, LEAD_PREVIEW_LIMIT);
   const hiddenLeadCount = Math.max(0, leads.length - shownLeads.length);
   renderSummary(listings, leads);
   const visibleBaseListings = getVisibleBaseListings();
-  el('listMeta').textContent = `${visibleBaseListings.length} помещений · Обновлено: ${formatVerificationDate(getLastVerifiedAt(state.baseListings))}`;
+  const currentTabLabel = SOURCE_TABS[state.sourceTab]?.label || 'Best';
+  el('listMeta').textContent = `${currentTabLabel} · ${visibleBaseListings.length} проверенных помещений · Обновлено: ${formatVerificationDate(getLastVerifiedAt(state.baseListings))}`;
   el('leadMeta').textContent = hiddenLeadCount
     ? `${shownLeads.length} из ${leads.length} лидов · не подтверждённые помещения`
     : `${leads.length} лидов · не подтверждённые помещения`;
@@ -342,6 +392,13 @@ function saveManualListing() {
 
 function bindEvents() {
   document.addEventListener('click', (event) => {
+    const sourceTabButton = event.target.closest('[data-source-tab]');
+    if (sourceTabButton) {
+      state.sourceTab = sourceTabButton.dataset.sourceTab;
+      state.showAllLeads = false;
+      renderListings();
+    }
+
     const modeButton = event.target.closest('[data-mode]');
     if (modeButton) showMode(modeButton.dataset.mode);
 

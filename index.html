@@ -29,7 +29,16 @@
       </div>
     </header>
 
-    <nav class="tabs" aria-label="Основные разделы" data-tabs>
+    <nav class="source-tabs" aria-label="Источники объявлений">
+      <button class="source-tab active" type="button" data-source-tab="best" aria-selected="true">⭐ Best</button>
+      <button class="source-tab" type="button" data-source-tab="kleinanzeigen" aria-selected="false">Kleinanzeigen</button>
+      <button class="source-tab" type="button" data-source-tab="colliers" aria-selected="false">Colliers</button>
+      <button class="source-tab" type="button" data-source-tab="engel" aria-selected="false">Engel & Völkers</button>
+      <button class="source-tab" type="button" data-source-tab="immobilie1" aria-selected="false">immobilie1</button>
+      <button class="source-tab" type="button" data-source-tab="stadt" aria-selected="false">Stadt München</button>
+    </nav>
+
+    <nav class="tabs secondary-tabs" aria-label="Вид" data-tabs>
       <button class="tab active" id="tabList" type="button" data-mode="list" aria-controls="listMode" aria-selected="true">
         Список
       </button>
@@ -47,7 +56,7 @@
 
       <div class="stat">
         <strong id="sAvg">—</strong>
-        <span>direct</span>
+        <span>подтверждены</span>
       </div>
 
       <div class="stat">
@@ -66,7 +75,7 @@
         <div id="list" class="list" aria-live="polite"></div>
 
         <div class="section-heading secondary-heading">
-          <h2 id="leadHeading">Лиды / запросить помещение</h2>
+          <h2 id="leadHeading">Weitere Leads</h2>
           <span id="leadMeta">не подтверждённые помещения</span>
         </div>
 
@@ -174,10 +183,10 @@
           </select>
         </div>
 
-        <div class="field">
+        <div class="field hidden">
           <label for="fStatus">Статус</label>
-          <select id="fStatus">
-            <option value="all">Все</option>
+          <select id="fStatus" disabled>
+            <option value="all">Скрыт из основного UI</option>
           </select>
         </div>
       </div>
