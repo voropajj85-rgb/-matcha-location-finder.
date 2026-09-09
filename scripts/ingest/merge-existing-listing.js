@@ -14,6 +14,18 @@ function hasUsefulValue(value) {
 function preferUseful(existingValue, discoveredValue) {
   return hasUsefulValue(discoveredValue) ? discoveredValue : existingValue;
 }
+
+function isImplausibleRelativeCondition(value) {
+  if (!value || typeof value !== 'object') return false;
+  const months = Number(value.months);
+  return Number.isFinite(months) && (months <= 0 || months > 24);
+}
+
+function preferFinancialCondition(existingValue, discoveredValue) {
+  const safeExisting = isImplausibleRelativeCondition(existingValue) ? null : existingValue;
+  const safeDiscovered = isImplausibleRelativeCondition(discoveredValue) ? null : discoveredValue;
+  return preferUseful(safeExisting, safeDiscovered);
+}
 function isImplausibleRelativeCondition(value) {
   if (!value || typeof value !== 'object') return false;
   const months = Number(value.months);
