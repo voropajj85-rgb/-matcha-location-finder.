@@ -6,27 +6,146 @@ const {
   sleep
 } = require('../utils');
 
-const SEARCHES = [
-  'https://www.kleinanzeigen.de/s-gewerbeimmobilien/muenchen/c277l6411',
-  'https://www.kleinanzeigen.de/s-gewerbeimmobilien/muenchen/ladenflaeche/k0c277l6411',
-  'https://www.kleinanzeigen.de/s-gewerbeimmobilien/muenchen/laden/k0c277l6411',
-  'https://www.kleinanzeigen.de/s-gewerbeimmobilien/muenchen/gastronomie/k0c277l6411',
-  'https://www.kleinanzeigen.de/s-gewerbeimmobilien/muenchen/gastroflaeche/k0c277l6411',
-  'https://www.kleinanzeigen.de/s-gewerbeimmobilien/muenchen/cafe/k0c277l6411',
-  'https://www.kleinanzeigen.de/s-gewerbeimmobilien/muenchen/cafe-laden/k0c277l6411',
-  'https://www.kleinanzeigen.de/s-muenchen/laden-mieten/k0l6411',
-  'https://www.kleinanzeigen.de/s-muenchen/cafe-mieten/k0l6411',
-  'https://www.kleinanzeigen.de/s-muenchen/ladenflaeche-mieten/k0l6411',
-  'https://www.kleinanzeigen.de/s-muenchen/gewerbeflaeche-mieten/k0l6411',
-  'https://www.kleinanzeigen.de/s-muenchen/gastroflaeche/k0l6411',
-  'https://www.kleinanzeigen.de/s-muenchen/einzelhandel-mieten/k0l6411',
-  'https://www.kleinanzeigen.de/s-muenchen/gastronomie-mieten/k0l6411',
-  'https://www.kleinanzeigen.de/s-muenchen/imbiss-mieten/k0l6411',
-  'https://www.kleinanzeigen.de/s-muenchen/take-away-mieten/k0l6411',
-  'https://www.kleinanzeigen.de/s-muenchen/kiosk-mieten/k0l6411',
-  'https://www.kleinanzeigen.de/s-muenchen/bistro-mieten/k0l6411',
-  'https://www.kleinanzeigen.de/s-muenchen/laden-gastronomie/k0l6411'
+const CITYWIDE_TERMS = [
+  'laden-mieten',
+  'cafe-mieten',
+  'ladenflaeche-mieten',
+  'gewerbeflaeche-mieten',
+  'gewerberaum-mieten',
+  'gastroflaeche',
+  'einzelhandel-mieten',
+  'gastronomie-mieten',
+  'imbiss-mieten',
+  'take-away-mieten',
+  'kiosk-mieten',
+  'nachmieter-laden',
+  'geschaeftsuebernahme',
+  'gastro-uebernahme'
 ];
+
+const HIGH_INTENT_TERMS = [
+  'ladenflaeche',
+  'ladenlokal',
+  'gewerbeflaeche',
+  'gastronomie',
+  'cafe',
+  'kiosk',
+  'imbiss',
+  'einzelhandel',
+  'uebernahme'
+];
+
+const LOCATION_TERMS = [
+  'bahnhof',
+  'einkaufsstrasse'
+];
+
+const DISTRICT_BATCH_TERMS = [
+  'ladenlokal',
+  'gewerbeflaeche',
+  'cafe'
+];
+
+const DISTRICTS = [
+  'pasing',
+  'laim',
+  'neuhausen',
+  'nymphenburg',
+  'moosach',
+  'milbertshofen',
+  'schwabing',
+  'maxvorstadt',
+  'altstadt-lehel',
+  'ludwigsvorstadt-isarvorstadt',
+  'haidhausen',
+  'au',
+  'berg-am-laim',
+  'bogenhausen',
+  'giesing',
+  'sendling',
+  'sendling-westpark',
+  'hadern',
+  'thalkirchen',
+  'forstenried',
+  'solln',
+  'ramersdorf',
+  'trudering',
+  'riem',
+  'obergiesing',
+  'untergiesing',
+  'westend',
+  'aubing',
+  'feldmoching',
+  'hasenbergl'
+];
+
+const LOCATION_DISTRICTS = [
+  'pasing',
+  'laim',
+  'moosach',
+  'milbertshofen',
+  'schwabing',
+  'maxvorstadt',
+  'altstadt-lehel',
+  'ludwigsvorstadt-isarvorstadt',
+  'haidhausen',
+  'giesing',
+  'sendling',
+  'trudering',
+  'riem'
+];
+
+function searchUrlFromTerm(term, locationSlug = 'muenchen') {
+  return `https://www.kleinanzeigen.de/s-${locationSlug}/${term}/k0l6411`;
+}
+
+function commercialCategoryUrl(term) {
+  return `https://www.kleinanzeigen.de/s-gewerbeimmobilien/muenchen/${term}/k0c277l6411`;
+}
+
+function buildSearchMatrix() {
+  const searches = [
+    {
+      url: 'https://www.kleinanzeigen.de/s-gewerbeimmobilien/muenchen/c277l6411',
+      tier: 'citywide-generic',
+      district: 'München',
+      term: 'gewerbeimmobilien'
+    },
+    ...HIGH_INTENT_TERMS.map((term) => ({
+      url: commercialCategoryUrl(term),
+      tier: 'high-intent-commercial',
+      district: 'München',
+      term
+    })),
+    ...CITYWIDE_TERMS.map((term) => ({
+      url: searchUrlFromTerm(term),
+      tier: 'citywide-term',
+      district: 'München',
+      term
+    })),
+    ...DISTRICTS.flatMap((district) => DISTRICT_BATCH_TERMS.map((term) => ({
+      url: searchUrlFromTerm(`${term}-${district}`),
+      tier: 'district-batch',
+      district,
+      term
+    }))),
+    ...LOCATION_DISTRICTS.flatMap((district) => LOCATION_TERMS.map((term) => ({
+      url: searchUrlFromTerm(`${term}-${district}`),
+      tier: 'location-combination',
+      district,
+      term
+    })))
+  ];
+
+  const seen = new Set();
+  return searches.filter((search) => {
+    if (seen.has(search.url)) return false;
+    seen.add(search.url);
+    return true;
+  });
+}
+
+const SEARCHES = buildSearchMatrix();
 
 function paginatedUrl(searchUrl, page) {
   if (page <= 1) return searchUrl;
@@ -39,13 +158,26 @@ async function discover({ fetchPage, now, rateLimitMs = 1200, pageLimit = 3 } = 
   const seen = new Set();
   const meta = {
     queries: SEARCHES.length,
+    queryTiers: {},
+    districtQueries: {},
     pagesScanned: 0,
     duplicateLinks: 0
   };
 
-  for (const searchUrl of SEARCHES) {
+  for (const search of SEARCHES) {
+    const searchUrl = typeof search === 'string' ? search : search.url;
+    const tier = typeof search === 'string' ? 'legacy' : search.tier;
+    const searchDistrict = typeof search === 'string' ? 'München' : search.district;
+    const searchTerm = typeof search === 'string' ? null : search.term;
+    meta.queryTiers[tier] = (meta.queryTiers[tier] || 0) + 1;
+    meta.districtQueries[searchDistrict] = (meta.districtQueries[searchDistrict] || 0) + 1;
+
     let emptyPages = 0;
     for (let page = 1; page <= pageLimit; page += 1) {
+      const effectivePageLimit = tier === 'citywide-generic' || tier === 'citywide-term' || tier === 'high-intent-commercial'
+        ? pageLimit
+        : 1;
+      if (page > effectivePageLimit) break;
       const pageUrl = paginatedUrl(searchUrl, page);
       try {
         const response = await fetchPage(pageUrl);
@@ -73,7 +205,7 @@ async function discover({ fetchPage, now, rateLimitMs = 1200, pageLimit = 3 } = 
             listingType: 'direct_listing',
             title: null,
             address: null,
-            district: 'München',
+            district: searchDistrict === 'München' ? 'München' : searchDistrict,
             unitArea: null,
             rent: null,
             gastroSuitability: 'unknown',
@@ -84,6 +216,9 @@ async function discover({ fetchPage, now, rateLimitMs = 1200, pageLimit = 3 } = 
               sourcePriceText: null,
               sourceAreaText: null,
               detectedAt: now,
+              searchTier: tier,
+              searchDistrict,
+              searchTerm,
               searchUrl,
               searchPageUrl: pageUrl
             }
@@ -103,4 +238,14 @@ async function discover({ fetchPage, now, rateLimitMs = 1200, pageLimit = 3 } = 
   return { source: 'Kleinanzeigen', candidates, errors, meta };
 }
 
-module.exports = { SEARCHES, discover, paginatedUrl };
+module.exports = {
+  CITYWIDE_TERMS,
+  DISTRICTS,
+  HIGH_INTENT_TERMS,
+  LOCATION_TERMS,
+  DISTRICT_BATCH_TERMS,
+  SEARCHES,
+  buildSearchMatrix,
+  discover,
+  paginatedUrl
+};

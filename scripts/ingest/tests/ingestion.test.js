@@ -27,7 +27,7 @@ const { candidateFromPage: stadtCandidateFromPage } = require('../sources/stadt-
 const { candidateFromBrokerPage } = require('../sources/brokers');
 const kleinanzeigenSource = require('../sources/kleinanzeigen');
 const { calculateProjectRelevance } = require('../project-relevance');
-const { existingCleanupActions } = require('../run-ingestion');
+const { existingCleanupActions, summarizeCoverageDiagnostics } = require('../run-ingestion');
 
 async function run() {
   assert.strictEqual(
@@ -362,19 +362,19 @@ async function run() {
     unitArea: 100,
     rent: 2770,
     gastroSuitability: 'possible'
-  }).level, 'weak');
+  }).level, 'reject');
   assert.strictEqual(calculateProjectRelevance({
     listingType: 'direct_listing',
     unitArea: 85,
     rent: 1600,
     gastroSuitability: 'possible'
-  }).level, 'weak');
+  }).level, 'reject');
   assert.strictEqual(calculateProjectRelevance({
     listingType: 'direct_listing',
     unitArea: 75,
     rent: 2800,
     gastroSuitability: 'possible'
-  }).level, 'acceptable');
+  }).level, 'reject');
   assert.strictEqual(calculateProjectRelevance({
     listingType: 'direct_listing',
     sourceName: 'Colliers',
@@ -402,6 +402,13 @@ async function run() {
     gastroSuitability: 'possible',
     rawSourceData: { outsideMunich: true }
   }).level, 'reject');
+  assert.ok(['strong', 'acceptable'].includes(calculateProjectRelevance({
+    listingType: 'direct_listing',
+    district: 'Pasing',
+    unitArea: 47,
+    rent: 1900,
+    gastroSuitability: 'possible'
+  }).level));
   assert.ok(['strong', 'acceptable'].includes(calculateProjectRelevance({
     listingType: 'direct_listing',
     unitArea: 60,
@@ -458,6 +465,12 @@ async function run() {
     kleinanzeigenSource.paginatedUrl('https://www.kleinanzeigen.de/s-muenchen/kiosk-mieten/k0l6411', 2),
     'https://www.kleinanzeigen.de/s-muenchen/kiosk-mieten/seite:2/k0l6411'
   );
+  const kleinSearches = kleinanzeigenSource.buildSearchMatrix();
+  assert.ok(kleinSearches.length > 100);
+  assert.ok(kleinSearches.some((search) => search.tier === 'district-batch' && search.district === 'pasing' && search.term === 'cafe'));
+  assert.ok(kleinSearches.some((search) => search.tier === 'district-batch' && search.district === 'trudering' && search.term === 'ladenlokal'));
+  assert.ok(kleinSearches.some((search) => search.tier === 'location-combination' && search.district === 'laim' && search.term === 'bahnhof'));
+  assert.strictEqual(new Set(kleinSearches.map((search) => search.url)).size, kleinSearches.length);
 
   const seenPages = [];
   const kleinDiscovery = await kleinanzeigenSource.discover({
@@ -477,7 +490,24 @@ async function run() {
   assert.ok(kleinDiscovery.meta.queries >= 10);
   assert.ok(kleinDiscovery.meta.pagesScanned >= 2);
   assert.ok(kleinDiscovery.meta.duplicateLinks > 0);
+  assert.strictEqual(kleinDiscovery.candidates[0].rawSourceData.searchTier, 'citywide-generic');
+  assert.ok(kleinDiscovery.meta.districtQueries.pasing > 0);
   assert.ok(seenPages.some((url) => url.includes('seite:2')));
+
+  const resilientDiscovery = await kleinanzeigenSource.discover({
+    now: '2026-08-23T10:00:00.000Z',
+    rateLimitMs: 0,
+    pageLimit: 1,
+    fetchPage: async (url) => {
+      if (/gewerbeimmobilien\/muenchen\/c277/.test(url)) throw new Error('HTTP 403 blocks discovery');
+      return {
+        finalUrl: url,
+        body: '<a href="https://www.kleinanzeigen.de/s-anzeige/laden-pasing/321-277-6411">Pasing Laden</a>'
+      };
+    }
+  });
+  assert.ok(resilientDiscovery.errors.length >= 1);
+  assert.strictEqual(resilientDiscovery.candidates.length, 1);
 
   assert.strictEqual(getValidExternalUrl({ listingType: 'direct_listing', url: null }), null);
   assert.strictEqual(getValidExternalUrl({ listingType: 'direct_listing', url: '' }), null);
@@ -560,6 +590,61 @@ async function run() {
     verifiedSummary: 'Verified direct listing',
     gastroSuitability: 'possible'
   }), false);
+  assert.strictEqual(isVisibleCandidate({
+    listingType: 'direct_listing',
+    availabilityStatus: 'active',
+    url: 'https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411',
+    dataCompleteness: 100,
+    rent: 2770,
+    unitArea: 61,
+    title: 'Oversized kiosk',
+    verifiedSummary: 'Verified direct listing',
+    gastroSuitability: 'possible'
+  }), false);
+
+  const coverage = summarizeCoverageDiagnostics([
+    {
+      source: 'Kleinanzeigen',
+      candidates: [
+        {
+          sourceName: 'Kleinanzeigen',
+          listingType: 'direct_listing',
+          sourceUrl: 'https://www.kleinanzeigen.de/s-anzeige/cafe-pasing/1-277-6411',
+          district: 'Pasing',
+          rawSourceData: { searchDistrict: 'pasing' }
+        },
+        {
+          sourceName: 'Kleinanzeigen',
+          listingType: 'direct_listing',
+          sourceUrl: 'https://www.kleinanzeigen.de/s-anzeige/cafe-pasing/1-277-6411',
+          district: 'Pasing',
+          rawSourceData: { searchDistrict: 'laim' }
+        }
+      ],
+      errors: [],
+      meta: { queries: 2 }
+    }
+  ], [
+    {
+      sourceName: 'Kleinanzeigen',
+      listingType: 'direct_listing',
+      availabilityStatus: 'active',
+      sourceUrl: 'https://www.kleinanzeigen.de/s-anzeige/cafe-pasing/1-277-6411',
+      district: 'Pasing',
+      unitArea: 47,
+      rent: 1900,
+      dataCompleteness: 100,
+      title: 'Cafe Pasing',
+      verifiedSummary: 'Verified direct listing',
+      gastroSuitability: 'possible'
+    }
+  ]);
+  assert.strictEqual(coverage.source_coverage.Kleinanzeigen.queriesAttempted, 2);
+  assert.strictEqual(coverage.source_coverage.Kleinanzeigen.discoveredUrls, 2);
+  assert.strictEqual(coverage.source_coverage.Kleinanzeigen.uniqueDirectUrls, 1);
+  assert.strictEqual(coverage.source_coverage.Kleinanzeigen.areaLeq60, 1);
+  assert.strictEqual(coverage.source_coverage.Kleinanzeigen.rentLeq3000Known, 1);
+  assert.strictEqual(coverage.district_coverage.Pasing.visible, 1);
 
   const visibleBase = {
     listingType: 'direct_listing',

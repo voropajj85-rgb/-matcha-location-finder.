@@ -137,8 +137,11 @@ function emptySourceOutcome() {
     rejected: 0,
     blocked: 0,
     errors: 0,
+    areaLeq60: 0,
+    rentLeq3000Known: 0,
     visibleDirectCandidates: 0,
     leads: 0,
+    districtDistribution: {},
     hiddenReasons: {}
   };
 }
@@ -161,13 +164,13 @@ function summarizeSourceOutcomes(sourceResults, listings) {
       for (const [source, meta] of Object.entries(result.meta.sources)) {
         const sourceOutcome = getSourceOutcome(outcomes, source);
         sourceOutcome.pagesScanned += meta.pagesScanned || 0;
-        sourceOutcome.queries += meta.queries || 0;
+        sourceOutcome.queries += meta.queries || meta.catalogs || 0;
         sourceOutcome.duplicate += meta.duplicateLinks || 0;
       }
     } else {
       const sourceOutcome = getSourceOutcome(outcomes, result.source);
       sourceOutcome.pagesScanned += result.meta?.pagesScanned || 0;
-      sourceOutcome.queries += result.meta?.queries || 0;
+      sourceOutcome.queries += result.meta?.queries || result.meta?.catalogs || 0;
       sourceOutcome.duplicate += result.meta?.duplicateLinks || 0;
     }
 
@@ -197,8 +200,14 @@ function summarizeSourceOutcomes(sourceResults, listings) {
     if (listing.dedupeAction === 'updated') outcome.updated += 1;
     if (listing.dedupeAction !== 'new') outcome.alreadyKnown += 1;
     if (listing.availabilityStatus === 'active') outcome.verifiedActive += 1;
+    const area = listing.unitArea ?? listing.area ?? null;
+    const rent = listing.rent ?? null;
+    if (listing.listingType === 'direct_listing' && area != null && area <= 60) outcome.areaLeq60 += 1;
+    if (listing.listingType === 'direct_listing' && rent != null && rent <= 3000) outcome.rentLeq3000Known += 1;
     if (isVisibleCandidate(listing)) outcome.visibleDirectCandidates += 1;
     if (isVisibleLead(listing)) outcome.leads += 1;
+    const district = districtBucket(listing);
+    outcome.districtDistribution[district] = (outcome.districtDistribution[district] || 0) + 1;
     const hiddenReason = hiddenReasonForListing(listing);
     if (hiddenReason) outcome.hiddenReasons[hiddenReason] = (outcome.hiddenReasons[hiddenReason] || 0) + 1;
 
@@ -222,9 +231,121 @@ function printSourceOutcomes(outcomes) {
   console.log('\nsource outcomes');
   for (const [source, outcome] of Object.entries(outcomes)) {
     console.log(
-      `  ${source}: pages ${outcome.pagesScanned}, found ${outcome.found}, direct ${outcome.direct}, verified_active ${outcome.verifiedActive}, rejected ${outcome.rejected}, blocked ${outcome.blocked}, errors ${outcome.errors}, visible_direct ${outcome.visibleDirectCandidates}, leads ${outcome.leads}, duplicate ${outcome.duplicate}`
+      `  ${source}: queries ${outcome.queries}, pages ${outcome.pagesScanned}, found ${outcome.found}, direct ${outcome.direct}, verified_active ${outcome.verifiedActive}, <=60m2 ${outcome.areaLeq60}, <=3000_known ${outcome.rentLeq3000Known}, rejected ${outcome.rejected}, blocked ${outcome.blocked}, errors ${outcome.errors}, visible_direct ${outcome.visibleDirectCandidates}, leads ${outcome.leads}, duplicate ${outcome.duplicate}`
     );
   }
+}
+
+function districtBucket(item) {
+  const explicit = item.rawSourceData?.searchDistrict || item.district || item.address || item.location || item.title || '';
+  const text = String(explicit || '').toLowerCase();
+  const districts = [
+    ['Altstadt-Lehel', /altstadt|lehel/],
+    ['Au-Haidhausen', /\bau\b|haidhausen/],
+    ['Aubing', /aubing/],
+    ['Berg am Laim', /berg am laim/],
+    ['Bogenhausen', /bogenhausen/],
+    ['Feldmoching-Hasenbergl', /feldmoching|hasenbergl/],
+    ['Forstenried', /forstenried/],
+    ['Giesing', /giesing|obergiesing|untergiesing/],
+    ['Hadern', /hadern/],
+    ['Laim', /\blaim\b/],
+    ['Ludwigsvorstadt-Isarvorstadt', /ludwigsvorstadt|isarvorstadt/],
+    ['Maxvorstadt', /maxvorstadt/],
+    ['Milbertshofen', /milbertshofen/],
+    ['Moosach', /moosach/],
+    ['Neuhausen-Nymphenburg', /neuhausen|nymphenburg/],
+    ['Pasing', /pasing/],
+    ['Ramersdorf', /ramersdorf/],
+    ['Riem', /\briem\b/],
+    ['Schwabing', /schwabing/],
+    ['Sendling', /sendling/],
+    ['Sendling-Westpark', /sendling-westpark|westpark/],
+    ['Solln', /solln/],
+    ['Thalkirchen', /thalkirchen/],
+    ['Trudering', /trudering/],
+    ['Westend', /westend|schwanthalerh[oö]he/]
+  ];
+  const match = districts.find(([, pattern]) => pattern.test(text));
+  if (match) return match[0];
+  if (/m[uü]nchen|muenchen|munich|80\d{3}|81\d{3}/i.test(text)) return 'München unspecified';
+  return 'unknown';
+}
+
+function createCoverageBucket() {
+  return {
+    queriesAttempted: 0,
+    discoveredUrls: 0,
+    uniqueDirectUrls: 0,
+    verified: 0,
+    areaLeq60: 0,
+    rentLeq3000Known: 0,
+    visibleCandidates: 0,
+    districtDistribution: {}
+  };
+}
+
+function addDistrictCount(bucket, district, field) {
+  if (!bucket[district]) bucket[district] = { discovered: 0, verified: 0, visible: 0 };
+  bucket[district][field] += 1;
+}
+
+function summarizeCoverageDiagnostics(sourceResults, listings) {
+  const sourceCoverage = {};
+  const districtCoverage = {};
+  const seenBySource = {};
+
+  for (const result of sourceResults) {
+    const resultSource = normalizeSourceBucket(result.source);
+    if (!sourceCoverage[resultSource]) sourceCoverage[resultSource] = createCoverageBucket();
+
+    if (result.meta?.sources) {
+      for (const [source, meta] of Object.entries(result.meta.sources)) {
+        const bucket = sourceCoverage[normalizeSourceBucket(source)] || createCoverageBucket();
+        bucket.queriesAttempted += meta.queries || meta.catalogs || 0;
+        sourceCoverage[normalizeSourceBucket(source)] = bucket;
+      }
+    } else {
+      sourceCoverage[resultSource].queriesAttempted += result.meta?.queries || result.meta?.catalogs || 0;
+    }
+
+    for (const candidate of result.candidates || []) {
+      const source = normalizeSourceBucket(candidate.sourceName || candidate.source || result.source);
+      if (!sourceCoverage[source]) sourceCoverage[source] = createCoverageBucket();
+      if (!seenBySource[source]) seenBySource[source] = new Set();
+
+      const bucket = sourceCoverage[source];
+      const url = candidate.sourceUrl || candidate.url || candidate.canonicalUrl || candidate.externalId || candidate.id;
+      const district = districtBucket(candidate);
+      bucket.discoveredUrls += 1;
+      bucket.districtDistribution[district] = (bucket.districtDistribution[district] || 0) + 1;
+      addDistrictCount(districtCoverage, district, 'discovered');
+
+      if (candidate.listingType === 'direct_listing' && url && !seenBySource[source].has(url)) {
+        seenBySource[source].add(url);
+        bucket.uniqueDirectUrls += 1;
+      }
+    }
+  }
+
+  for (const listing of listings) {
+    if (listing.listingType !== 'direct_listing') continue;
+    const source = normalizeSourceBucket(listing.sourceName || listing.source);
+    if (!sourceCoverage[source]) sourceCoverage[source] = createCoverageBucket();
+    const bucket = sourceCoverage[source];
+    const district = districtBucket(listing);
+    if (listing.availabilityStatus === 'active') bucket.verified += 1;
+    if ((listing.unitArea ?? listing.area ?? null) != null && (listing.unitArea ?? listing.area) <= 60) bucket.areaLeq60 += 1;
+    if (listing.rent != null && listing.rent <= 3000) bucket.rentLeq3000Known += 1;
+    if (isVisibleCandidate(listing)) bucket.visibleCandidates += 1;
+    addDistrictCount(districtCoverage, district, 'verified');
+    if (isVisibleCandidate(listing)) addDistrictCount(districtCoverage, district, 'visible');
+  }
+
+  return {
+    source_coverage: sourceCoverage,
+    district_coverage: districtCoverage
+  };
 }
 
 function printListingPreview(listings) {
@@ -288,7 +409,7 @@ function hiddenReasonForListing(listing) {
   if (listing.availabilityStatus !== 'active' || !link.sourceLinkValid) return 'verification insufficient';
   if (relevance.reasons.some((reason) => /outside Munich target area/i.test(reason))) return 'outside Munich';
   if (area == null) return 'missing area';
-  if (area > 100) return 'area too large';
+  if (area > 60) return 'area too large';
   if (area < 20) return 'area too small';
   if (rent != null && rent > 3500) return 'rent too high';
   if (rent == null && issues.some((issue) => /missing confirmed rent/i.test(issue))) return 'rent missing';
@@ -509,6 +630,7 @@ function existingCleanupActions(existingRows, discoveredListings = [], now = new
 
 async function writeValidationReport({ sourceResults, listings, cleanupActions, counts, qualityCounts, validationCounts, relevanceCounts, businessFitCounts, areaCounts, sourceOutcomes, skipped, discoveredCount, now }) {
   const hiddenBreakdown = summarizeHiddenBreakdown(listings, skipped);
+  const coverageDiagnostics = summarizeCoverageDiagnostics(sourceResults, listings);
   const report = {
     generatedAt: now,
     dryRunSafe: true,
@@ -545,6 +667,7 @@ async function writeValidationReport({ sourceResults, listings, cleanupActions, 
       message: error.message
     }))),
     sourceOutcomes,
+    ...coverageDiagnostics,
     hiddenBreakdown,
     sourceDiagnostics: {
       'Engel & Völkers': sourceDiagnostics(sourceResults, listings, 'Engel & Völkers', 10),
@@ -712,5 +835,6 @@ module.exports = {
   parseArgs,
   run,
   summarize,
-  existingCleanupActions
+  existingCleanupActions,
+  summarizeCoverageDiagnostics
 };
