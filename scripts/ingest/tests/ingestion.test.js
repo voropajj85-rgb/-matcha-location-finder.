@@ -699,7 +699,7 @@ async function run() {
   assert.deepStrictEqual(filtered.map((listing) => listing.id).sort(), ['active-ok']);
   assert.strictEqual(isVisibleLead({ id: 'lead', listingType: 'project_lead', availabilityStatus: 'lead' }), true);
   const leadCard = buildLeadCard({ id: 'lead', listingType: 'project_lead', availabilityStatus: 'lead', title: 'FMQ', sourceName: 'Stadt München' });
-  assert.strictEqual(leadCard.includes('Это не подтверждённое помещение'), true);
+  assert.strictEqual(leadCard.includes('Lead: конкретное помещение ещё не подтверждено'), true);
   assert.strictEqual(leadCard.includes('Matcha Score'), false);
   const rankedLeads = rankLeads([
     { id: 'dead-lead', listingType: 'project_lead', availabilityStatus: 'dead', sourceName: 'Stadt München' },
