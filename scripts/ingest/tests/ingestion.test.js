@@ -663,6 +663,7 @@ async function run() {
     url: 'https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411'
   });
   assert.strictEqual(cardWithUrl.includes('href="https://www.kleinanzeigen.de/s-anzeige/cafe/1-277-6411"'), true);
+  assert.strictEqual(cardWithUrl.includes('Anzeige öffnen'), true);
 
   const { applyListingFilters, isVisibleLead, rankLeads, resetFilters } = await import('../../../js/filters.js');
   const filtered = applyListingFilters([
@@ -739,7 +740,10 @@ async function run() {
     gastroSuitability: 'possible',
     gastroEvidence: 'Direct source says cafe'
   });
-  assert.strictEqual(insufficientScoreCard.includes('aria-label="Оценка пока невозможна"'), true);
+  assert.strictEqual(insufficientScoreCard.includes('aria-label="Оценка пока невозможна"'), false);
+  assert.strictEqual(insufficientScoreCard.includes('Matcha Score'), false);
+  assert.strictEqual(insufficientScoreCard.includes('Цена по запросу/не указана'), true);
+  assert.strictEqual(insufficientScoreCard.includes('Почему интересно'), true);
 
   const override = await checkListing({
     id: 'manual-dead',
