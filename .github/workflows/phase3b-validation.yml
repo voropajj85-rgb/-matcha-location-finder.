@@ -46,6 +46,9 @@ jobs:
         run: |
           node scripts/ingest/phase3b-report.js scripts/ingest/reports/latest-validation.json 2>&1 | tee phase3b-report.log
 
+      - name: Reconcile coverage and market funnel
+        run: node scripts/ingest/tests/validation-report.test.js
+
       - name: Upload validation artifacts
         if: always()
         uses: actions/upload-artifact@v4

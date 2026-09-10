@@ -76,15 +76,20 @@ async function discover({ fetchPage, now } = {}) {
   const candidates = [];
   const errors = [];
   const urls = new Set(SEEDS.map((seed) => seed.sourceUrl));
+  const meta = { queries: CATALOG_URLS.length, pagesScanned: 0, duplicateLinks: 0 };
 
   for (const catalogUrl of CATALOG_URLS) {
     try {
       const response = await fetchPage(catalogUrl);
+      meta.pagesScanned += 1;
       const links = extractLinks(response.body || '', response.finalUrl || catalogUrl, (url) => (
         /stadt\.muenchen\.de/i.test(url)
         && /(gewerbeflaechen|gewerbeflachen|laden|gastronomie|einzelhandel)/i.test(url)
       ));
-      for (const link of links) urls.add(link);
+      for (const link of links) {
+        if (urls.has(link)) meta.duplicateLinks += 1;
+        urls.add(link);
+      }
     } catch (error) {
       errors.push({ sourceUrl: catalogUrl, message: error.message });
     }
@@ -110,7 +115,7 @@ async function discover({ fetchPage, now } = {}) {
     }
   }
 
-  return { source: 'Stadt München', candidates, errors };
+  return { source: 'Stadt München', candidates, errors, meta };
 }
 
 module.exports = { CATALOG_URLS, candidateFromPage, discover };

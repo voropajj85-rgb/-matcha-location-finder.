@@ -9,10 +9,13 @@ const SEARCHES = [
 async function discover({ fetchPage, now, rateLimitMs = 2500 } = {}) {
   const candidates = [];
   const errors = [];
+  const meta = { queries: SEARCHES.length, pagesScanned: 0, duplicateLinks: 0 };
+  const seen = new Set();
 
   for (const searchUrl of SEARCHES) {
     try {
       const response = await fetchPage(searchUrl);
+      meta.pagesScanned += 1;
       const directLinks = extractLinks(
         response.body || '',
         response.finalUrl || searchUrl,
@@ -20,6 +23,11 @@ async function discover({ fetchPage, now, rateLimitMs = 2500 } = {}) {
       );
 
       for (const sourceUrl of directLinks.slice(0, 12)) {
+        if (seen.has(sourceUrl)) {
+          meta.duplicateLinks += 1;
+          continue;
+        }
+        seen.add(sourceUrl);
         candidates.push({
           sourceFamily: 'portal',
           sourceName: 'Immowelt',
@@ -43,7 +51,7 @@ async function discover({ fetchPage, now, rateLimitMs = 2500 } = {}) {
     await sleep(rateLimitMs);
   }
 
-  return { source: 'Immowelt', candidates, errors };
+  return { source: 'Immowelt', candidates, errors, meta };
 }
 
-module.exports = { discover };
+module.exports = { SEARCHES, discover };

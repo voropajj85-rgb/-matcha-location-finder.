@@ -107,7 +107,10 @@ function mergeExistingListing(existingRow, discovered) {
     id: existing.externalId || discovered.externalId || discovered.id,
     title: preferUseful(existing.title, discovered.title),
     address: preferUseful(existing.address, discovered.address),
-    district: preferUseful(existing.district, discovered.district),
+    district: preferUseful(
+      existing.rawSourceData?.searchDistrict && !existing.rawSourceData?.districtEvidence ? null : existing.district,
+      discovered.district
+    ),
     sourceFamily: preferUseful(existing.sourceFamily, discovered.sourceFamily),
     sourceName: preferUseful(existing.sourceName, discovered.sourceName),
     source: preferUseful(existing.source, discovered.sourceName || discovered.source),

@@ -20,6 +20,8 @@ const {
 } = require('./listing-validation');
 const { calculateProjectRelevance } = require('./project-relevance');
 const { verifyListings } = require('./verify-listings');
+const { districtBucket, locationBucket } = require('./district-coverage');
+const { classifyMarketListing, summarizeMarketFunnel } = require('./market-funnel');
 
 const SOURCES = {
   kleinanzeigen: require('./sources/kleinanzeigen'),
@@ -137,8 +139,11 @@ function emptySourceOutcome() {
     rejected: 0,
     blocked: 0,
     errors: 0,
+    areaLeq60: 0,
+    rentLeq3000Known: 0,
     visibleDirectCandidates: 0,
     leads: 0,
+    districtDistribution: {},
     hiddenReasons: {}
   };
 }
@@ -161,13 +166,13 @@ function summarizeSourceOutcomes(sourceResults, listings) {
       for (const [source, meta] of Object.entries(result.meta.sources)) {
         const sourceOutcome = getSourceOutcome(outcomes, source);
         sourceOutcome.pagesScanned += meta.pagesScanned || 0;
-        sourceOutcome.queries += meta.queries || 0;
+        sourceOutcome.queries += meta.queries || meta.catalogs || 0;
         sourceOutcome.duplicate += meta.duplicateLinks || 0;
       }
     } else {
       const sourceOutcome = getSourceOutcome(outcomes, result.source);
       sourceOutcome.pagesScanned += result.meta?.pagesScanned || 0;
-      sourceOutcome.queries += result.meta?.queries || 0;
+      sourceOutcome.queries += result.meta?.queries || result.meta?.catalogs || 0;
       sourceOutcome.duplicate += result.meta?.duplicateLinks || 0;
     }
 
@@ -197,8 +202,14 @@ function summarizeSourceOutcomes(sourceResults, listings) {
     if (listing.dedupeAction === 'updated') outcome.updated += 1;
     if (listing.dedupeAction !== 'new') outcome.alreadyKnown += 1;
     if (listing.availabilityStatus === 'active') outcome.verifiedActive += 1;
+    const area = listing.unitArea ?? listing.area ?? null;
+    const rent = listing.rent ?? null;
+    if (listing.listingType === 'direct_listing' && area != null && area <= 60) outcome.areaLeq60 += 1;
+    if (listing.listingType === 'direct_listing' && rent != null && rent <= 3000) outcome.rentLeq3000Known += 1;
     if (isVisibleCandidate(listing)) outcome.visibleDirectCandidates += 1;
     if (isVisibleLead(listing)) outcome.leads += 1;
+    const district = districtBucket(listing);
+    outcome.districtDistribution[district] = (outcome.districtDistribution[district] || 0) + 1;
     const hiddenReason = hiddenReasonForListing(listing);
     if (hiddenReason) outcome.hiddenReasons[hiddenReason] = (outcome.hiddenReasons[hiddenReason] || 0) + 1;
 
@@ -222,9 +233,102 @@ function printSourceOutcomes(outcomes) {
   console.log('\nsource outcomes');
   for (const [source, outcome] of Object.entries(outcomes)) {
     console.log(
-      `  ${source}: pages ${outcome.pagesScanned}, found ${outcome.found}, direct ${outcome.direct}, verified_active ${outcome.verifiedActive}, rejected ${outcome.rejected}, blocked ${outcome.blocked}, errors ${outcome.errors}, visible_direct ${outcome.visibleDirectCandidates}, leads ${outcome.leads}, duplicate ${outcome.duplicate}`
+      `  ${source}: queries ${outcome.queries}, pages ${outcome.pagesScanned}, found ${outcome.found}, direct ${outcome.direct}, verified_active ${outcome.verifiedActive}, <=60m2 ${outcome.areaLeq60}, <=3000_known ${outcome.rentLeq3000Known}, rejected ${outcome.rejected}, blocked ${outcome.blocked}, errors ${outcome.errors}, visible_direct ${outcome.visibleDirectCandidates}, leads ${outcome.leads}, duplicate ${outcome.duplicate}`
     );
   }
+}
+
+function createCoverageBucket() {
+  return {
+    queriesAttempted: 0,
+    discoveredUrls: 0,
+    uniqueDirectUrls: 0,
+    verified: 0,
+    areaLeq60: 0,
+    rentLeq3000Known: 0,
+    visibleCandidates: 0,
+    districtDistribution: {}
+  };
+}
+
+function addDistrictCount(bucket, district, field) {
+  if (!bucket[district]) bucket[district] = { discovered: 0, verified: 0, visible: 0 };
+  bucket[district][field] += 1;
+}
+
+function summarizeCoverageDiagnostics(sourceResults, listings) {
+  const sourceCoverage = {};
+  const districtCoverage = {};
+  const searchHintCoverage = {};
+  const seenBySource = {};
+
+  for (const result of sourceResults) {
+    const resultSource = normalizeSourceBucket(result.source);
+    if (!sourceCoverage[resultSource]) sourceCoverage[resultSource] = createCoverageBucket();
+
+    if (result.meta?.sources) {
+      for (const [source, meta] of Object.entries(result.meta.sources)) {
+        const bucket = sourceCoverage[normalizeSourceBucket(source)] || createCoverageBucket();
+        bucket.queriesAttempted += meta.queries || meta.catalogs || 0;
+        sourceCoverage[normalizeSourceBucket(source)] = bucket;
+      }
+    } else {
+      sourceCoverage[resultSource].queriesAttempted += result.meta?.queries || result.meta?.catalogs || 0;
+    }
+
+    for (const candidate of result.candidates || []) {
+      const source = normalizeSourceBucket(candidate.sourceName || candidate.source || result.source);
+      if (!sourceCoverage[source]) sourceCoverage[source] = createCoverageBucket();
+      if (!seenBySource[source]) seenBySource[source] = new Set();
+
+      const bucket = sourceCoverage[source];
+      const url = candidate.sourceUrl || candidate.url || candidate.canonicalUrl || candidate.externalId || candidate.id;
+      const district = districtBucket(candidate);
+      bucket.discoveredUrls += 1;
+      bucket.districtDistribution[district] = (bucket.districtDistribution[district] || 0) + 1;
+      addDistrictCount(districtCoverage, district, 'discovered');
+      const hint = candidate.rawSourceData?.searchDistrict;
+      if (hint) {
+        const key = locationBucket(hint);
+        searchHintCoverage[key] ||= { discovered: 0 };
+        searchHintCoverage[key].discovered += 1;
+      }
+
+      if (candidate.listingType === 'direct_listing' && url && !seenBySource[source].has(url)) {
+        seenBySource[source].add(url);
+        bucket.uniqueDirectUrls += 1;
+      }
+    }
+  }
+
+  for (const listing of listings) {
+    if (listing.listingType !== 'direct_listing') continue;
+    const source = normalizeSourceBucket(listing.sourceName || listing.source);
+    if (!sourceCoverage[source]) sourceCoverage[source] = createCoverageBucket();
+    const bucket = sourceCoverage[source];
+    const district = districtBucket(listing);
+    if (listing.availabilityStatus === 'active') bucket.verified += 1;
+    if ((listing.unitArea ?? listing.area ?? null) != null && (listing.unitArea ?? listing.area) <= 60) bucket.areaLeq60 += 1;
+    if (listing.rent != null && listing.rent <= 3000) bucket.rentLeq3000Known += 1;
+    if (isVisibleCandidate(listing)) bucket.visibleCandidates += 1;
+    if (listing.availabilityStatus === 'active' && validateSourceLink(listing).sourceLinkValid) {
+      addDistrictCount(districtCoverage, district, 'verified');
+    }
+    if (isVisibleCandidate(listing)) addDistrictCount(districtCoverage, district, 'visible');
+  }
+
+  return {
+    source_coverage: sourceCoverage,
+    district_coverage: {
+      confirmed: districtCoverage,
+      discovery_search_hints: searchHintCoverage,
+      definitions: {
+        confirmed: 'Extracted listing district/address/location only; unknown and München unspecified are unconfirmed. Discovered counts precede enrichment; verified/visible use final listings.',
+        discovery_search_hints: 'First-discovery searchDistrict only; not evidence of physical location. Verified/visible counts deliberately omitted.',
+        verified: 'Active direct listing with valid direct source URL.'
+      }
+    }
+  };
 }
 
 function printListingPreview(listings) {
@@ -288,7 +392,7 @@ function hiddenReasonForListing(listing) {
   if (listing.availabilityStatus !== 'active' || !link.sourceLinkValid) return 'verification insufficient';
   if (relevance.reasons.some((reason) => /outside Munich target area/i.test(reason))) return 'outside Munich';
   if (area == null) return 'missing area';
-  if (area > 100) return 'area too large';
+  if (area > 60) return 'area too large';
   if (area < 20) return 'area too small';
   if (rent != null && rent > 3500) return 'rent too high';
   if (rent == null && issues.some((issue) => /missing confirmed rent/i.test(issue))) return 'rent missing';
@@ -397,7 +501,7 @@ function sourceDiagnostics(sourceResults, listings, sourceName, limit = null) {
   });
 }
 
-function validationRecord(listing) {
+function validationRecord(listing, now) {
   const link = validateSourceLink(listing);
   const issues = validationIssues(listing);
   const relevance = calculateProjectRelevance(listing);
@@ -408,6 +512,11 @@ function validationRecord(listing) {
     url: listing.sourceUrl || listing.url || null,
     title: listing.title || null,
     location: listing.address || listing.district || null,
+    district: listing.district || null,
+    confirmedDistrict: districtBucket(listing),
+    districtEvidence: listing.rawSourceData?.districtEvidence || null,
+    rawSourceData: { searchDistrict: listing.rawSourceData?.searchDistrict || null },
+    marketClassification: classifyMarketListing(listing, now),
     verifiedSummary: listing.verifiedSummary || null,
     nextAction: listing.nextAction || null,
     canonicalUrl: link.canonicalUrl,
@@ -509,6 +618,7 @@ function existingCleanupActions(existingRows, discoveredListings = [], now = new
 
 async function writeValidationReport({ sourceResults, listings, cleanupActions, counts, qualityCounts, validationCounts, relevanceCounts, businessFitCounts, areaCounts, sourceOutcomes, skipped, discoveredCount, now }) {
   const hiddenBreakdown = summarizeHiddenBreakdown(listings, skipped);
+  const coverageDiagnostics = summarizeCoverageDiagnostics(sourceResults, listings);
   const report = {
     generatedAt: now,
     dryRunSafe: true,
@@ -545,6 +655,8 @@ async function writeValidationReport({ sourceResults, listings, cleanupActions, 
       message: error.message
     }))),
     sourceOutcomes,
+    ...coverageDiagnostics,
+    market_funnel: summarizeMarketFunnel(sourceResults, listings, now, normalizeSourceBucket),
     hiddenBreakdown,
     sourceDiagnostics: {
       'Engel & Völkers': sourceDiagnostics(sourceResults, listings, 'Engel & Völkers', 10),
@@ -556,8 +668,8 @@ async function writeValidationReport({ sourceResults, listings, cleanupActions, 
       errors: result.errors,
       meta: result.meta || {}
     })),
-    listings: listings.map(validationRecord),
-    cleanupActions: cleanupActions.map(validationRecord),
+    listings: listings.map((listing) => validationRecord(listing, now)),
+    cleanupActions: cleanupActions.map((listing) => validationRecord(listing, now)),
     skippedDuplicates: skipped
   };
 
@@ -712,5 +824,6 @@ module.exports = {
   parseArgs,
   run,
   summarize,
-  existingCleanupActions
+  existingCleanupActions,
+  summarizeCoverageDiagnostics
 };

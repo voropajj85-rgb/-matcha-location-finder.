@@ -3,10 +3,10 @@ const { isNearbyExcludedLocation } = require('./utils');
 const defaultProjectConfig = {
   city: 'München',
   targetArea: {
-    preferredMin: 35,
-    preferredMax: 60,
+    preferredMin: 30,
+    preferredMax: 55,
     acceptableMin: 25,
-    acceptableMax: 80
+    acceptableMax: 60
   },
   targetRent: {
     preferredMax: 3000
@@ -15,9 +15,9 @@ const defaultProjectConfig = {
 
 const SOFT_RENT_MAX = 3500;
 const HARD_MIN_AREA = 20;
-const HARD_MAX_AREA = 100;
+const HARD_MAX_AREA = 60;
 const WEAK_LOW_MAX_AREA = 24;
-const WEAK_HIGH_MIN_AREA = 81;
+const WEAK_HIGH_MIN_AREA = 61;
 const NEGATIVE_GASTRO_PATTERNS = [
   /keine abluft/i,
   /keine k[uü]chenabluft/i,
