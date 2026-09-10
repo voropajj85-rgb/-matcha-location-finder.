@@ -28,6 +28,8 @@ const { candidateFromBrokerPage } = require('../sources/brokers');
 const kleinanzeigenSource = require('../sources/kleinanzeigen');
 const { calculateProjectRelevance } = require('../project-relevance');
 const { existingCleanupActions, summarizeCoverageDiagnostics } = require('../run-ingestion');
+const { classifyMarketListing, summarizeMarketFunnel } = require('../market-funnel');
+const { districtBucket } = require('../district-coverage');
 
 async function run() {
   assert.strictEqual(
@@ -494,6 +496,97 @@ async function run() {
   assert.ok(kleinDiscovery.meta.districtQueries.pasing > 0);
   assert.ok(seenPages.some((url) => url.includes('seite:2')));
 
+  const checkedAt = '2026-09-10T14:00:00.000Z';
+  const pasingDiscovery = await kleinanzeigenSource.discover({
+    now: checkedAt, rateLimitMs: 0, pageLimit: 1,
+    fetchPage: async (url) => ({ finalUrl: url, body: url.includes('/ladenlokal-pasing/')
+      ? '<a href="https://www.kleinanzeigen.de/s-anzeige/cafe-laden/987-277-6411">Laden</a>' : '' })
+  });
+  const discoveredViaPasing = pasingDiscovery.candidates[0];
+  assert.strictEqual(discoveredViaPasing.district, null);
+  assert.strictEqual(discoveredViaPasing.rawSourceData.searchDistrict, 'pasing');
+  const laimHtml = '<title>Café in München - Laim | kleinanzeigen.de</title><h1>Café Laden</h1>'
+    + '<span id="viewad-locality">80687 München - Laim</span>'
+    + '<p>Ladenfläche 45 m². Kaltmiete 1900 €. geeignet für Café. Anzeigen-ID 987-277-6411</p>';
+  const laimEnriched = await enrichListing(normalizeListing(discoveredViaPasing, checkedAt), {
+    fetchPage: async (url) => ({ status: 200, finalUrl: url, body: laimHtml })
+  });
+  assert.strictEqual(laimEnriched.district, 'Laim');
+  assert.ok(laimEnriched.address.includes('Laim'));
+  assert.strictEqual(laimEnriched.rawSourceData.searchDistrict, 'pasing');
+  assert.strictEqual(laimEnriched.rawSourceData.districtEvidence.method, 'listing-locality');
+  const laimVerified = classifyHtml({ ...laimEnriched, url: laimEnriched.sourceUrl },
+    { ok: true, status: 200 }, laimHtml, laimEnriched.sourceUrl, checkedAt);
+  assert.strictEqual(laimVerified.availabilityStatus, 'active');
+  assert.strictEqual(laimVerified.district, 'Laim');
+  const oldHintRow = { external_id: laimEnriched.externalId, district: 'Pasing', raw_source_data: { searchDistrict: 'pasing' } };
+  assert.strictEqual(mergeExistingListing(oldHintRow, laimVerified).district, 'Laim');
+  assert.strictEqual(mergeExistingListing(oldHintRow, { ...laimEnriched, district: null }).district, null);
+  assert.strictEqual(districtBucket({ district: 'Pasing', rawSourceData: { searchDistrict: 'pasing' } }), 'unknown');
+  assert.strictEqual(districtBucket({ district: 'München', address: 'München - Laim' }), 'Laim');
+  assert.strictEqual(districtBucket({ district: 'Sendling-Westpark' }), 'Sendling-Westpark');
+  assert.strictEqual(districtBucket({ district: 'Berg-am-Laim' }), 'Berg am Laim');
+  assert.strictEqual(districtBucket({ district: 'Trudering-Riem' }), 'Trudering-Riem');
+  const correctedCoverage = summarizeCoverageDiagnostics([pasingDiscovery], [laimVerified,
+    { ...laimVerified, availabilityStatus: 'unknown', district: 'Pasing', rawSourceData: {} }]);
+  assert.strictEqual(correctedCoverage.district_coverage.confirmed.Laim.verified, 1);
+  assert.strictEqual(correctedCoverage.district_coverage.confirmed.Pasing?.verified || 0, 0);
+  assert.strictEqual(correctedCoverage.district_coverage.discovery_search_hints.Pasing.discovered, 1);
+
+  const structuredLaim = await enrichListing(normalizeListing(discoveredViaPasing, checkedAt), {
+    fetchPage: async () => ({ status: 200, body: '<h1>Laden</h1><script type="application/ld+json">'
+      + JSON.stringify({ '@type': 'Product', address: { streetAddress: 'Teststraße 1', postalCode: '80687', addressLocality: 'München - Laim' } })
+      + '</script><p>Nahe Pasing</p>' })
+  });
+  assert.strictEqual(structuredLaim.district, 'Laim');
+  const noLocation = await enrichListing(normalizeListing(discoveredViaPasing, checkedAt), {
+    fetchPage: async () => ({ status: 200, body: '<h1>Laden</h1><p>Bus nach Pasing. Andere Anzeigen in Laim.</p>' })
+  });
+  assert.strictEqual(noLocation.district, null);
+  const compoundLocation = await enrichListing(normalizeListing(discoveredViaPasing, checkedAt), {
+    fetchPage: async () => ({ status: 200, body: '<h1>Laden</h1><span id="viewad-locality">81825 München - Trudering-Riem</span>' })
+  });
+  assert.strictEqual(compoundLocation.district, 'Trudering-Riem');
+
+  const baseMarket = { ...laimVerified, dataCompleteness: 100, lastVerifiedAt: checkedAt, unitArea: 45, rent: 1900, gastroSuitability: 'possible' };
+  const variants = [baseMarket,
+    { ...baseMarket, id: 'large', unitArea: 61 },
+    { ...baseMarket, id: 'small', unitArea: 24 },
+    { ...baseMarket, id: 'expensive', rent: 3100 },
+    { ...baseMarket, id: 'missing-rent', rent: null },
+    { ...baseMarket, id: 'missing-area', unitArea: null, area: null },
+    { ...baseMarket, id: 'uncertain', gastroSuitability: 'unknown' },
+    { ...baseMarket, id: 'weak', businessFitLevel: 'exclude' },
+    { ...baseMarket, id: 'stale', lastVerifiedAt: '2026-09-01T00:00:00.000Z' },
+    { ...baseMarket, id: 'invalid', sourceUrl: 'https://example.com/search', url: null },
+    { ...baseMarket, id: 'trusted-request', rent: null, priceStatus: 'request', sourceName: 'Colliers',
+      sourceUrl: 'https://www.colliers.de/gewerbeimmobilien/objekt/cafe-muenchen/' },
+    { ...baseMarket, id: 'untrusted-request', rent: null, priceStatus: 'request' }];
+  const classifications = variants.map((listing) => classifyMarketListing(listing, checkedAt));
+  assert.strictEqual(classifications[0].suitable, true);
+  for (const index of [1, 2, 3, 4, 5, 6, 7, 8, 9, 11]) assert.strictEqual(classifications[index].suitable, false);
+  assert.strictEqual(classifications[10].suitable, true);
+  assert.strictEqual(classifications[8].market, false);
+  for (let i = 0; i < variants.length; i += 1) assert.strictEqual(classifications[i].best, isVisibleCandidate(variants[i]));
+  for (const unitArea of [25, 60]) assert.strictEqual(classifyMarketListing({ ...baseMarket, unitArea, rent: 3000 }, checkedAt).suitable, true);
+  assert.strictEqual(classifyMarketListing({ ...baseMarket, rent: 25, rentType: 'per_sqm' }, checkedAt).suitable, false);
+  assert.strictEqual(classifyMarketListing({ ...baseMarket, district: null, address: '81479 Bayern - Pullach im Isartal',
+    rawSourceData: { searchDistrict: 'pasing' } }, checkedAt).market, false);
+  const funnel = summarizeMarketFunnel([pasingDiscovery], variants, checkedAt);
+  assert.strictEqual(funnel.discovered, 1);
+  assert.strictEqual(funnel.verified_direct, 11);
+  assert.strictEqual(funnel.suitable_parameters, 2);
+  assert.strictEqual(funnel.price_on_request, 2);
+  assert.strictEqual(funnel.visible_best, variants.filter(isVisibleCandidate).length);
+  assert.strictEqual(funnel.by_confirmed_district.Laim.verified_direct, 11);
+  for (const metric of ['discovered', 'verified_direct', 'with_area', 'area_25_60', 'rent_leq_3000_known', 'price_on_request', 'suitable_parameters', 'visible_best']) {
+    assert.strictEqual(Object.values(funnel.by_source).reduce((sum, row) => sum + row[metric], 0), funnel[metric]);
+  }
+  for (const stage of ['suitable', 'best']) {
+    const excluded = funnel.exclusions.verified_direct[stage];
+    assert.strictEqual(Object.values(excluded.primary).reduce((sum, n) => sum + n, 0), excluded.excluded);
+  }
+
   const resilientDiscovery = await kleinanzeigenSource.discover({
     now: '2026-08-23T10:00:00.000Z',
     rateLimitMs: 0,
@@ -644,7 +737,9 @@ async function run() {
   assert.strictEqual(coverage.source_coverage.Kleinanzeigen.uniqueDirectUrls, 1);
   assert.strictEqual(coverage.source_coverage.Kleinanzeigen.areaLeq60, 1);
   assert.strictEqual(coverage.source_coverage.Kleinanzeigen.rentLeq3000Known, 1);
-  assert.strictEqual(coverage.district_coverage.Pasing.visible, 1);
+  assert.strictEqual(coverage.district_coverage.confirmed.Pasing.visible, 1);
+  assert.strictEqual(coverage.district_coverage.discovery_search_hints.Pasing.discovered, 1);
+  assert.strictEqual(coverage.district_coverage.discovery_search_hints.Laim.discovered, 1);
 
   const visibleBase = {
     listingType: 'direct_listing',

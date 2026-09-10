@@ -205,7 +205,7 @@ async function discover({ fetchPage, now, rateLimitMs = 1200, pageLimit = 3 } = 
             listingType: 'direct_listing',
             title: null,
             address: null,
-            district: searchDistrict === 'München' ? 'München' : searchDistrict,
+            district: null,
             unitArea: null,
             rent: null,
             gastroSuitability: 'unknown',

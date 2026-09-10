@@ -20,6 +20,8 @@ const {
 } = require('./listing-validation');
 const { calculateProjectRelevance } = require('./project-relevance');
 const { verifyListings } = require('./verify-listings');
+const { districtBucket, locationBucket } = require('./district-coverage');
+const { classifyMarketListing, summarizeMarketFunnel } = require('./market-funnel');
 
 const SOURCES = {
   kleinanzeigen: require('./sources/kleinanzeigen'),
@@ -236,42 +238,6 @@ function printSourceOutcomes(outcomes) {
   }
 }
 
-function districtBucket(item) {
-  const explicit = item.rawSourceData?.searchDistrict || item.district || item.address || item.location || item.title || '';
-  const text = String(explicit || '').toLowerCase();
-  const districts = [
-    ['Altstadt-Lehel', /altstadt|lehel/],
-    ['Au-Haidhausen', /\bau\b|haidhausen/],
-    ['Aubing', /aubing/],
-    ['Berg am Laim', /berg am laim/],
-    ['Bogenhausen', /bogenhausen/],
-    ['Feldmoching-Hasenbergl', /feldmoching|hasenbergl/],
-    ['Forstenried', /forstenried/],
-    ['Giesing', /giesing|obergiesing|untergiesing/],
-    ['Hadern', /hadern/],
-    ['Laim', /\blaim\b/],
-    ['Ludwigsvorstadt-Isarvorstadt', /ludwigsvorstadt|isarvorstadt/],
-    ['Maxvorstadt', /maxvorstadt/],
-    ['Milbertshofen', /milbertshofen/],
-    ['Moosach', /moosach/],
-    ['Neuhausen-Nymphenburg', /neuhausen|nymphenburg/],
-    ['Pasing', /pasing/],
-    ['Ramersdorf', /ramersdorf/],
-    ['Riem', /\briem\b/],
-    ['Schwabing', /schwabing/],
-    ['Sendling', /sendling/],
-    ['Sendling-Westpark', /sendling-westpark|westpark/],
-    ['Solln', /solln/],
-    ['Thalkirchen', /thalkirchen/],
-    ['Trudering', /trudering/],
-    ['Westend', /westend|schwanthalerh[oö]he/]
-  ];
-  const match = districts.find(([, pattern]) => pattern.test(text));
-  if (match) return match[0];
-  if (/m[uü]nchen|muenchen|munich|80\d{3}|81\d{3}/i.test(text)) return 'München unspecified';
-  return 'unknown';
-}
-
 function createCoverageBucket() {
   return {
     queriesAttempted: 0,
@@ -293,6 +259,7 @@ function addDistrictCount(bucket, district, field) {
 function summarizeCoverageDiagnostics(sourceResults, listings) {
   const sourceCoverage = {};
   const districtCoverage = {};
+  const searchHintCoverage = {};
   const seenBySource = {};
 
   for (const result of sourceResults) {
@@ -320,6 +287,12 @@ function summarizeCoverageDiagnostics(sourceResults, listings) {
       bucket.discoveredUrls += 1;
       bucket.districtDistribution[district] = (bucket.districtDistribution[district] || 0) + 1;
       addDistrictCount(districtCoverage, district, 'discovered');
+      const hint = candidate.rawSourceData?.searchDistrict;
+      if (hint) {
+        const key = locationBucket(hint);
+        searchHintCoverage[key] ||= { discovered: 0 };
+        searchHintCoverage[key].discovered += 1;
+      }
 
       if (candidate.listingType === 'direct_listing' && url && !seenBySource[source].has(url)) {
         seenBySource[source].add(url);
@@ -338,13 +311,23 @@ function summarizeCoverageDiagnostics(sourceResults, listings) {
     if ((listing.unitArea ?? listing.area ?? null) != null && (listing.unitArea ?? listing.area) <= 60) bucket.areaLeq60 += 1;
     if (listing.rent != null && listing.rent <= 3000) bucket.rentLeq3000Known += 1;
     if (isVisibleCandidate(listing)) bucket.visibleCandidates += 1;
-    addDistrictCount(districtCoverage, district, 'verified');
+    if (listing.availabilityStatus === 'active' && validateSourceLink(listing).sourceLinkValid) {
+      addDistrictCount(districtCoverage, district, 'verified');
+    }
     if (isVisibleCandidate(listing)) addDistrictCount(districtCoverage, district, 'visible');
   }
 
   return {
     source_coverage: sourceCoverage,
-    district_coverage: districtCoverage
+    district_coverage: {
+      confirmed: districtCoverage,
+      discovery_search_hints: searchHintCoverage,
+      definitions: {
+        confirmed: 'Extracted listing district/address/location only; unknown and München unspecified are unconfirmed. Discovered counts precede enrichment; verified/visible use final listings.',
+        discovery_search_hints: 'First-discovery searchDistrict only; not evidence of physical location. Verified/visible counts deliberately omitted.',
+        verified: 'Active direct listing with valid direct source URL.'
+      }
+    }
   };
 }
 
@@ -518,7 +501,7 @@ function sourceDiagnostics(sourceResults, listings, sourceName, limit = null) {
   });
 }
 
-function validationRecord(listing) {
+function validationRecord(listing, now) {
   const link = validateSourceLink(listing);
   const issues = validationIssues(listing);
   const relevance = calculateProjectRelevance(listing);
@@ -529,6 +512,11 @@ function validationRecord(listing) {
     url: listing.sourceUrl || listing.url || null,
     title: listing.title || null,
     location: listing.address || listing.district || null,
+    district: listing.district || null,
+    confirmedDistrict: districtBucket(listing),
+    districtEvidence: listing.rawSourceData?.districtEvidence || null,
+    rawSourceData: { searchDistrict: listing.rawSourceData?.searchDistrict || null },
+    marketClassification: classifyMarketListing(listing, now),
     verifiedSummary: listing.verifiedSummary || null,
     nextAction: listing.nextAction || null,
     canonicalUrl: link.canonicalUrl,
@@ -668,6 +656,7 @@ async function writeValidationReport({ sourceResults, listings, cleanupActions, 
     }))),
     sourceOutcomes,
     ...coverageDiagnostics,
+    market_funnel: summarizeMarketFunnel(sourceResults, listings, now, normalizeSourceBucket),
     hiddenBreakdown,
     sourceDiagnostics: {
       'Engel & Völkers': sourceDiagnostics(sourceResults, listings, 'Engel & Völkers', 10),
@@ -679,8 +668,8 @@ async function writeValidationReport({ sourceResults, listings, cleanupActions, 
       errors: result.errors,
       meta: result.meta || {}
     })),
-    listings: listings.map(validationRecord),
-    cleanupActions: cleanupActions.map(validationRecord),
+    listings: listings.map((listing) => validationRecord(listing, now)),
+    cleanupActions: cleanupActions.map((listing) => validationRecord(listing, now)),
     skippedDuplicates: skipped
   };
 

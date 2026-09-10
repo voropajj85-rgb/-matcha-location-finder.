@@ -1,5 +1,6 @@
 const { parseNumberFromText } = require('./utils');
 const { extractListingFacts, extractRent, extractArea } = require('./extract-listing-facts');
+const { districtMatch } = require('./district-coverage');
 
 function textContent(html, pattern) {
   const match = String(html || '').match(pattern);
@@ -76,7 +77,10 @@ function jsonLdFacts(html) {
         if (!facts.title && meaningfulTitle(item?.name)) facts.title = meaningfulTitle(item.name);
         if (!facts.description && item?.description) facts.description = String(item.description);
         if (!facts.address && typeof item?.address === 'string') facts.address = item.address;
-        if (!facts.address && item?.address?.streetAddress) facts.address = item.address.streetAddress;
+        if (!facts.address && item?.address && typeof item.address === 'object') {
+          facts.address = [item.address.streetAddress, item.address.postalCode, item.address.addressLocality]
+            .filter(Boolean).join(', ') || null;
+        }
       }
     } catch {
       // Malformed JSON-LD is ignored safely.
@@ -192,17 +196,19 @@ async function enrichListing(listing, { fetchPage } = {}) {
     const metaDescription = compactSummary(jsonLd.description || descriptionFromHtml(html));
     const scopedText = scopedListingText(plainText, title);
     const extractionText = `${title || ''} ${metaDescription || ''} ${scopedText}`;
+    const location = extractedLocation(html, jsonLd, listing);
     const facts = extractListingFacts(extractionText, {
       title,
-      address: jsonLd.address || listing.address,
-      district: listing.district
+      address: location.address,
+      district: location.district
     });
 
     const unitArea = facts.area.unitArea ?? listing.unitArea ?? listing.area ?? null;
     return {
       ...listing,
       title,
-      address: jsonLd.address || listing.address,
+      address: location.address,
+      district: location.district,
       rent: facts.rent.amount ?? (listing.rentType === 'per_sqm' ? null : (listing.rent ?? null)),
       rentPerSqm: listing.rentPerSqm ?? null,
       rentType: facts.rent.status === 'known' ? (facts.rent.type || 'monthly') : (listing.rentType || null),
@@ -231,6 +237,8 @@ async function enrichListing(listing, { fetchPage } = {}) {
       nextAction: facts.nextAction,
       rawSourceData: {
         ...(listing.rawSourceData || {}),
+        districtEvidence: location.districtEvidence,
+        locationEvidence: location.locationEvidence,
         sourceTitle: title || null,
         rawDescription: scopedText.slice(0, 9000) || null,
         financialEvidence: collectRawFinancialEvidence(scopedText),
@@ -253,6 +261,36 @@ async function enrichListing(listing, { fetchPage } = {}) {
   } catch (error) {
     return { ...listing, rawSourceData: { ...(listing.rawSourceData || {}), enrichmentStatus: 'failed', enrichmentError: error.message } };
   }
+}
+
+function extractedLocation(html, jsonLd, listing) {
+  const locality = textContent(html, /<[^>]+id=["']viewad-locality["'][^>]*>([\s\S]*?)<\/[^>]+>/i);
+  const pageTitle = textContent(html, /<title[^>]*>([\s\S]*?)<\/title>/i);
+  // Only the portal's location suffix, never arbitrary description/neighbourhood mentions.
+  const titleLocation = /kleinanzeigen/i.test(listing.sourceName || listing.source || '')
+    ? pageTitle?.match(/\bin\s+(M[uü]nchen\s*[-–]\s*[^|]+)\s*\|/i)?.[1] : null;
+  const evidence = [
+    ['listing-locality', locality], ['json-ld-address', jsonLd.address],
+    ['listing-title-location', titleLocation], ['listing-address', listing.address],
+    ['listing-location', listing.rawSourceData?.locationEvidence]
+  ].filter(([, value]) => value).map(([method, value]) => [method, plainTextFromHtml(value)]);
+  const address = evidence.find(([method]) => method === 'json-ld-address')?.[1]
+    || evidence[0]?.[1] || listing.address || null;
+  for (const [method, raw] of evidence) {
+    const match = districtMatch(raw);
+    const district = raw.match(/\bM[uü]nchen\s*[-–]\s*(.+)$/i)?.[1]?.trim() || match?.value;
+    if (match) return {
+      address, district, locationEvidence: raw,
+      districtEvidence: { value: district, raw, method, sourceUrl: listing.sourceUrl }
+    };
+  }
+  const safeDistrict = listing.rawSourceData?.searchDistrict && !listing.rawSourceData?.districtEvidence
+    ? null : listing.district;
+  return {
+    address, district: safeDistrict || (/M[uü]nchen/i.test(address || '') ? 'München' : null),
+    locationEvidence: evidence[0]?.[1] || null,
+    districtEvidence: listing.rawSourceData?.districtEvidence || null
+  };
 }
 
 async function enrichListings(listings, options) {
