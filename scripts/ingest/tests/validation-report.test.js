@@ -52,3 +52,30 @@ for (const hint of Object.values(report.district_coverage.discovery_search_hints
   assert.equal(hint.verified, undefined, 'Search hints must not count as verified districts');
 }
 console.log('Validation report reconciliation passed.');
+const small = report.small_unit_funnel;
+assert.ok(small, 'Regenerate the report with small-unit diagnostics');
+for (const metric of Object.keys(report.listings[0].smallUnitMetrics)) {
+  assert.equal(small[metric], report.listings.filter((row) => row.smallUnitMetrics[metric]).length, metric);
+  assert.equal(sum(small.by_source, metric), small[metric], `small source reconciliation: ${metric}`);
+  assert.equal(sum(small.by_tenancy, metric), small[metric], `tenancy reconciliation: ${metric}`);
+}
+assert.ok(small.area_25_60 <= small.area_leq_60);
+assert.ok(small.area_leq_60 <= small.verified_direct);
+assert.ok(small.area_25_60_known_or_request_rent <= small.area_25_60);
+assert.ok(small.area_25_60_usable_commercial_gastro <= small.area_25_60);
+for (const row of report.listings.filter((item) => item.source === 'RaumForm33')) {
+  assert.equal(row.temporaryTenancy, true);
+  assert.equal(row.rent, null, 'Pop-up day/week/package prices must not become monthly rents');
+}
+console.log('Small-unit funnel reconciliation passed.');
+assert.ok(report.small_source_tests?.sources.length);
+for (const source of report.small_source_tests.sources) {
+  const rows = report.listings.filter((row) => row.source === source.source);
+  for (const metric of ['verified_direct', 'area_25_60', 'visible_best']) {
+    assert.equal(source[metric], rows.filter((row) => row.smallUnitMetrics[metric]).length, `${source.source}: ${metric}`);
+  }
+  assert.ok(source.rent_leq_3000_known <= source.verified_direct);
+  assert.ok(source.price_on_request <= source.verified_direct);
+  assert.ok(Array.isArray(source.access_problems));
+}
+console.log('New-source investigation counts reconciled.');

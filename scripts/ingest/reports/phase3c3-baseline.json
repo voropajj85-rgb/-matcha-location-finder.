@@ -1,0 +1,147 @@
+{
+  "baseline_sha": "eaece43f3c349f8f817dc2bdb86a840063808f4b",
+  "generated_at": "2026-09-10T13:20:07.575Z",
+  "definition": "PR18 merged report; verified direct listings and extracted 25–60 m² area, before Phase 3C.3. Listing IDs permit overlap/gain/loss comparison.",
+  "verified_direct": 127,
+  "area_25_60": 15,
+  "visible_best": 9,
+  "by_source": {
+    "Kleinanzeigen": {
+      "verified_direct": 42,
+      "area_25_60": 12,
+      "visible_best": 7
+    },
+    "Immowelt": {
+      "verified_direct": 0,
+      "area_25_60": 0,
+      "visible_best": 0
+    },
+    "ImmoScout24": {
+      "verified_direct": 0,
+      "area_25_60": 0,
+      "visible_best": 0
+    },
+    "Stadt München": {
+      "verified_direct": 0,
+      "area_25_60": 0,
+      "visible_best": 0
+    },
+    "Brokers": {
+      "verified_direct": 0,
+      "area_25_60": 0,
+      "visible_best": 0
+    },
+    "Colliers": {
+      "verified_direct": 38,
+      "area_25_60": 1,
+      "visible_best": 1
+    },
+    "Engel & Völkers": {
+      "verified_direct": 43,
+      "area_25_60": 2,
+      "visible_best": 1
+    },
+    "immobilie1": {
+      "verified_direct": 4,
+      "area_25_60": 0,
+      "visible_best": 0
+    },
+    "Aigner Immobilien": {
+      "verified_direct": 0,
+      "area_25_60": 0,
+      "visible_best": 0
+    }
+  },
+  "target_listings": [
+    {
+      "externalId": "klein-3437932531-277-6447",
+      "url": "https://www.kleinanzeigen.de/s-anzeige/ladeneinheit-in-frequentierter-umgebung-guenstig-durch-erbbaurecht-kath-kirche-laufzeit-bis-2083/3437932531-277-6447",
+      "source": "Kleinanzeigen",
+      "unitArea": 58
+    },
+    {
+      "externalId": "klein-3476142261-277-6416",
+      "url": "https://www.kleinanzeigen.de/s-anzeige/attraktive-ladenflaeche-in-frequentierter-lage-von-muenchen-sendling/3476142261-277-6416",
+      "source": "Kleinanzeigen",
+      "unitArea": 30
+    },
+    {
+      "externalId": "klein-3470636624-277-16373",
+      "url": "https://www.kleinanzeigen.de/s-anzeige/gewerbeflaeche-ladenflaeche-mit-terasse-in-muenchen-milbertshofen-top-lage-nahe-bmw/3470636624-277-16373",
+      "source": "Kleinanzeigen",
+      "unitArea": 60
+    },
+    {
+      "externalId": "klein-3230995176-277-6441",
+      "url": "https://www.kleinanzeigen.de/s-anzeige/attraktive-ladenflaeche-zur-untermiete-nutzung-bis-12-30-uhr-taeglich/3230995176-277-6441",
+      "source": "Kleinanzeigen",
+      "unitArea": 43
+    },
+    {
+      "externalId": "klein-3481274063-277-6429",
+      "url": "https://www.kleinanzeigen.de/s-anzeige/junges-gastroteam-sucht-ladenlokal-in-muenchen/3481274063-277-6429",
+      "source": "Kleinanzeigen",
+      "unitArea": 50
+    },
+    {
+      "externalId": "klein-3506924765-277-16355",
+      "url": "https://www.kleinanzeigen.de/s-anzeige/top-lage-maxvorstadt-laden-verkaufsflaeche-galerie-in-der-t/3506924765-277-16355",
+      "source": "Kleinanzeigen",
+      "unitArea": 45
+    },
+    {
+      "externalId": "klein-3477375265-277-16373",
+      "url": "https://www.kleinanzeigen.de/s-anzeige/cafe-bar-in-muenchen-6-stellig-gewinn-4-automaten/3477375265-277-16373",
+      "source": "Kleinanzeigen",
+      "unitArea": 30
+    },
+    {
+      "externalId": "klein-3476141984-277-6416",
+      "url": "https://www.kleinanzeigen.de/s-anzeige/top-gewerbeflaeche-in-muenchen-sendling-vielseitig-nutzbar-sofort-verfuegbar/3476141984-277-6416",
+      "source": "Kleinanzeigen",
+      "unitArea": 30
+    },
+    {
+      "externalId": "klein-3487446534-277-6451",
+      "url": "https://www.kleinanzeigen.de/s-anzeige/kiosk-gastronomie-von-automatenaufsteller-brauerreifrei-klimaanl/3487446534-277-6451",
+      "source": "Kleinanzeigen",
+      "unitArea": 30
+    },
+    {
+      "externalId": "klein-3484857394-277-6451",
+      "url": "https://www.kleinanzeigen.de/s-anzeige/gaststaette-stehausschank-muenchner-norden-brauerreifrei-klima/3484857394-277-6451",
+      "source": "Kleinanzeigen",
+      "unitArea": 25
+    },
+    {
+      "externalId": "klein-3471053348-277-16388",
+      "url": "https://www.kleinanzeigen.de/s-anzeige/imbiss-in-guter-lage-sofort-abzugeben/3471053348-277-16388",
+      "source": "Kleinanzeigen",
+      "unitArea": 26
+    },
+    {
+      "externalId": "klein-3484241799-277-6451",
+      "url": "https://www.kleinanzeigen.de/s-anzeige/laden-kiosk-fuee-mieten/3484241799-277-6451",
+      "source": "Kleinanzeigen",
+      "unitArea": 30
+    },
+    {
+      "externalId": "colliers-laden-muenchen-m-p4523-g1-e5",
+      "url": "https://www.colliers.de/gewerbeimmobilien/objekt/laden-muenchen-m-p4523-g1-e5/",
+      "source": "Colliers",
+      "unitArea": 47
+    },
+    {
+      "externalId": "engel-91317ab1-f52b-5154-b229-73e198eb4db5",
+      "url": "https://www.engelvoelkers.com/de/de/exposes/91317ab1-f52b-5154-b229-73e198eb4db5",
+      "source": "Engel & Völkers",
+      "unitArea": 50
+    },
+    {
+      "externalId": "engel-05cf4d8c-5deb-576c-a8a3-fb67e2b04b4c",
+      "url": "https://www.engelvoelkers.com/de/de/exposes/05cf4d8c-5deb-576c-a8a3-fb67e2b04b4c",
+      "source": "Engel & Völkers",
+      "unitArea": 52
+    }
+  ]
+}

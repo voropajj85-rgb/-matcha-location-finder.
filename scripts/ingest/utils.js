@@ -82,6 +82,7 @@ function canonicalizeListingUrl(input) {
 function isDirectListingUrl(input) {
   const canonical = canonicalizeListingUrl(input);
   if (!canonical) return false;
+  if (require('./small-source-pages').sourceForUrl(canonical)) return true;
   return DIRECT_URL_PATTERNS.some((pattern) => pattern.test(canonical))
     && !isSearchPageUrl(canonical);
 }

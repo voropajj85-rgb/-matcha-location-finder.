@@ -22,13 +22,16 @@ const { calculateProjectRelevance } = require('./project-relevance');
 const { verifyListings } = require('./verify-listings');
 const { districtBucket, locationBucket } = require('./district-coverage');
 const { classifyMarketListing, summarizeMarketFunnel } = require('./market-funnel');
+const { smallUnitMetrics, summarizeSmallUnitFunnel, summarizeSmallSourceTests } = require('./small-unit-funnel');
+const { sourceForUrl } = require('./small-source-pages');
 
 const SOURCES = {
   kleinanzeigen: require('./sources/kleinanzeigen'),
   immowelt: require('./sources/immowelt'),
   immoscout24: require('./sources/immoscout24'),
   'stadt-muenchen': require('./sources/stadt-muenchen'),
-  brokers: require('./sources/brokers')
+  brokers: require('./sources/brokers'),
+  'small-local': require('./sources/small-local')
 };
 
 const REQUEST_TIMEOUT_MS = 15000;
@@ -501,6 +504,17 @@ function sourceDiagnostics(sourceResults, listings, sourceName, limit = null) {
   });
 }
 
+function finalizeListing(listing) {
+  const fitted = withBusinessFit({ ...listing, ...calculateDataCompleteness(listing) });
+  // Keep source-confirmed temporary tenancy and explicit use prohibitions in presentation.
+  // Business-fit scoring and every eligibility gate are still evaluated normally.
+  if (sourceForUrl(listing.sourceUrl || listing.url)) {
+    fitted.verifiedSummary = listing.verifiedSummary;
+    fitted.nextAction = listing.nextAction;
+  }
+  return fitted;
+}
+
 function validationRecord(listing, now) {
   const link = validateSourceLink(listing);
   const issues = validationIssues(listing);
@@ -517,6 +531,8 @@ function validationRecord(listing, now) {
     districtEvidence: listing.rawSourceData?.districtEvidence || null,
     rawSourceData: { searchDistrict: listing.rawSourceData?.searchDistrict || null },
     marketClassification: classifyMarketListing(listing, now),
+    smallUnitMetrics: smallUnitMetrics(listing, now),
+    temporaryTenancy: Boolean(listing.rawSourceData?.temporaryTenancy),
     verifiedSummary: listing.verifiedSummary || null,
     nextAction: listing.nextAction || null,
     canonicalUrl: link.canonicalUrl,
@@ -657,6 +673,8 @@ async function writeValidationReport({ sourceResults, listings, cleanupActions, 
     sourceOutcomes,
     ...coverageDiagnostics,
     market_funnel: summarizeMarketFunnel(sourceResults, listings, now, normalizeSourceBucket),
+    small_unit_funnel: summarizeSmallUnitFunnel(sourceResults, listings, now),
+    small_source_tests: summarizeSmallSourceTests(sourceResults, listings, now),
     hiddenBreakdown,
     sourceDiagnostics: {
       'Engel & Völkers': sourceDiagnostics(sourceResults, listings, 'Engel & Völkers', 10),
@@ -691,6 +709,7 @@ async function run(argv = process.argv.slice(2)) {
   const sourceResults = [];
 
   for (const sourceName of selected) {
+    console.log(`discovering: ${sourceName}`);
     try {
       const result = await SOURCES[sourceName].discover({ fetchPage, now });
       sourceResults.push({
@@ -712,6 +731,7 @@ async function run(argv = process.argv.slice(2)) {
     .flatMap((result) => result.candidates)
     .map((candidate) => normalizeListing(candidate, now))
     .filter(Boolean);
+  console.log(`enriching: ${normalized.length} listings`);
   const enriched = await enrichListings(normalized, { fetchPage });
 
   let existingRows = [];
@@ -726,11 +746,9 @@ async function run(argv = process.argv.slice(2)) {
     ...listing,
     ...calculateDataCompleteness(listing)
   }));
+  console.log(`verifying: ${deduped.length} listings`);
   const verifiedRaw = args.skipVerification ? deduped : await verifyListings(deduped, now);
-  const verified = verifiedRaw.map((listing) => withBusinessFit({
-    ...listing,
-    ...calculateDataCompleteness(listing)
-  }));
+  const verified = verifiedRaw.map(finalizeListing);
   const counts = summarize(verified);
   const qualityCounts = summarizeDataQuality(verified);
   const validationCounts = summarizeValidation(verified);
@@ -825,5 +843,6 @@ module.exports = {
   run,
   summarize,
   existingCleanupActions,
-  summarizeCoverageDiagnostics
+  summarizeCoverageDiagnostics,
+  finalizeListing
 };
