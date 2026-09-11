@@ -1,340 +1,130 @@
-import { applyListingFilters, defaultProjectConfig, isVisibleLead, isVisibleListing, rankLeads, resetFilters } from './filters.js?v=source-expansion-2';
-import { buildLeadCard, buildListingCard, buildListingDetail, calculateMatchaScore, escapeHtml } from './listings.js?v=source-expansion-2';
-import { fetchListings } from './data/listings-repository.js?v=business-fit-2';
-import { addUserListing, loadUserListings } from './storage.js?v=info-model-1';
+import { isVisibleLead, rankLeads } from './filters.js';
+import { buildLeadCard, buildListingDetail, escapeHtml as esc } from './listings.js';
+import { fetchListings } from './data/listings-repository.js?v=phase3c4';
+import { addUserListing, loadUserListings } from './storage.js';
+import { GROUPS, emptyFilters, classifyInventory, filterInventory, inventoryCounts, selectInventory } from './inventory.js';
+import { buildDecisionCard, buildDecisionDetail } from './decision-cards.js';
 
-const LEAD_PREVIEW_LIMIT = 5;
-const SOURCE_TABS = {
-  best: { label: '⭐ Best' },
-  kleinanzeigen: { label: 'Kleinanzeigen', match: /kleinanzeigen/i },
-  colliers: { label: 'Colliers', match: /colliers/i },
-  engel: { label: 'Engel & Völkers', match: /engel|völkers|voelkers/i },
-  immobilie1: { label: 'immobilie1', match: /immobilie1/i },
-  stadt: { label: 'Stadt München', match: /stadt\s*münchen|stadt\s*muenchen|cbre/i }
+const state = { listings: [], rows: [], group: 'market', filters: emptyFilters(), loading: true, error: null };
+const el = (id) => document.getElementById(id);
+const descriptions = {
+  market: 'Der bekannte Münchner Markt – auch größere Flächen, hohe Mieten und offene Angaben bleiben sichtbar.',
+  suitable: 'Zielgröße und Nutzung passen grundsätzlich. Bei Miete auf Anfrage bleibt das Budget offen; Genehmigungen sind zu prüfen.',
+  best: 'Die stärkste Vorauswahl aus dem bekannten Markt. Best ist eine eigene Bewertung und nicht zwingend Teil von Suitable.'
 };
-
-const state = {
-  baseListings: [],
-  projectConfig: defaultProjectConfig,
-  filters: resetFilters(),
-  mode: 'list',
-  sourceTab: 'best',
-  loading: true,
-  loadError: null,
-  showAllLeads: false
-};
-
-function el(id) {
-  return document.getElementById(id);
+function allListings() { return [...state.listings, ...loadUserListings()]; }
+function optionValues(id, values, label) {
+  el(id).innerHTML = `<option value="all">${label}</option>` + values.map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join('');
 }
-
-function allListings() {
-  return [...loadUserListings(), ...state.baseListings];
+function syncOptions() {
+  const rows = state.rows.filter((row) => row.market);
+  optionValues('fDistrict', [...new Set(rows.map((row) => row.district))].sort(), 'Ganz München');
+  optionValues('fSource', [...new Set(rows.map(({ listing }) => listing.sourceName || listing.source).filter(Boolean))].sort(), 'Alle Quellen');
+  syncFilterForm();
 }
-
-function getVisibleBaseListings() {
-  return state.baseListings.filter((listing) => isVisibleListing(listing, state.projectConfig));
-}
-
-function getVisibleLeads() {
-  return rankLeads(allListings().filter(isVisibleLead));
-}
-
-function sourceText(listing) {
-  return [
-    listing.sourceName,
-    listing.source,
-    listing.sourceFamily,
-    listing.rawSourceData?.sourceName,
-    listing.rawSourceData?.source
-  ].filter(Boolean).join(' ');
-}
-
-function matchesSourceTab(listing, sourceTab = state.sourceTab) {
-  if (sourceTab === 'best') return true;
-  const tab = SOURCE_TABS[sourceTab];
-  return Boolean(tab?.match?.test(sourceText(listing)));
-}
-
-function formatVerificationDate(value) {
-  if (!value) return 'не проверено';
-
-  try {
-    return new Intl.DateTimeFormat('ru-RU', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(new Date(value));
-  } catch {
-    return 'не проверено';
-  }
-}
-
-function getLastVerifiedAt(listings) {
-  const timestamps = listings
-    .map((listing) => listing.lastVerifiedAt)
-    .filter(Boolean)
-    .map((value) => new Date(value).getTime())
-    .filter(Number.isFinite);
-
-  if (!timestamps.length) return null;
-  return new Date(Math.max(...timestamps)).toISOString();
-}
-
-function loadJson(url) {
-  const cacheBustedUrl = `${url}?v=${Date.now()}`;
-
-  if (typeof window.fetch === 'function') {
-    return window.fetch(url, { cache: 'no-store' }).then((response) => {
-      if (!response.ok) throw new Error(`${url} HTTP ${response.status}`);
-      return response.json();
-    });
-  }
-
-  return new Promise((resolve, reject) => {
-    const request = new XMLHttpRequest();
-    request.open('GET', cacheBustedUrl, true);
-    request.setRequestHeader('Cache-Control', 'no-store');
-    request.onload = () => {
-      if (request.status < 200 || request.status >= 300) {
-        reject(new Error(`${url} HTTP ${request.status}`));
-        return;
-      }
-
-      try {
-        resolve(JSON.parse(request.responseText));
-      } catch (error) {
-        reject(error);
-      }
-    };
-    request.onerror = () => reject(new Error(`${url} request failed`));
-    request.send();
-  });
-}
-
-async function loadListings() {
-  state.loading = true;
-  state.loadError = null;
-  renderListings();
-
-  try {
-    const [projectConfig, listings] = await Promise.all([
-      loadJson('./data/project-config.json'),
-      fetchListings()
-    ]);
-    state.projectConfig = { ...defaultProjectConfig, ...projectConfig };
-    state.baseListings = Array.isArray(listings) ? listings : [];
-  } catch (error) {
-    console.error('Не удалось загрузить объявления', error);
-    state.loadError = error;
-  } finally {
-    state.loading = false;
-  }
-}
-
-function renderSummary(listings, leads = []) {
-  const confirmed = listings.filter((listing) => listing.listingType === 'direct_listing').length;
-  el('sCount').textContent = confirmed;
-  el('sAvg').textContent = confirmed;
-  el('sTop').textContent = leads.length;
-}
-
-function renderSourceTabs(listings, leads) {
-  document.querySelectorAll('[data-source-tab]').forEach((button) => {
-    const key = button.dataset.sourceTab;
-    const tab = SOURCE_TABS[key];
-    if (!tab) return;
-
-    const count = key === 'best'
-      ? listings.length
-      : listings.filter((listing) => matchesSourceTab(listing, key)).length;
-    const leadCount = key === 'best'
-      ? leads.length
-      : leads.filter((listing) => matchesSourceTab(listing, key)).length;
-    const suffix = leadCount ? `${count}+${leadCount}` : String(count);
-
-    button.textContent = `${tab.label} ${suffix}`;
-    button.classList.toggle('active', key === state.sourceTab);
-    button.setAttribute('aria-selected', String(key === state.sourceTab));
-  });
-}
-
-function renderStateCard(type, message, action = '') {
-  const actionMarkup = action
-    ? `<button class="state-action" type="button" data-action="${action}">Повторить</button>`
-    : '';
-
-  return `
-    <article class="state-card ${type}">
-      <strong>${message}</strong>
-      ${actionMarkup}
-    </article>
-  `;
-}
-
-function renderSelectOptions(selectId, values) {
-  const select = el(selectId);
-  const currentValue = select.value;
-  const options = ['<option value="all">Все</option>']
-    .concat(values.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`));
-
-  select.innerHTML = options.join('');
-  select.value = values.includes(currentValue) ? currentValue : 'all';
-}
-
-function syncFilterOptions() {
-  const listings = allListings();
-  const sources = [...new Set(listings.map((listing) => listing.sourceName || listing.source).filter(Boolean))].sort();
-  const statuses = [...new Set(listings.map((listing) => listing.status).filter(Boolean))].sort();
-
-  renderSelectOptions('fSource', sources);
-  renderSelectOptions('fStatus', statuses);
-}
-
 function syncFilterForm() {
-  el('fMin').value = state.filters.minArea;
-  el('fMax').value = state.filters.maxArea;
-  el('fRent').value = state.filters.maxRent;
-  el('fGastro').value = state.filters.gastro;
-  setSelectValue('fSource', state.filters.source);
-  setSelectValue('fStatus', state.filters.status);
+  for (const [id, key] of Object.entries({ fDistrict: 'district', fMin: 'minArea', fMax: 'maxArea', fRent: 'maxRent', fGastro: 'gastro', fSource: 'source' })) el(id).value = state.filters[key];
 }
-
-function setSelectValue(id, value) {
-  const select = el(id);
-  select.value = value;
-  if (select.value !== value) select.value = 'all';
+function renderState(text, retry = false) {
+  el('list').innerHTML = `<div class="state-card"><strong>${esc(text)}</strong>${retry ? '<button class="state-action" type="button" data-action="retry-load">Erneut versuchen</button>' : ''}</div>`;
 }
-
-function renderMap(listings) {
-  const withCoordinates = listings.filter((listing) => {
-    const coords = listing.coordinates || listing.coords || {};
-    return coords.lat != null && coords.lng != null;
-  });
-
-  if (!withCoordinates.length) {
-    el('mapContainer').innerHTML = `
-      <div class="map-empty">
-        <strong>Карта появится для объектов с координатами</strong>
-        <span>Контейнер готов для Leaflet + OpenStreetMap без переписывания UI.</span>
-      </div>
-    `;
-    return;
-  }
-
-  el('mapContainer').innerHTML = `
-    <div class="map-empty">
-      <strong>${withCoordinates.length} объектов с координатами</strong>
-      <span>Следующий шаг — подключить Leaflet и отрисовать маркеры.</span>
-    </div>
-  `;
-}
-
 function renderListings() {
-  if (state.loading) {
-    renderSummary([], []);
-    el('list').innerHTML = renderStateCard('loading', 'Загружаю объявления...');
-    el('leadList').innerHTML = '';
-    renderMap([]);
-    return;
+  if (state.loading || state.error) {
+    for (const id of ['marketCount', 'targetCount', 'suitableCount', 'bestCount', ...GROUPS.map((g) => `count-${g}`)]) el(id).textContent = '—';
+    renderState(state.error ? 'Angebote konnten nicht geladen werden.' : 'Angebote werden geladen …', Boolean(state.error));
+    el('dataMeta').textContent = state.error ? 'Daten derzeit nicht verfügbar. Es werden keine Beispielangebote eingesetzt.' : 'Daten werden geladen …';
+    el('leadList').innerHTML = ''; return;
   }
-
-  if (state.loadError) {
-    renderSummary([], []);
-    el('list').innerHTML = renderStateCard('error', 'Не удалось загрузить объявления.', 'retry-load');
-    el('leadList').innerHTML = '';
-    renderMap([]);
-    return;
-  }
-
-  const allFilteredListings = applyListingFilters(allListings(), state.filters, state.projectConfig, calculateMatchaScore);
-  const allLeads = getVisibleLeads();
-  renderSourceTabs(allFilteredListings, allLeads);
-
-  const listings = allFilteredListings.filter((listing) => matchesSourceTab(listing));
-  const leads = allLeads.filter((listing) => matchesSourceTab(listing));
-  const shownLeads = state.showAllLeads ? leads : leads.slice(0, LEAD_PREVIEW_LIMIT);
-  const hiddenLeadCount = Math.max(0, leads.length - shownLeads.length);
-  renderSummary(listings, leads);
-  const currentTabLabel = SOURCE_TABS[state.sourceTab]?.label || 'Best';
-  el('listMeta').textContent = `${currentTabLabel} · ${listings.length} проверенных помещений · Обновлено: ${formatVerificationDate(getLastVerifiedAt(state.baseListings))}`;
-  el('leadMeta').textContent = hiddenLeadCount
-    ? `${shownLeads.length} из ${leads.length} лидов · не подтверждённые помещения`
-    : `${leads.length} лидов · не подтверждённые помещения`;
-
-  el('list').innerHTML = listings.length
-    ? listings.map((listing) => buildListingCard(listing, state.projectConfig)).join('')
-    : renderStateCard('empty', 'Нет объектов под текущий фильтр.');
-  el('leadList').innerHTML = leads.length
-    ? [
-      ...shownLeads.map((listing) => buildLeadCard(listing)),
-      hiddenLeadCount ? `<button class="lead-more" type="button" data-action="show-all-leads">Показать ещё ${hiddenLeadCount} лидов</button>` : ''
-    ].join('')
-    : renderStateCard('empty', 'Нет лидов для запроса помещения.');
-
-  renderMap(listings);
-}
-
-function showMode(mode) {
-  state.mode = mode;
-
-  el('listMode').classList.toggle('hidden', mode !== 'list');
-  el('mapMode').classList.toggle('hidden', mode !== 'map');
-
-  el('tabList').classList.toggle('active', mode === 'list');
-  el('tabMap').classList.toggle('active', mode === 'map');
-
-  el('tabList').setAttribute('aria-selected', String(mode === 'list'));
-  el('tabMap').setAttribute('aria-selected', String(mode === 'map'));
-
-  document.querySelectorAll('[data-nav-mode]').forEach((button) => {
-    button.classList.toggle('active', button.dataset.navMode === mode);
+  state.rows = classifyInventory(state.listings);
+  const totals = inventoryCounts(state.rows);
+  const counts = inventoryCounts(filterInventory(state.rows, state.filters));
+  for (const [id, key] of Object.entries({ marketCount: 'market', targetCount: 'targetArea', suitableCount: 'suitable', bestCount: 'best' })) el(id).textContent = totals[key];
+  const dates = state.listings.map((row) => Date.parse(row.lastVerifiedAt)).filter((value) => Number.isFinite(value) && value <= Date.now());
+  el('dataMeta').textContent = `${dates.length ? `Zuletzt verifiziert: ${new Date(Math.max(...dates)).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}` : 'Prüfzeitpunkt nicht bestätigt'} · ${totals.temporary} temporäre Angebote im Markt · Kein vollständiges Marktverzeichnis`;
+  document.querySelectorAll('[data-group]').forEach((button) => {
+    const active = button.dataset.group === state.group;
+    button.setAttribute('aria-selected', String(active)); button.tabIndex = active ? 0 : -1;
+    el(`count-${button.dataset.group}`).textContent = counts[button.dataset.group];
   });
+  const rows = selectInventory(state.rows, state.group, state.filters);
+  el('inventoryPanel').setAttribute('aria-labelledby', `tab-${state.group}`);
+  el('listHeading').textContent = state.group[0].toUpperCase() + state.group.slice(1);
+  el('listMeta').textContent = `${rows.length} von ${totals[state.group]} Angeboten`;
+  el('groupDescription').textContent = descriptions[state.group];
+  const filterCount = Object.values(state.filters).filter((v) => v !== '' && v !== 'all').length;
+  el('filterCount').textContent = filterCount ? `(${filterCount})` : '';
+  el('list').innerHTML = rows.map((row) => buildDecisionCard(row)).join('');
+  if (!rows.length) renderState(totals[state.group] ? 'Keine Angebote für diese Filter. Filter zurücksetzen, um mehr zu sehen.' : 'Derzeit keine aktuell verifizierten Angebote in dieser Auswahl.');
+  const leads = rankLeads(allListings().filter(isVisibleLead));
+  el('leadMeta').textContent = `(${leads.length})`;
+  el('leadList').innerHTML = leads.map((l) => buildLeadCard(l)).join('');
 }
-
+async function loadListings() {
+  state.loading = true; state.error = null; renderListings();
+  try { state.listings = await fetchListings({ allowFixtureFallback: false }); state.rows = classifyInventory(state.listings); syncOptions(); }
+  catch (error) { console.error('Listing load failed', error); state.error = error; }
+  state.loading = false; renderListings();
+}
+let focusBeforeSheet;
 function openSheet(id) {
-  if (id === 'filterSheet') {
-    syncFilterOptions();
-    syncFilterForm();
-  }
-
-  el(id).classList.add('open');
-  document.body.style.overflow = 'hidden';
+  focusBeforeSheet = document.activeElement;
+  if (id === 'filterSheet') syncFilterForm();
+  el(id).classList.add('open'); document.body.style.overflow = 'hidden';
+  el(id).querySelector('button, input, select')?.focus();
 }
-
 function closeSheet(id) {
-  el(id).classList.remove('open');
-  document.body.style.overflow = '';
+  el(id).classList.remove('open'); document.body.style.overflow = ''; focusBeforeSheet?.focus();
 }
-
-function openDetails(listingId) {
-  const listing = allListings().find((item) => item.id === listingId);
-  if (!listing) return;
-
-  el('detail').innerHTML = buildListingDetail(listing, state.projectConfig);
-
+function openDetails(id) {
+  const row = state.rows.find(({ listing }) => (listing.id || listing.externalId) === id);
+  const listing = allListings().find((l) => l.id === id); if (!listing) return;
+  el('detail').innerHTML = row ? buildDecisionDetail(row) : buildListingDetail(listing);
   openSheet('detailSheet');
 }
-
-function applyFilterForm() {
-  state.filters.minArea = el('fMin').value.trim();
-  state.filters.maxArea = el('fMax').value.trim();
-  state.filters.maxRent = el('fRent').value.trim();
-  state.filters.gastro = el('fGastro').value;
-  state.filters.source = el('fSource').value;
-  state.filters.status = el('fStatus').value;
-  closeSheet('filterSheet');
-  renderListings();
-}
-
 function resetFilterForm() {
-  state.filters = resetFilters();
-  syncFilterForm();
-  closeSheet('filterSheet');
+  state.filters = emptyFilters(); syncFilterForm();
+  if (el('filterSheet').classList.contains('open')) closeSheet('filterSheet');
   renderListings();
 }
+function applyFilterForm() {
+  if (['fMin', 'fMax', 'fRent'].some((id) => !el(id).reportValidity())) return;
+  for (const [id, key] of Object.entries({ fMin: 'minArea', fMax: 'maxArea', fRent: 'maxRent', fGastro: 'gastro', fSource: 'source' })) state.filters[key] = el(id).value;
+  closeSheet('filterSheet'); renderListings();
+}
+function bindEvents() {
+  document.addEventListener('click', (event) => {
+    const group = event.target.closest('[data-group]'); if (group) { state.group = group.dataset.group; renderListings(); }
+    const open = event.target.closest('[data-open-sheet]'); if (open) openSheet(open.dataset.openSheet);
+    const close = event.target.closest('[data-close-sheet]'); if (close) closeSheet(close.dataset.closeSheet);
+    const detail = event.target.closest('[data-action="details"]'); if (detail) openDetails(detail.dataset.id);
+    if (event.target.closest('[data-action="retry-load"]')) loadListings();
+  });
+  document.querySelector('.inventory-tabs').addEventListener('keydown', (event) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault(); const index = GROUPS.indexOf(state.group);
+    state.group = event.key === 'Home' ? 'market' : event.key === 'End' ? 'best' : GROUPS[(index + (event.key === 'ArrowRight' ? 1 : 2)) % 3];
+    renderListings(); el(`tab-${state.group}`).focus();
+  });
+  document.addEventListener('keydown', (event) => {
+    const sheet = document.querySelector('.sheet-backdrop.open'); if (!sheet) return;
+    if (event.key === 'Escape') closeSheet(sheet.id);
+    if (event.key === 'Tab') {
+      const focusable = [...sheet.querySelectorAll('button, a[href], input, select, textarea, summary')].filter((node) => node.getClientRects().length);
+      const first = focusable[0], last = focusable.at(-1);
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    }
+  });
+  document.querySelectorAll('.sheet-backdrop').forEach((sheet) => sheet.addEventListener('click', (event) => { if (event.target === sheet) closeSheet(sheet.id); }));
+  el('fDistrict').addEventListener('change', () => { state.filters.district = el('fDistrict').value; renderListings(); });
+  el('applyFilters').addEventListener('click', applyFilterForm);
+  el('resetFilters').addEventListener('click', resetFilterForm);
+  el('resetInventory').addEventListener('click', resetFilterForm);
+  el('saveListing').addEventListener('click', saveManualListing);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) renderListings(); });
+}
+bindEvents();
+loadListings();
 
 function saveManualListing() {
   const district = el('aDistrict').value.trim();
@@ -388,55 +178,3 @@ function saveManualListing() {
   el('aGastro').value = 'check';
   renderListings();
 }
-
-function bindEvents() {
-  document.addEventListener('click', (event) => {
-    const sourceTabButton = event.target.closest('[data-source-tab]');
-    if (sourceTabButton) {
-      state.sourceTab = sourceTabButton.dataset.sourceTab;
-      state.showAllLeads = false;
-      renderListings();
-    }
-
-    const modeButton = event.target.closest('[data-mode]');
-    if (modeButton) showMode(modeButton.dataset.mode);
-
-    const retryButton = event.target.closest('[data-action="retry-load"]');
-    if (retryButton) loadListings().then(renderListings);
-
-    const detailsButton = event.target.closest('[data-action="details"]');
-    if (detailsButton) openDetails(detailsButton.dataset.id);
-
-    const showAllLeadsButton = event.target.closest('[data-action="show-all-leads"]');
-    if (showAllLeadsButton) {
-      state.showAllLeads = true;
-      renderListings();
-    }
-
-    const openSheetButton = event.target.closest('[data-open-sheet]');
-    if (openSheetButton) openSheet(openSheetButton.dataset.openSheet);
-
-    const closeSheetButton = event.target.closest('[data-close-sheet]');
-    if (closeSheetButton) closeSheet(closeSheetButton.dataset.closeSheet);
-  });
-
-  document.querySelectorAll('.sheet-backdrop').forEach((backdrop) => {
-    backdrop.addEventListener('click', (event) => {
-      if (event.target === backdrop) closeSheet(backdrop.id);
-    });
-  });
-
-  el('applyFilters').addEventListener('click', applyFilterForm);
-  el('resetFilters').addEventListener('click', resetFilterForm);
-  el('saveListing').addEventListener('click', saveManualListing);
-}
-
-async function start() {
-  bindEvents();
-  await loadListings();
-  syncFilterOptions();
-  renderListings();
-  showMode('list');
-}
-
-start();
