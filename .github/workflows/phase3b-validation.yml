@@ -29,6 +29,9 @@ jobs:
           node --check scripts/ingest/normalize-listing.js
           node --check scripts/ingest/phase3b-report.js
           node --check scripts/ingest/run-ingestion.js
+          node --check scripts/ingest/small-source-pages.js
+          node --check scripts/ingest/small-unit-funnel.js
+          node --check scripts/ingest/small-unit-report.js
 
       - name: Existing ingestion tests
         run: |
@@ -49,6 +52,9 @@ jobs:
       - name: Reconcile coverage and market funnel
         run: node scripts/ingest/tests/validation-report.test.js
 
+      - name: Generate small-unit comparison
+        run: node scripts/ingest/small-unit-report.js
+
       - name: Upload validation artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -60,4 +66,5 @@ jobs:
             dry-run.log
             phase3b-report.log
             scripts/ingest/reports/latest-validation.json
+            docs/phase3c3.md
           if-no-files-found: warn

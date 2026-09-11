@@ -32,6 +32,7 @@ const { classifyMarketListing, summarizeMarketFunnel } = require('../market-funn
 const { districtBucket } = require('../district-coverage');
 
 async function run() {
+  await require('./small-unit.test').runSmallUnitTests();
   assert.strictEqual(
     canonicalizeListingUrl('http://www.kleinanzeigen.de/s-anzeige/demo/123-277-6411?utm_source=x&ref=foo#top'),
     'https://www.kleinanzeigen.de/s-anzeige/demo/123-277-6411'
@@ -465,7 +466,7 @@ async function run() {
 
   assert.strictEqual(
     kleinanzeigenSource.paginatedUrl('https://www.kleinanzeigen.de/s-muenchen/kiosk-mieten/k0l6411', 2),
-    'https://www.kleinanzeigen.de/s-muenchen/kiosk-mieten/seite:2/k0l6411'
+    'https://www.kleinanzeigen.de/s-muenchen/seite:2/kiosk-mieten/k0l6411'
   );
   const kleinSearches = kleinanzeigenSource.buildSearchMatrix();
   assert.ok(kleinSearches.length > 100);

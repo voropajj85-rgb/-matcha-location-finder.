@@ -23,7 +23,7 @@ function classifyMarketListing(listing, now = new Date().toISOString()) {
   const outside = Boolean(listing.rawSourceData?.outsideMunich) || isNearbyExcludedLocation(location);
   const munich = !outside && (district !== 'unknown' || /m[uü]nchen|muenchen|munich/i.test(location));
   const text = [listing.title, listing.gastroEvidence, listing.rawSourceData?.rawDescription].filter(Boolean).join(' ');
-  const commercial = /laden|gewerbe|einzelhandel|kiosk|gastronom|caf[eé]|bistro|imbiss|restaurant|verkaufs|büro|b[uü]ro|praxis|lager/i.test(text)
+  const commercial = /laden|gewerbe|einzelhandel|retail|pop.up.store|kiosk|gastronom|caf[eé]|bistro|imbiss|restaurant|verkaufs|büro|b[uü]ro|praxis|lager/i.test(text)
     || /\/\d+-277-\d+(?:[/?#]|$)|\/gewerbeimmobilien\/|\/einzelhandel\//i.test(listing.sourceUrl || listing.url || '');
   const usableData = Boolean(listing.title && (listing.address || listing.rawSourceData?.rawDescription || listing.gastroEvidence));
   const market = verified && fresh && munich && commercial && usableData;

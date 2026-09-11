@@ -1,5 +1,6 @@
 const fs = require('fs/promises');
 const path = require('path');
+const { sourceForUrl, parseSmallSourcePage } = require('./ingest/small-source-pages');
 
 const LISTINGS_PATH = path.join(__dirname, '..', 'data', 'listings.json');
 const CHECK_DELAY_MS = 1000;
@@ -73,6 +74,7 @@ function sleep(ms) {
 }
 
 function getSourceType(listing) {
+  if (sourceForUrl(listing.url)) return 'small-local';
   const source = `${listing.source || ''} ${listing.url || ''}`.toLowerCase();
   if (source.includes('immobilienscout24') || source.includes('immoscout')) return SOURCE_TYPES.IMMOSCOUT;
   if (source.includes('immowelt')) return SOURCE_TYPES.IMMOWELT;
@@ -161,6 +163,9 @@ function getLastPathSegment(url) {
 }
 
 function isSameConcreteListing(sourceType, originalUrl, finalUrl) {
+  if (sourceType === 'small-local') {
+    return Boolean(sourceForUrl(originalUrl) && sourceForUrl(finalUrl) && originalUrl === finalUrl);
+  }
   if (sourceType === SOURCE_TYPES.KLEINANZEIGEN) {
     if (!isKleinanzeigenListingUrl(finalUrl)) return false;
     return getLastPathSegment(originalUrl) === getLastPathSegment(finalUrl);
@@ -199,6 +204,11 @@ function isFallbackOrSearchPage(sourceType, html, finalUrl) {
 }
 
 function hasStrongListingEvidence(sourceType, listing, html, finalUrl) {
+  if (sourceType === 'small-local') {
+    if (!isSameConcreteListing(sourceType, listing.url, finalUrl)) return false;
+    const current = parseSmallSourcePage(finalUrl, html);
+    return Boolean(current?.rawSourceData.sourceObjectConfirmed && !current.rawSourceData.explicitDead);
+  }
   const expectedId = getLastPathSegment(listing.url || '');
   const normalizedDistrict = String(listing.district || '').split('·')[0].trim().toLowerCase();
   const lowerHtml = html.toLowerCase();
@@ -271,7 +281,10 @@ function classifyHtml(listing, response, html, finalUrl, checkedAt) {
     }, 'final URL or page content is search/fallback');
   }
 
-  if (response.status === 404 || response.status === 410 || hasDeadSignal(sourceType, html)) {
+  const localDead = sourceType === 'small-local' && response.ok
+    && isSameConcreteListing(sourceType, listing.url, finalUrl)
+    && parseSmallSourcePage(finalUrl, html)?.rawSourceData.explicitDead;
+  if (response.status === 404 || response.status === 410 || hasDeadSignal(sourceType, html) || localDead) {
     return result(listing, {
       availabilityStatus: 'dead',
       lastVerifiedAt: checkedAt,

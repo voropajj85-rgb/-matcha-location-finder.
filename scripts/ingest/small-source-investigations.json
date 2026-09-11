@@ -1,0 +1,74 @@
+{
+  "tested_at": "2026-09-10",
+  "method": "Ordinary public GETs and public search discovery. No login, CAPTCHA solving, anti-bot bypass or private endpoints. Research page counts are scoped probes, not exhaustive inventories. Rejected/deferred sources contribute zero pipeline-verified listings; this is not a claim that their inventories are empty.",
+  "sources": [
+    {
+      "source": "Emslander", "decision": "kept", "pages_discovered": null,
+      "evidence_url": "https://www.emslander-co.de/immobilien?filter=gewerbe",
+      "reason": "Public catalog and individual HTML objects. Only concrete 20–60 m² commercial units with no explicit total above 60 m² are emitted.",
+      "access_problems": []
+    },
+    {
+      "source": "RaumForm33", "decision": "kept_temporary_only", "pages_discovered": null,
+      "evidence_url": "https://raumform33.de/pop-up-store/pop-up-mieten-muenchen/",
+      "reason": "Public individual pop-up objects. Temporary tenancy is explicit and separately counted; daily/weekly/package prices are not monthly rents. Conflicting object IDs and large totals are rejected.",
+      "access_problems": []
+    },
+    {
+      "source": "Nußbaumer", "decision": "rejected_this_phase", "pages_discovered": 10,
+      "evidence_url": "https://nussbaumer-gmbh.de/objekte",
+      "reason": "Public takeover catalog, but current Munich units inspected are above 60 m². Small Olching, Emmering and Gauting offers are outside Munich; no large inventory imported.",
+      "access_problems": []
+    },
+    {
+      "source": "Immowelt", "decision": "rejected_new_route", "pages_discovered": 13,
+      "evidence_url": "https://www.immowelt.de/suche/mieten/ladenflaechen/bayern/munchen-80331/ad08de6345",
+      "direct_probe_url": "https://www.immowelt.de/expose/e8fb56eb-0901-42b9-bb4c-29e6b5728538",
+      "reason": "New public search route exposes individual UUID URLs, but ordinary direct-page verification was blocked. Existing adapter is unchanged.",
+      "access_problems": ["Direct object GET returned HTTP 403 / JavaScript challenge; no bypass attempted."]
+    },
+    {
+      "source": "ohne-makler", "decision": "deferred", "pages_discovered": 0,
+      "evidence_url": "https://www.ohne-makler.net/immobilien/",
+      "reason": "No usable Munich small-unit direct URL discovery established. Search result OM-485952 is in Markt Indersdorf, outside Munich.",
+      "access_problems": ["Candidate Munich catalog route returned 404; public replacement is an interactive search shell."]
+    },
+    {
+      "source": "SWM", "decision": "deferred_pdf_verification", "pages_discovered": 4,
+      "evidence_url": "https://www.swm.de/unternehmen/immobilien",
+      "reason": "Four concrete public PDF offers found. No PDF identity, deadline and rent verifier implemented. Theresienstraße's 27.82 m² includes 17.51 m² external storage; sales area is only 10.31 m². Do not count snippets or bid rents as verified monthly-rent offers.",
+      "access_problems": ["PDF-only object details require a dedicated verification adapter; normal public access itself works."]
+    },
+    {
+      "source": "Röthig", "decision": "rejected_this_phase", "pages_discovered": 1,
+      "evidence_url": "https://www.roethig-immobilien.de/objekte/mitten-in-schwabing-kleine-ladenflaeche-direkt-an-der-muenchner-freiheit-zu-vermieten_12457.php",
+      "reason": "The small-shop search hit is explicitly rented and 138 m² overall, with 69 m² ground floor. Its smaller basement is not a separate target unit.",
+      "access_problems": []
+    },
+    {
+      "source": "SONTONA", "decision": "rejected_this_phase", "pages_discovered": 1,
+      "evidence_url": "https://partner.sontona.de/immobilien/sofort-nutzbar-klein/",
+      "reason": "Public small-unit page has 34 m² total but only 15 m² sales area and prohibits gastronomy. No target-range sales unit established.",
+      "access_problems": []
+    },
+    {
+      "source": "Münchner Wohnen", "decision": "deferred_external_portal", "pages_discovered": 1,
+      "evidence_url": "https://www.muenchner-wohnen.de/wohnen-mieten/gewerbeflaechen/aktuelle-angebote",
+      "direct_probe_url": "https://www.immobilienscout24.de/expose/167505848",
+      "reason": "Own site delegates objects to Scout/Immowelt. A 47.03 m² Ackermannbogen search hit is a lead, not pipeline verified; no independent native direct-object feed found.",
+      "access_problems": ["Delegated portals are not normally verifiable by current adapters; search snippets are not confirmation."]
+    },
+    {
+      "source": "heimmobilien", "decision": "rejected_this_phase", "pages_discovered": 0,
+      "evidence_url": "https://www.heimmobilien.de/wohnung-mieten-angebote",
+      "reason": "The apparent 40 m² shop is actually in Dachau. Nearby Pasing text belongs to another, rented residential card. No Munich small-unit direct page established.",
+      "access_problems": []
+    },
+    {
+      "source": "Kreativ München", "decision": "deferred_project_lead", "pages_discovered": 1,
+      "evidence_url": "https://kreativ-muenchen.de/h/raum/ausschreibung-laden-13-und-16.html",
+      "reason": "Temporary creative-project tender for Rathaus shops. Individual-unit area, current deadline and permitted commercial use were not fully verified; no adapter added.",
+      "access_problems": []
+    }
+  ]
+}

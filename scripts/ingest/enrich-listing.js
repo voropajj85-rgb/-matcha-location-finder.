@@ -1,6 +1,7 @@
 const { parseNumberFromText } = require('./utils');
 const { extractListingFacts, extractRent, extractArea } = require('./extract-listing-facts');
 const { districtMatch } = require('./district-coverage');
+const { sourceForUrl, parseSmallSourcePage } = require('./small-source-pages');
 
 function textContent(html, pattern) {
   const match = String(html || '').match(pattern);
@@ -190,6 +191,16 @@ async function enrichListing(listing, { fetchPage } = {}) {
   try {
     const response = await fetchPage(listing.sourceUrl);
     const html = response.body || '';
+    if (sourceForUrl(listing.sourceUrl)) {
+      const parsed = parseSmallSourcePage(listing.sourceUrl, html);
+      if (!parsed || (response.finalUrl || listing.sourceUrl) !== listing.sourceUrl) {
+        return { ...listing, availabilityStatus: 'unknown', rawSourceData: {
+          ...listing.rawSourceData, sourceObjectConfirmed: false, enrichmentStatus: 'failed'
+        } };
+      }
+      return { ...listing, ...parsed, rawSourceData: { ...listing.rawSourceData, ...parsed.rawSourceData,
+        enrichmentStatus: 'success', httpStatus: response.status, finalUrl: response.finalUrl } };
+    }
     const plainText = plainTextFromHtml(html);
     const jsonLd = jsonLdFacts(html);
     const title = jsonLd.title || titleFromHtml(html) || listing.title;
