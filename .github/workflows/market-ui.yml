@@ -1,0 +1,45 @@
+name: Market UI checks
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'css/**'
+      - 'js/**'
+      - 'scripts/build-ui-policy.js'
+      - 'scripts/tests/**'
+      - 'scripts/ingest/**'
+      - '.github/workflows/market-ui.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax and backend policy parity
+        run: |
+          find js scripts/tests -name '*.js' -print0 | xargs -0 -n1 node --check
+          node --check scripts/build-ui-policy.js
+          node scripts/tests/market-ui.test.js
+      - name: Existing ingestion and extraction smoke tests
+        run: |
+          node scripts/ingest/tests/ingestion.test.js
+          node scripts/ingest/tests/phase3b-extraction.test.js
+          node scripts/ingest/tests/validation-report.test.js
+      - name: Install isolated browser test dependency
+        run: |
+          npm install --prefix "$RUNNER_TEMP/ui-browser" --no-save playwright@1.62.1
+          "$RUNNER_TEMP/ui-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Desktop and mobile browser regression (no external data access)
+        env:
+          PLAYWRIGHT_MODULE_PATH: ${{ runner.temp }}/ui-browser/node_modules/playwright
+        run: node scripts/tests/market-ui.browser.test.js

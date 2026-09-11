@@ -1,0 +1,66 @@
+{
+  "checkedAt": "2026-09-11T12:10:43.755Z",
+  "totalRows": 217,
+  "counts": {
+    "market": 137,
+    "suitable": 6,
+    "best": 9,
+    "targetArea": 15,
+    "temporary": 0
+  },
+  "districts": {
+    "Au-Haidhausen": 4,
+    "Giesing": 3,
+    "Maxvorstadt": 5,
+    "Schwabing": 10,
+    "München · Stadtteil nicht bestätigt": 83,
+    "Bogenhausen": 6,
+    "Sendling-Westpark": 3,
+    "Altstadt-Lehel": 3,
+    "Pasing": 3,
+    "Milbertshofen": 3,
+    "Moosach": 2,
+    "Neuhausen-Nymphenburg": 2,
+    "Ludwigsvorstadt-Isarvorstadt": 3,
+    "Laim": 3,
+    "Sendling": 2,
+    "Ramersdorf": 1,
+    "Trudering-Riem": 1
+  },
+  "sources": {
+    "Engel & Völkers": {
+      "market": 44,
+      "suitable": 1,
+      "best": 1
+    },
+    "Kleinanzeigen": {
+      "market": 45,
+      "suitable": 4,
+      "best": 7
+    },
+    "Colliers": {
+      "market": 44,
+      "suitable": 1,
+      "best": 1
+    },
+    "immobilie1": {
+      "market": 4,
+      "suitable": 0,
+      "best": 0
+    }
+  },
+  "bestPolicy": {
+    "backendEligibleBeforeFreshness": 12,
+    "excludedByExisting48HourFreshness": 3,
+    "currentVisibleBest": 9,
+    "backendRulesChanged": false
+  },
+  "browserVerification": {
+    "desktopWidth": 1440,
+    "mobileWidth": 390,
+    "horizontalOverflow": false,
+    "uncaughtErrors": 0,
+    "supabaseWriteRequests": 0,
+    "externalListingOpened": "https://www.colliers.de/gewerbeimmobilien/objekt/laden-muenchen-m-p4523-g1-e5/"
+  }
+}
