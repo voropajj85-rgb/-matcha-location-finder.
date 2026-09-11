@@ -1,5 +1,7 @@
 # Matcha Location Finder
 
+**Preview on an iPhone / another device:** [public URL and Windows preview commands](docs/preview.md).
+
 Рабочий репозиторий проекта поиска помещения под Matcha Bar в Мюнхене.
 
 ## UI BASELINE
