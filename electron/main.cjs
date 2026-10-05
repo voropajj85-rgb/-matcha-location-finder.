@@ -11,7 +11,9 @@ function safePath(urlPath) {
   const decoded = decodeURIComponent((urlPath || '/').split('?')[0]);
   const relative = decoded === '/' ? 'index.html' : decoded.replace(/^\/+/, '');
   const absolute = path.resolve(rootDir(), relative);
-  return absolute.startsWith(rootDir()) ? absolute : null;
+  const fromRoot = path.relative(rootDir(), absolute);
+  if (fromRoot.startsWith('..') || path.isAbsolute(fromRoot)) return null;
+  return absolute;
 }
 function startServer() {
   return new Promise((resolve, reject) => {
