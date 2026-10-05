@@ -1,0 +1,57 @@
+{
+  "suppliers": [
+    {"id":"matcha-magic","name":"Matcha Magic / greenco","category":"matcha","country":"DE","status":"candidate","fit":"Direct importer · bulk / private label","note":"Запросить B2B цену для café-grade и образцы 2–3 грейдов.","url":"https://www.matcha-magic.de/"},
+    {"id":"matchoya","name":"Matchoya","category":"matcha","country":"DE","status":"candidate","fit":"Uji Matcha · gastro packs","note":"Интересен как гастро-поставщик; сравнить вкус, MOQ и цену 500 g / 1 kg.","url":"https://matchoya.de/"},
+    {"id":"simply-chai","name":"Simply Chai","category":"matcha","country":"DE","status":"candidate","fit":"BIO Matcha · B2B gastro shop","note":"Есть B2B-направление для cafés/hotels. Проверить чистый Matcha без смеси.","url":"https://www.simplychai.eu/"},
+    {"id":"greenbox","name":"greenbox / biologischverpacken","category":"packaging","country":"DE","status":"candidate","fit":"cups · lids · takeaway packaging","note":"Собрать один совместимый диаметр стаканов/крышек для hot + iced и сравнить коробочные MOQ.","url":"https://www.biologischverpacken.de/"},
+    {"id":"gastrohero","name":"GastroHero","category":"equipment","country":"DE","status":"candidate","fit":"gastro equipment · smallwares","note":"Использовать как ценовой ориентир по холодильнику, блендеру, мойке и мелкому инвентарю.","url":"https://www.gastro-hero.de/"},
+    {"id":"monin","name":"MONIN Germany","category":"syrup","country":"DE/EU","status":"candidate","fit":"syrups · beverage recipes","note":"Для старта не раздувать вкусы: выбрать 2–3 сиропа после теста базового matcha latte.","url":"https://www.monin.com/de/"}
+  ],
+  "equipment": [
+    {"id":"matcha-whisk","name":"Chasen / венчик","category":"test-kit","phase":"test","estimate":25,"required":true,"note":"2 шт. для параллельной работы и резерва."},
+    {"id":"fine-sieve","name":"Мелкое сито для matcha","category":"test-kit","phase":"test","estimate":10,"required":true,"note":"Стабильнее текстура, меньше комков."},
+    {"id":"scale","name":"Весы 0.1 g","category":"test-kit","phase":"test","estimate":20,"required":true,"note":"Нужны для рецептуры и контроля food cost."},
+    {"id":"milk-frother","name":"Электрический milk frother","category":"test-kit","phase":"test","estimate":70,"required":true,"note":"Для пилотного теста без эспрессо-машины."},
+    {"id":"blender","name":"Профессиональный блендер","category":"bar","phase":"launch","estimate":350,"required":true,"note":"Iced drinks / lemonade; выбирать по шуму и ресурсу."},
+    {"id":"ice-machine","name":"Льдогенератор","category":"bar","phase":"launch","estimate":800,"required":true,"note":"Нагрузка летом критична для iced-линейки."},
+    {"id":"undercounter-fridge","name":"Подстольный холодильник","category":"bar","phase":"launch","estimate":900,"required":true,"note":"Молоко + растительные альтернативы рядом с рабочей зоной."},
+    {"id":"dishwasher","name":"Gastro посудомойка / glasswasher","category":"bar","phase":"launch","estimate":1500,"required":false,"note":"Зависит от формата помещения и доли одноразовой посуды."},
+    {"id":"hot-cups","name":"Hot cups + lids","category":"packaging","phase":"test","estimate":90,"required":true,"note":"Один базовый размер на старте, чтобы не плодить SKU."},
+    {"id":"cold-cups","name":"Cold cups + lids","category":"packaging","phase":"test","estimate":110,"required":true,"note":"Прозрачный iced-формат визуально продаёт продукт."},
+    {"id":"straws","name":"Трубочки","category":"packaging","phase":"test","estimate":35,"required":true,"note":"Проверить совместимость с крышкой и требования упаковки."},
+    {"id":"labels","name":"Стикеры / маркировка","category":"packaging","phase":"test","estimate":40,"required":false,"note":"Дешёвый способ брендировать пилот без печати стаканов."}
+  ],
+  "economics": {
+    "assumptions": [
+      {"id":"matchaPerGram","label":"Matcha, €/g","value":0.12,"step":0.01},
+      {"id":"milkPerMl","label":"Молоко, €/ml","value":0.0018,"step":0.0001},
+      {"id":"altMilkPerMl","label":"Раст. молоко, €/ml","value":0.0026,"step":0.0001},
+      {"id":"syrupPerMl","label":"Сироп, €/ml","value":0.012,"step":0.001},
+      {"id":"lemonadeBase","label":"Лимонадная база, €/порц.","value":0.55,"step":0.05},
+      {"id":"espressoShot","label":"Espresso shot, €","value":0.35,"step":0.05},
+      {"id":"packagingHot","label":"Hot стакан+крышка, €","value":0.28,"step":0.01},
+      {"id":"packagingCold","label":"Cold стакан+крышка+трубочка, €","value":0.34,"step":0.01}
+    ],
+    "menu": [
+      {"id":"hot-matcha","name":"Matcha Latte","tag":"HOT","price":5.5,"matchaG":2.0,"milkMl":240,"milk":"milk","syrupMl":0,"extra":0,"packaging":"hot"},
+      {"id":"iced-matcha","name":"Iced Matcha Latte","tag":"ICED","price":5.9,"matchaG":2.2,"milkMl":220,"milk":"milk","syrupMl":0,"extra":0.08,"packaging":"cold"},
+      {"id":"usucha","name":"Pure Matcha / Usucha","tag":"PURE","price":4.2,"matchaG":2.0,"milkMl":0,"milk":"none","syrupMl":0,"extra":0.04,"packaging":"hot"},
+      {"id":"lemonade","name":"Iced Matcha Lemonade","tag":"FRESH","price":5.9,"matchaG":2.0,"milkMl":0,"milk":"none","syrupMl":0,"extra":"lemonadeBase","packaging":"cold"},
+      {"id":"dirty-matcha","name":"Dirty Matcha","tag":"COFFEE","price":6.4,"matchaG":2.0,"milkMl":200,"milk":"milk","syrupMl":0,"extra":"espressoShot","packaging":"cold"}
+    ]
+  },
+  "launch": [
+    {"id":"samples","group":"Продукт","title":"Заказать 2–3 образца Matcha","blocking":true},
+    {"id":"blind-test","group":"Продукт","title":"Сделать слепой тест: hot / iced / pure","blocking":true},
+    {"id":"pilot-venue","group":"Пилот","title":"Договориться с действующим заведением о тесте меню","blocking":true},
+    {"id":"pilot-menu","group":"Пилот","title":"Прогнать 5 напитков и замерить скорость приготовления","blocking":false},
+    {"id":"packaging-test","group":"Пилот","title":"Проверить стаканы, крышки, трубочки на реальной выдаче","blocking":false},
+    {"id":"supplier-price","group":"Закупки","title":"Получить B2B цены, MOQ и сроки от shortlist поставщиков","blocking":true},
+    {"id":"location-shortlist","group":"Помещение","title":"Сформировать shortlist Best из 3–5 объектов","blocking":false},
+    {"id":"gastro-confirm","group":"Помещение","title":"Подтвердить Café/Gastro использование до сделки","blocking":true},
+    {"id":"capex-list","group":"Финансы","title":"Зафиксировать минимальный CAPEX и полный CAPEX","blocking":false},
+    {"id":"unit-economics","group":"Финансы","title":"Утвердить цены и food cost после теста","blocking":true},
+    {"id":"legal-check","group":"Запуск","title":"Сверить Gewerbe, Lebensmittelhygiene и требования помещения","blocking":true},
+    {"id":"opening-plan","group":"Запуск","title":"Собрать 30-дневный план до открытия","blocking":false}
+  ]
+}
