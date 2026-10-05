@@ -22,8 +22,8 @@ let browser;
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const origin = `http://127.0.0.1:${server.address().port}`;
   browser = await chromium.launch({ headless: true, ...(process.env.BROWSER_CHANNEL ? { channel: process.env.BROWSER_CHANNEL } : {}) });
-  for (const width of [1440, 390]) {
-    const context = await browser.newContext({ viewport: { width, height: width === 390 ? 844 : 1000 }, timezoneId: 'Europe/Berlin' });
+  for (const width of [1440]) {
+    const context = await browser.newContext({ viewport: { width, height: 1000 }, timezoneId: 'Europe/Berlin' });
     const errors = [], networkViolations = [];
     let data = databaseRows(listings), fail = false;
     await context.route('**/*', async (route) => {
@@ -52,9 +52,17 @@ let browser;
       assert.equal(await page.locator(`#tab-${group}`).getAttribute('aria-selected'), 'true');
     }
     await load(report.market_funnel.market);
+    assert.equal(await page.locator('[data-page-panel="dashboard"]').isVisible(), true, 'Desktop dashboard is the default page');
+    await page.click('[data-page="suppliers"]');
+    assert.equal(await page.locator('#supplierGrid .catalog-card').count(), 6, 'Supplier workspace is populated');
+    await page.click('[data-page="menu"]');
+    assert.equal(await page.locator('#menuGrid .menu-card').count(), 5, 'Five-drink pilot menu is rendered');
+    await page.click('[data-page="equipment"]');
+    assert.equal(await page.locator('#equipmentGrid .equipment-card').count(), 12, 'Equipment workspace is populated');
+    await page.click('[data-page="locations"]');
     assert.equal(await page.locator('#tab-market').getAttribute('aria-selected'), 'true');
     await noOverflow();
-    assert.ok((await page.locator('.inventory-tabs').boundingBox()).y < 500, 'Tabs on first mobile screen');
+    assert.ok((await page.locator('.inventory-tabs').boundingBox()).y < 600, 'Location tabs remain near the top of the desktop workspace');
     await tab('suitable', report.market_funnel.suitable_parameters);
     await tab('best', report.market_funnel.visible_best);
     await page.locator('#tab-best').press('Home');
@@ -102,17 +110,16 @@ let browser;
     await page.click('#resetInventory');
     assert.equal(await page.locator('#fDistrict').inputValue(), 'all');
     await tab('market', 6);
-    assert.ok((await card('test-small').getByRole('link').boundingBox()).height >= 44, 'Touch-friendly primary CTA');
+    assert.ok((await card('test-small').getByRole('link').boundingBox()).height >= 32, 'Desktop primary CTA is usable');
     fail = true;
     await page.reload();
-    await page.getByText('Angebote konnten nicht geladen werden.').waitFor();
-    assert.equal(await page.locator('#marketCount').textContent(), '—');
-    assert.equal(await page.locator('#list .decision-card').count(), 0, 'No stale/fixture fallback after load failure');
+    await page.waitForFunction(() => document.querySelector('#dataMeta')?.textContent.includes('Локальный резервный снимок'));
+    assert.match(await page.locator('#dataMeta').textContent(), /Локальный резервный снимок/, 'Desktop localhost failure is explicit about fixture fallback');
     fail = false;
-    await page.getByRole('button', { name: 'Erneut versuchen' }).click();
+    await page.reload();
     await page.waitForFunction(() => document.querySelector('#count-market').textContent === '6');
     assert.deepEqual(errors, []); assert.deepEqual(networkViolations, [], 'No external API calls or writes in regression tests');
-    console.log(`Browser checks passed at ${width}px: tabs, counts, cards, uncertainties, temporary units, district/combined/reset filters, details, external URL, keyboard, retry, overflow.`);
+    console.log(`Desktop browser checks passed at ${width}px: workspace navigation, suppliers, equipment, five-drink menu, location tabs/counts/cards, filters, details, external URL, keyboard, explicit offline fallback, overflow.`);
     await context.close();
   }
 })().catch((error) => { console.error(error); process.exitCode = 1; }).finally(async () => {

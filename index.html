@@ -1,209 +1,138 @@
 <!doctype html>
-<html lang="de">
+<html lang="ru">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#173021">
-
-  <title>Matcha Location Finder</title>
-
-  <link rel="stylesheet" href="./css/styles.css?v=phase3c4">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' https://esm.sh; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://esm.sh; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <title>Matcha Bar Workspace</title>
+  <link rel="stylesheet" href="./css/styles.css?v=desktop-1">
 </head>
 <body>
-  <div class="app">
-    <header class="app-header">
-      <div class="header-row">
-        <div class="brand">
-          <h1>🍵 Matcha Location Finder</h1>
-          <p>Kleine Fläche. Gute Entscheidung.</p>
+  <div class="desktop-shell">
+    <aside class="sidebar" aria-label="Навигация">
+      <div class="brand-block">
+        <div class="brand-mark" aria-hidden="true">抹</div>
+        <div><strong>Matcha Bar</strong><span>Munich workspace</span></div>
+      </div>
+
+      <nav class="primary-nav" id="primaryNav">
+        <button class="nav-item is-active" type="button" data-page="dashboard"><span>01</span><b>Обзор</b><small>что делать дальше</small></button>
+        <button class="nav-item" type="button" data-page="locations"><span>02</span><b>Помещения</b><small>Market / Suitable / Best</small></button>
+        <button class="nav-item" type="button" data-page="suppliers"><span>03</span><b>Поставщики</b><small>matcha, сиропы, молоко</small></button>
+        <button class="nav-item" type="button" data-page="equipment"><span>04</span><b>Оснащение</b><small>оборудование и расходники</small></button>
+        <button class="nav-item" type="button" data-page="menu"><span>05</span><b>Меню и маржа</b><small>5 стартовых напитков</small></button>
+        <button class="nav-item" type="button" data-page="launch"><span>06</span><b>Запуск</b><small>чек-лист проекта</small></button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <span class="status-dot"></span>
+        <div><strong>Local workspace</strong><small id="runtimeLabel">Browser preview</small></div>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">MATCHA BAR GERMANY · MÜNCHEN</p>
+          <h1 id="pageTitle">Панель проекта</h1>
+        </div>
+        <div class="topbar-actions">
+          <span class="save-state" id="saveState">Изменения сохраняются локально</span>
+          <button class="ghost-button" type="button" data-page-jump="launch">Следующий шаг</button>
+        </div>
+      </header>
+
+      <section class="page is-active" data-page-panel="dashboard">
+        <div class="hero-grid">
+          <article class="hero-card">
+            <p class="eyebrow">ЦЕЛЬ</p>
+            <h2>Открыть маленький Matcha Bar без дорогих ошибок на старте.</h2>
+            <p>Программа собирает в одном месте поиск помещения, поставщиков, оснащение, меню, себестоимость и запуск.</p>
+            <div class="hero-actions">
+              <button class="primary-button" type="button" data-page-jump="locations">Смотреть помещения</button>
+              <button class="secondary-button" type="button" data-page-jump="suppliers">Сравнить поставщиков</button>
+            </div>
+          </article>
+          <article class="focus-card">
+            <span class="focus-kicker">ТЕКУЩИЙ ФОКУС</span>
+            <strong id="focusTitle">Проверить продукт до аренды</strong>
+            <p id="focusText">Заказать 2–3 образца matcha, собрать минимальный сет оборудования и прогнать стартовое меню в уже работающем заведении.</p>
+            <div class="progress-track"><span id="launchProgressBar"></span></div>
+            <small id="launchProgressText">0% задач запуска отмечено</small>
+          </article>
         </div>
 
-        <button
-          class="icon-button"
-          type="button"
-          aria-label="Filter öffnen"
-          data-open-sheet="filterSheet"
-        >
-          <span aria-hidden="true">☰</span>
-        </button>
-      </div>
-    </header>
+        <div class="metric-grid" id="dashboardMetrics"></div>
 
-    <main>
-      <section class="market-summary" aria-labelledby="marketHeading">
-        <div><p class="eyebrow">STANDORTSUCHE · MÜNCHEN</p><h2 id="marketHeading">Münchner Markt</h2>
-        <p class="market-intro">Bekannte, aktuell verifizierte Gewerbeflächen in München. Nicht jedes Angebot passt zu einer Matcha Bar.</p></div>
-        <div class="market-stats" aria-live="polite"><div><strong id="marketCount">—</strong><span>im Markt</span></div><div><strong id="targetCount">—</strong><span>25–60 m²</span></div><div><strong id="suitableCount">—</strong><span>Suitable</span></div><div><strong id="bestCount">—</strong><span>Best</span></div></div>
-        <p id="dataMeta" class="data-meta">Daten werden geladen …</p>
+        <div class="dashboard-grid">
+          <section class="panel">
+            <div class="panel-heading"><div><p class="eyebrow">ПРИОРИТЕТЫ</p><h2>Ближайшие действия</h2></div><button class="text-button" type="button" data-page-jump="launch">Весь план →</button></div>
+            <div id="priorityList" class="priority-list"></div>
+          </section>
+          <section class="panel panel-soft">
+            <div class="panel-heading"><div><p class="eyebrow">КОНТРОЛЬ РИСКА</p><h2>Что не должно потеряться</h2></div></div>
+            <div class="risk-list">
+              <div><span>01</span><p><strong>Помещение</strong> не считать подходящим без подтверждения использования под Café/Gastro.</p></div>
+              <div><span>02</span><p><strong>Поставщик</strong> не считать выбранным до теста вкуса, стабильности и реальной B2B-цены.</p></div>
+              <div><span>03</span><p><strong>Маржу</strong> считать от полной порции, включая стакан, крышку, лёд, сироп и потери.</p></div>
+            </div>
+          </section>
+        </div>
       </section>
-      <section class="inventory" aria-labelledby="listHeading">
-        <nav class="inventory-tabs" role="tablist" aria-label="Inventar auswählen">
-          <button id="tab-market" role="tab" type="button" data-group="market" aria-selected="true" aria-controls="inventoryPanel">Market <span id="count-market">—</span></button>
-          <button id="tab-suitable" role="tab" type="button" data-group="suitable" aria-selected="false" aria-controls="inventoryPanel" tabindex="-1">Suitable <span id="count-suitable">—</span></button>
-          <button id="tab-best" role="tab" type="button" data-group="best" aria-selected="false" aria-controls="inventoryPanel" tabindex="-1">Best <span id="count-best">—</span></button>
-        </nav>
-        <div class="inventory-toolbar"><div class="district-control"><label for="fDistrict">Stadtteil</label><select id="fDistrict"><option value="all">Ganz München</option></select></div><button class="secondary-button" type="button" data-open-sheet="filterSheet">Filter <span id="filterCount"></span></button><button class="text-button" id="resetInventory" type="button">Filter zurücksetzen</button></div>
-        <div id="inventoryPanel" role="tabpanel" aria-labelledby="tab-market"><div class="results-heading"><h2 id="listHeading">Market</h2><span id="listMeta" role="status"></span></div><p id="groupDescription" class="group-description"></p><div id="list" class="decision-list"></div></div>
+
+      <section class="page" data-page-panel="locations">
+        <section class="market-summary" aria-labelledby="marketHeading">
+          <div><p class="eyebrow">STANDORTSUCHE · MÜNCHEN</p><h2 id="marketHeading">Рынок помещений</h2>
+          <p class="market-intro">Реальные объявления и лиды. Market показывает рынок шире, Suitable — базовое соответствие, Best — самую сильную выборку.</p></div>
+          <div class="market-stats" aria-live="polite"><div><strong id="marketCount">—</strong><span>Market</span></div><div><strong id="targetCount">—</strong><span>25–60 m²</span></div><div><strong id="suitableCount">—</strong><span>Suitable</span></div><div><strong id="bestCount">—</strong><span>Best</span></div></div>
+          <p id="dataMeta" class="data-meta">Данные загружаются…</p>
+        </section>
+
+        <section class="inventory" aria-labelledby="listHeading">
+          <nav class="inventory-tabs" role="tablist" aria-label="Инвентарь">
+            <button id="tab-market" role="tab" type="button" data-group="market" aria-selected="true" aria-controls="inventoryPanel">Market <span id="count-market">—</span></button>
+            <button id="tab-suitable" role="tab" type="button" data-group="suitable" aria-selected="false" aria-controls="inventoryPanel" tabindex="-1">Suitable <span id="count-suitable">—</span></button>
+            <button id="tab-best" role="tab" type="button" data-group="best" aria-selected="false" aria-controls="inventoryPanel" tabindex="-1">Best <span id="count-best">—</span></button>
+          </nav>
+          <div class="inventory-toolbar"><div class="district-control"><label for="fDistrict">Район</label><select id="fDistrict"><option value="all">Весь München</option></select></div><button class="secondary-button" type="button" data-open-sheet="filterSheet">Фильтры <span id="filterCount"></span></button><button class="text-button" id="resetInventory" type="button">Сбросить</button></div>
+          <div id="inventoryPanel" role="tabpanel" aria-labelledby="tab-market"><div class="results-heading"><h2 id="listHeading">Market</h2><span id="listMeta" role="status"></span></div><p id="groupDescription" class="group-description"></p><div id="list" class="decision-list"></div></div>
+        </section>
+        <details class="leads-section" id="leadsSection"><summary>Дополнительные лиды <span id="leadMeta"></span></summary><p>Неподтверждённые зацепки и ручные заметки — отдельно от Market/Suitable/Best.</p><button class="secondary-button" type="button" data-open-sheet="addSheet">Добавить свой объект</button><div id="leadList" class="list lead-list"></div></details>
       </section>
-      <details class="leads-section" id="leadsSection"><summary>Weitere Leads <span id="leadMeta"></span></summary><p>Unbestätigte Hinweise und eigene Notizen. Nicht in Market, Suitable oder Best enthalten.</p><button class="secondary-button" type="button" data-open-sheet="addSheet">Eigene Notiz hinzufügen</button><div id="leadList" class="list lead-list"></div></details>
+
+      <section class="page" data-page-panel="suppliers">
+        <div class="section-intro"><div><p class="eyebrow">SUPPLY CHAIN</p><h2>Поставщики и тестирование продукта</h2><p>Не просто список ссылок: здесь ведём кандидатов от первого контакта до одобренного поставщика.</p></div><div class="legend"><span><i class="dot candidate"></i>кандидат</span><span><i class="dot testing"></i>тест</span><span><i class="dot approved"></i>одобрен</span></div></div>
+        <div class="toolbar-row"><div class="segmented" id="supplierFilters"></div><label class="search-field"><span>Поиск</span><input id="supplierSearch" type="search" placeholder="название, категория, заметка"></label></div>
+        <div id="supplierGrid" class="catalog-grid"></div>
+      </section>
+
+      <section class="page" data-page-panel="equipment">
+        <div class="section-intro"><div><p class="eyebrow">CAPEX + CONSUMABLES</p><h2>Оборудование, посуда и расходники</h2><p>Минимальный комплект для теста отдельно от полного оснащения будущей точки.</p></div><div class="budget-box"><span>Отмечено в закупку</span><strong id="equipmentSelectedTotal">€0</strong></div></div>
+        <div class="toolbar-row"><div class="segmented" id="equipmentFilters"></div><label class="search-field"><span>Поиск</span><input id="equipmentSearch" type="search" placeholder="венчик, стакан, холодильник…"></label></div>
+        <div id="equipmentGrid" class="equipment-grid"></div>
+      </section>
+
+      <section class="page" data-page-panel="menu">
+        <div class="section-intro"><div><p class="eyebrow">UNIT ECONOMICS</p><h2>Стартовое меню: 5 напитков</h2><p>Все цифры — рабочие допущения. Меняешь закупочные цены и порции, программа пересчитывает себестоимость и валовую маржу.</p></div><div class="budget-box"><span>Средняя валовая маржа</span><strong id="averageMargin">—</strong></div></div>
+        <div class="economics-layout">
+          <section class="panel assumptions-panel"><div class="panel-heading"><div><p class="eyebrow">ВХОДНЫЕ ДАННЫЕ</p><h2>Закупочные цены</h2></div><button id="resetEconomics" class="text-button" type="button">Сбросить</button></div><div id="assumptionFields" class="assumption-fields"></div></section>
+          <section><div id="menuGrid" class="menu-grid"></div></section>
+        </div>
+      </section>
+
+      <section class="page" data-page-panel="launch">
+        <div class="section-intro"><div><p class="eyebrow">EXECUTION</p><h2>План запуска</h2><p>Чек-лист хранится локально на ноутбуке. Можно закрывать задачи в любом порядке, но блокирующие шаги остаются сверху.</p></div><div class="budget-box"><span>Прогресс</span><strong id="launchProgressBig">0%</strong></div></div>
+        <div class="launch-layout"><div id="launchBoard" class="launch-board"></div><aside class="panel notes-panel"><div class="panel-heading"><div><p class="eyebrow">РАБОЧАЯ ЗАМЕТКА</p><h2>Что выяснить</h2></div></div><textarea id="projectNotes" rows="16" placeholder="Контакты, вопросы поставщикам, идеи по тесту, арендодателю…"></textarea><small>Сохраняется автоматически только на этом компьютере.</small></aside></div>
+      </section>
     </main>
   </div>
 
-  <div id="detailSheet" class="sheet-backdrop">
-    <section class="sheet" role="dialog" aria-modal="true" aria-label="Angebotsdetails">
-      <div class="sheet-handle"></div>
+  <div id="detailSheet" class="sheet-backdrop"><section class="sheet" role="dialog" aria-modal="true" aria-label="Детали объекта"><button class="close-button" type="button" aria-label="Закрыть" data-close-sheet="detailSheet">×</button><div id="detail" class="sheet-content"></div></section></div>
+  <div id="filterSheet" class="sheet-backdrop"><section class="sheet filter-sheet" role="dialog" aria-modal="true" aria-label="Фильтры"><button class="close-button" type="button" aria-label="Закрыть" data-close-sheet="filterSheet">×</button><h3>Сузить поиск</h3><p class="filter-hint">Неизвестные значения остаются в Market, но не проходят числовой фильтр.</p><div class="two-columns"><div class="field"><label for="fMin">Площадь от (m²)</label><input id="fMin" type="number" min="0" placeholder="без границы"></div><div class="field"><label for="fMax">Площадь до (m²)</label><input id="fMax" type="number" min="0" placeholder="без границы"></div></div><div class="field"><label for="fRent">Месячная аренда до (€)</label><input id="fRent" type="number" min="0" placeholder="без границы"></div><div class="field"><label for="fGastro">Gastronomie</label><select id="fGastro"><option value="all">Все</option><option value="confirmed">Подтверждено</option><option value="possible">Возможно</option><option value="unknown">Не подтверждено</option><option value="no">Не разрешено</option></select></div><div class="field"><label for="fSource">Источник</label><select id="fSource"><option value="all">Все источники</option></select></div><div class="sheet-actions"><button id="resetFilters" class="secondary-button" type="button">Сбросить</button><button id="applyFilters" class="primary-button" type="button">Применить</button></div></section></div>
+  <div id="addSheet" class="sheet-backdrop"><section class="sheet" role="dialog" aria-modal="true" aria-label="Добавить объект"><button class="close-button" type="button" aria-label="Закрыть" data-close-sheet="addSheet">×</button><h3>Добавить свой объект</h3><div class="field"><label for="aDistrict">Район</label><input id="aDistrict" type="text" placeholder="Например, Schwabing"></div><div class="field"><label for="aAddress">Адрес</label><input id="aAddress" type="text" placeholder="Улица, München"></div><div class="two-columns"><div class="field"><label for="aArea">Площадь, m²</label><input id="aArea" type="number"></div><div class="field"><label for="aRent">Аренда, €</label><input id="aRent" type="number"></div></div><div class="two-columns"><div class="field"><label for="aNk">Nebenkosten, €</label><input id="aNk" type="number"></div><div class="field"><label for="aGastro">Gastronomie</label><select id="aGastro"><option value="check">Уточнить</option><option value="yes">Возможно</option></select></div></div><div class="field"><label for="aUrl">Ссылка</label><input id="aUrl" type="url" placeholder="https://..."></div><div class="field"><label for="aFees">Provision / Ablöse / Kaution</label><input id="aFees" type="text" placeholder="уточнить"></div><div class="field"><label for="aNote">Заметка</label><textarea id="aNote" rows="4"></textarea></div><button id="saveListing" class="primary-button" type="button">Сохранить</button></section></div>
 
-      <button
-        class="close-button"
-        type="button"
-        aria-label="Schließen"
-        data-close-sheet="detailSheet"
-      >
-        ×
-      </button>
-
-      <div id="detail" class="sheet-content"></div>
-    </section>
-  </div>
-
-  <div id="filterSheet" class="sheet-backdrop">
-    <section class="sheet filter-sheet" role="dialog" aria-modal="true" aria-label="Filter">
-      <div class="sheet-handle"></div>
-
-      <button
-        class="close-button"
-        type="button"
-        aria-label="Schließen"
-        data-close-sheet="filterSheet"
-      >
-        ×
-      </button>
-
-      <h3>Suche eingrenzen</h3><p class="filter-hint">Ohne Filter bleiben unbekannte Werte sichtbar. Zahlenfilter zeigen nur bestätigte Werte.</p>
-
-      <div class="two-columns">
-        <div class="field">
-          <label for="fMin">Fläche ab (m²)</label>
-          <input id="fMin" type="number" inputmode="numeric" min="0" placeholder="Keine Grenze">
-        </div>
-
-        <div class="field">
-          <label for="fMax">Fläche bis (m²)</label>
-          <input id="fMax" type="number" inputmode="numeric" min="0" placeholder="Keine Grenze">
-        </div>
-      </div>
-
-      <div class="field">
-        <label for="fRent">Monatsmiete bis (€)</label>
-        <input id="fRent" type="number" inputmode="numeric" min="0" placeholder="Keine Grenze">
-      </div>
-
-      <div class="field">
-        <label for="fGastro">Gastronomie</label>
-        <select id="fGastro">
-          <option value="all">Alle Angaben</option>
-          <option value="confirmed">Bestätigt</option>
-          <option value="possible">Möglich</option>
-          <option value="unknown">Nicht bestätigt</option>
-          <option value="no">Nicht erlaubt</option>
-        </select>
-      </div>
-
-      <div>
-        <div class="field">
-          <label for="fSource">Quelle</label>
-          <select id="fSource">
-            <option value="all">Alle Quellen</option>
-          </select>
-        </div>
-
-      </div>
-
-      <div class="sheet-actions">
-        <button id="resetFilters" class="secondary-button" type="button">
-          Filter zurücksetzen
-        </button>
-
-        <button id="applyFilters" class="primary-button" type="button">
-          Anwenden
-        </button>
-      </div>
-    </section>
-  </div>
-
-  <div id="addSheet" class="sheet-backdrop">
-    <section class="sheet" role="dialog" aria-modal="true" aria-label="Добавить объект">
-      <div class="sheet-handle"></div>
-
-      <button
-        class="close-button"
-        type="button"
-        aria-label="Schließen"
-        data-close-sheet="addSheet"
-      >
-        ×
-      </button>
-
-      <h3>Добавить свой объект</h3>
-
-      <div class="field">
-        <label for="aDistrict">Район</label>
-        <input id="aDistrict" type="text" placeholder="Например, Schwabing">
-      </div>
-
-      <div class="field">
-        <label for="aAddress">Адрес</label>
-        <input id="aAddress" type="text" placeholder="Улица, München">
-      </div>
-
-      <div class="two-columns">
-        <div class="field">
-          <label for="aArea">Площадь, м²</label>
-          <input id="aArea" type="number">
-        </div>
-
-        <div class="field">
-          <label for="aRent">Аренда, €</label>
-          <input id="aRent" type="number">
-        </div>
-      </div>
-
-      <div class="two-columns">
-        <div class="field">
-          <label for="aNk">Nebenkosten, €</label>
-          <input id="aNk" type="number">
-        </div>
-
-        <div class="field">
-          <label for="aGastro">Gastronomie</label>
-          <select id="aGastro">
-            <option value="check">Уточнить</option>
-            <option value="yes">Подходит</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="field">
-        <label for="aUrl">Ссылка</label>
-        <input id="aUrl" type="url" placeholder="https://...">
-      </div>
-
-      <div class="field">
-        <label for="aFees">Provision / Ablöse / Kaution</label>
-        <input id="aFees" type="text" placeholder="уточнить">
-      </div>
-
-      <div class="field">
-        <label for="aNote">Заметка</label>
-        <textarea id="aNote" rows="4"></textarea>
-      </div>
-
-      <button id="saveListing" class="primary-button" type="button">
-        Сохранить
-      </button>
-    </section>
-  </div>
-
-  <script type="module" src="./js/app.js?v=phase3c4"></script>
+  <script type="module" src="./js/workspace.js?v=desktop-1"></script>
+  <script type="module" src="./js/app.js?v=desktop-1"></script>
 </body>
 </html>

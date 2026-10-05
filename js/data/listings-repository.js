@@ -9,21 +9,29 @@ export { mapDatabaseListing };
 async function fetchFixtureListings() {
   const response = await window.fetch(FIXTURE_URL, { cache: 'no-store' });
   if (!response.ok) throw new Error(`fixture HTTP ${response.status}`);
+  window.__MATCHA_LISTINGS_SOURCE__ = 'fixture';
   return response.json();
 }
 
-export async function fetchListings({ allowFixtureFallback = location.hostname === 'localhost' } = {}) {
+export async function fetchListings({ allowFixtureFallback = ['localhost', '127.0.0.1'].includes(location.hostname) } = {}) {
   if (!hasSupabaseConfig()) {
     if (allowFixtureFallback) return fetchFixtureListings();
     throw new Error('Supabase config missing');
   }
 
-  const client = getSupabaseClient();
-  const { data, error } = await client
-    .from('listings')
-    .select('*')
-    .order('updated_at', { ascending: false });
+  try {
+    const client = getSupabaseClient();
+    const { data, error } = await client
+      .from('listings')
+      .select('*')
+      .order('updated_at', { ascending: false });
 
-  if (error) throw error;
-  return Array.isArray(data) ? data.map(mapDatabaseListing) : [];
+    if (error) throw error;
+    window.__MATCHA_LISTINGS_SOURCE__ = 'supabase';
+    return Array.isArray(data) ? data.map(mapDatabaseListing) : [];
+  } catch (error) {
+    if (!allowFixtureFallback) throw error;
+    console.warn('Supabase unavailable; using local listings snapshot.', error);
+    return fetchFixtureListings();
+  }
 }

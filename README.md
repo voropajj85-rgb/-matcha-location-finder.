@@ -1,18 +1,57 @@
-# Matcha Location Finder
+# Matcha Bar Workspace
 
-Рабочий репозиторий проекта поиска помещения под Matcha Bar в Мюнхене.
+Рабочий репозиторий проекта запуска Matcha Bar в Мюнхене: desktop-приложение, поиск помещения, поставщики, оснащение, меню, экономика и план запуска.
 
-## UI BASELINE
+## DESKTOP BASELINE
 
-Визуальная структура приложения зафиксирована как baseline.
+Новый baseline — компьютерная версия **Matcha Bar Workspace**. Phase 3C.4 Location Finder сохранён внутри приложения как модуль «Помещения», а не удалён или упрощён.
 
-**Правило:** не менять расположение блоков, навигацию, цвета, размеры, карточки и общую визуальную концепцию без прямого указания пользователя.
+Основные модули:
+- **Обзор** — состояние проекта, прогресс и ближайшие действия;
+- **Помещения** — Market / Suitable / Best, фильтры, детали и ручные лиды;
+- **Поставщики** — shortlist Matcha, упаковки, сиропов и оборудования со статусами;
+- **Оснащение** — пилотный комплект, оборудование точки и расходники;
+- **Меню и маржа** — 5 стартовых напитков и редактируемая модель себестоимости;
+- **Запуск** — локальный чек-лист и рабочие заметки.
 
-Допустимые изменения без отдельного согласования:
-- исправление технических багов без визуального изменения;
-- обновление и очистка данных объявлений;
-- подключение новых источников рынка;
-- внутренняя логика фильтрации и сортировки, если внешний вид не меняется.
+Desktop UI рассчитан на ноутбук/ПК. Мобильная компоновка больше не является целевым baseline.
+
+## Windows-приложение
+
+Приложение упаковывается через Electron и само поднимает HTTP-сервер только на `127.0.0.1` на случайном свободном порту. Внутренний UI не требует отдельного запуска Node/Express пользователем.
+
+Локальный запуск для разработки:
+
+```bash
+npm install
+npm start
+```
+
+Проверка конфигурации:
+
+```bash
+npm run check
+```
+
+Windows installer + portable EXE:
+
+```bash
+npm run dist:win
+```
+
+GitHub Actions workflow `.github/workflows/windows-build.yml` собирает Windows artifacts для desktop pull request и может публиковать tagged release по тегу `desktop-v*`.
+
+### Offline / local fallback
+
+- основной источник объявлений остаётся Supabase;
+- при запуске на localhost/Electron и недоступном Supabase разрешён fallback на `data/listings.json`;
+- интерфейс явно маркирует такой режим как **«Локальный резервный снимок»**;
+- на GitHub Pages silent fallback не включается;
+- статусы поставщиков, выбранное оснащение, экономические допущения, launch checklist и заметки хранятся локально в браузерном storage этого компьютера.
+
+## Правило изменений
+
+Desktop-компоновка и визуальная система теперь являются текущим baseline. Логику верификации помещений, семантику Market / Suitable / Best и ограничения production ingestion нельзя ослаблять ради красивых цифр.
 
 ## Источник истины
 
@@ -32,7 +71,11 @@ matcha-location-finder/
 │   └── storage.js
 ├── data/
 │   ├── listings.json
-│   └── project-config.json
+│   ├── project-config.json
+│   └── workspace.json
+├── electron/
+│   └── main.cjs
+├── package.json
 ├── scripts/
 │   ├── check-listings.js
 │   └── ingest/
@@ -48,9 +91,10 @@ matcha-location-finder/
 
 ### Назначение файлов
 
-- `index.html` — только HTML-каркас приложения.
-- `css/styles.css` — утверждённый внешний вид.
-- `js/app.js` — запуск приложения и управление интерфейсом.
+- `index.html` — desktop shell и DOM-каркас всех модулей.
+- `css/styles.css` — desktop visual system.
+- `js/workspace.js` — навигация workspace, suppliers/equipment/menu/launch и local state.
+- `js/app.js` — модуль помещений и управление Market / Suitable / Best.
 - `js/config.js` — public Supabase URL и publishable key для браузера.
 - `js/supabase.js` — создание read-only Supabase client.
 - `js/data/listings-repository.js` — data access layer и DB → domain mapper.
@@ -58,7 +102,10 @@ matcha-location-finder/
 - `js/filters.js` — фильтрация и сортировка.
 - `js/storage.js` — локально добавленные пользователем объекты.
 - `data/listings.json` — development fixture и migration/import source, не production database.
-- `data/project-config.json` — централизованные критерии проекта.
+- `data/project-config.json` — централизованные критерии помещения.
+- `data/workspace.json` — поставщики, оснащение, 5 напитков, экономические допущения и launch tasks.
+- `electron/main.cjs` — Electron window + loopback-only static server.
+- `package.json` — pinned desktop dependencies and Windows build configuration.
 - `scripts/ingest/` — discovery → normalization → dedupe → verification → Supabase upsert pipeline.
 - `supabase/migrations/` — SQL migrations для production schema.
 - `assets/images/` — будущие изображения и превью.
