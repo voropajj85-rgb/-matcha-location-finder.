@@ -40,7 +40,8 @@ function renderListings() {
   const counts = inventoryCounts(filterInventory(state.rows, state.filters));
   for (const [id, key] of Object.entries({ marketCount: 'market', targetCount: 'targetArea', suitableCount: 'suitable', bestCount: 'best' })) el(id).textContent = totals[key];
   const dates = state.listings.map((row) => Date.parse(row.lastVerifiedAt)).filter((value) => Number.isFinite(value) && value <= Date.now());
-  el('dataMeta').textContent = `${dates.length ? `Zuletzt verifiziert: ${new Date(Math.max(...dates)).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}` : 'Prüfzeitpunkt nicht bestätigt'} · ${totals.temporary} temporäre Angebote im Markt · Kein vollständiges Marktverzeichnis`;
+  const sourceLabel = window.__MATCHA_LISTINGS_SOURCE__ === 'fixture' ? 'Локальный резервный снимок' : 'Supabase live';
+  el('dataMeta').textContent = `${sourceLabel} · ${dates.length ? `проверено: ${new Date(Math.max(...dates)).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}` : 'время проверки не подтверждено'} · ${totals.temporary} временных объектов · рынок неполный`;
   document.querySelectorAll('[data-group]').forEach((button) => {
     const active = button.dataset.group === state.group;
     button.setAttribute('aria-selected', String(active)); button.tabIndex = active ? 0 : -1;
@@ -61,7 +62,11 @@ function renderListings() {
 }
 async function loadListings() {
   state.loading = true; state.error = null; renderListings();
-  try { state.listings = await fetchListings({ allowFixtureFallback: false }); state.rows = classifyInventory(state.listings); syncOptions(); }
+  try {
+    const localRuntime = ['localhost', '127.0.0.1'].includes(location.hostname);
+    state.listings = await fetchListings({ allowFixtureFallback: localRuntime });
+    state.rows = classifyInventory(state.listings); syncOptions();
+  }
   catch (error) { console.error('Listing load failed', error); state.error = error; }
   state.loading = false; renderListings();
 }
