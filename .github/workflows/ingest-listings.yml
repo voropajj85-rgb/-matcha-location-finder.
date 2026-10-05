@@ -1,67 +1,9 @@
-name: Ingest listings
-
+name: Disabled
 on:
   workflow_dispatch:
-    inputs:
-      source:
-        description: "Optional source: kleinanzeigen, immowelt, immoscout24, stadt-muenchen, brokers (Colliers/JLL)"
-        required: false
-        type: string
-  schedule:
-    - cron: "17 6,18 * * *"
-
-permissions:
-  contents: read
-
 jobs:
-  ingest:
+  disabled:
+    if: ${{ false }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      SUPABASE_URL: https://gyezuxxihgiagzirabpv.supabase.co
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
-      - name: Syntax checks
-        run: |
-          node --check scripts/check-listings.js
-          node --check scripts/ingest/run-ingestion.js
-          node --check scripts/ingest/normalize-listing.js
-          node --check scripts/ingest/deduplicate-listings.js
-          node --check scripts/ingest/verify-listings.js
-          node --check scripts/ingest/supabase-upsert.js
-          node --check scripts/ingest/business-fit.js
-
-      - name: Unit-like ingestion tests
-        run: node scripts/ingest/tests/ingestion.test.js
-
-      - name: Run scheduled ingestion
-        shell: bash
-        run: |
-          SOURCE_ARG=""
-          if [ -n "${{ inputs.source }}" ]; then
-            SOURCE_ARG="--source=${{ inputs.source }}"
-          fi
-
-          if [ -n "$SUPABASE_SERVICE_ROLE_KEY" ]; then
-            echo "Running controlled production ingestion"
-            node scripts/ingest/run-ingestion.js $SOURCE_ARG --production --validation-report
-          else
-            echo "SUPABASE_SERVICE_ROLE_KEY is not configured; running safe dry-run"
-            node scripts/ingest/run-ingestion.js $SOURCE_ARG --dry-run --validation-report
-          fi
-
-      - name: Upload validation report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ingestion-validation-report
-          path: scripts/ingest/reports/latest-validation.json
+      - run: echo disabled
