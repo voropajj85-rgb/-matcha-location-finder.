@@ -8,12 +8,16 @@ const MIME = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; chars
 
 function rootDir() { return path.resolve(__dirname, '..'); }
 function safePath(urlPath) {
-  const decoded = decodeURIComponent((urlPath || '/').split('?')[0]);
-  const relative = decoded === '/' ? 'index.html' : decoded.replace(/^\/+/, '');
-  const absolute = path.resolve(rootDir(), relative);
-  const fromRoot = path.relative(rootDir(), absolute);
-  if (fromRoot.startsWith('..') || path.isAbsolute(fromRoot)) return null;
-  return absolute;
+  try {
+    const decoded = decodeURIComponent((urlPath || '/').split('?')[0]);
+    const relative = decoded === '/' ? 'index.html' : decoded.replace(/^\/+/, '');
+    const absolute = path.resolve(rootDir(), relative);
+    const fromRoot = path.relative(rootDir(), absolute);
+    if (fromRoot.startsWith('..') || path.isAbsolute(fromRoot)) return null;
+    return absolute;
+  } catch {
+    return null;
+  }
 }
 function startServer() {
   return new Promise((resolve, reject) => {
