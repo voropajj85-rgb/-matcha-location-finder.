@@ -14,7 +14,17 @@ on:
       - 'scripts/tests/workspace.test.js'
       - '.github/workflows/windows-build.yml'
   push:
+    branches: ['**']
     tags: ['desktop-v*']
+    paths:
+      - 'electron/**'
+      - 'package.json'
+      - 'index.html'
+      - 'css/**'
+      - 'js/**'
+      - 'data/workspace.json'
+      - 'scripts/tests/workspace.test.js'
+      - '.github/workflows/windows-build.yml'
 
 permissions:
   contents: read
