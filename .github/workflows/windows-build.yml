@@ -7,6 +7,7 @@ on:
     tags: ['desktop-v*']
     paths:
       - 'electron/**'
+      - 'build/**'
       - 'package.json'
       - 'index.html'
       - 'css/**'
