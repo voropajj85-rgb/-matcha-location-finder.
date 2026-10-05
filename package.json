@@ -7,7 +7,7 @@
   "scripts": {
     "start": "electron .",
     "check": "node --check electron/main.cjs && node --check js/workspace.js && node scripts/tests/workspace.test.js",
-    "dist:win": "electron-builder --win --x64"
+    "dist:win": "electron-builder --win --x64 --publish never"
   },
   "devDependencies": {
     "electron": "44.5.1",
@@ -54,5 +54,6 @@
     "portable": {
       "artifactName": "Matcha-Bar-Workspace-Portable-${version}-${arch}.${ext}"
     }
-  }
+  },
+  "author": "Matcha Bar Germany"
 }
