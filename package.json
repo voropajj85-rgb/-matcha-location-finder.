@@ -42,7 +42,8 @@
             "x64"
           ]
         }
-      ]
+      ],
+      "icon": "build/icon.svg"
     },
     "nsis": {
       "oneClick": false,
